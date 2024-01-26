@@ -1,0 +1,23 @@
+syntax = "proto3";
+package wetrycode.begonia;
+option go_package = "github.com/wetrycode/begonia/api/v1";
+import "google/protobuf/timestamp.proto";
+
+// 权限资源表 (Resources)
+message Resource{
+    // @gotags: gorm:"primaryKey;autoIncrement;comment:自增id"
+    int64 ID = 1;
+    // @gotags: json:"resource_key" gorm:"column:resource_key;type:varchar(36);comment:资源id"
+    string ResourceKey = 2;
+    // @gotags: json:"resource_name" gorm:"column:resource_name;type:varchar(128);comment:资源名称"
+    string ResourceName = 3;
+    // @gotags: json:"resource_table" gorm:"column:resource_table;type:varchar(128);comment:资源表名称"
+    string ResourceTable = 4;
+    // @gotags: doc:"任务ID" json:"uid" gorm:"column:uid;type:varchar(36);comment:uid"
+    string uid=5;
+    // @gotags: doc:"完成时间" gorm:"column:completed_at;type:datetime;serializer:timepb;comment:定时任务的最近一次完成时间"
+    google.protobuf.Timestamp created_at = 6;
+    // @gotags: doc:"更新时间" gorm:"autoUpdateTime;column:updated_at;type:datetime;serializer:timepb;comment:定时任务的更新时间"
+    google.protobuf.Timestamp updated_at = 7;
+    
+    }
