@@ -1,0 +1,47 @@
+syntax = "proto3";
+package wetrycode.begonia;
+option go_package = "github.com/wetrycode/begonia/api/v1";
+import "google/protobuf/descriptor.proto";
+import "google/protobuf/any.proto";
+extend google.protobuf.EnumValueOptions {
+	optional string description = 50031;
+  optional int32 http_code = 50032;
+  }
+  
+enum Code {
+    UNKNOWN = 0 [(description) = "未知的错误",(http_code)=500];
+    OK = 2000 [(description) = "请求处理成功",(http_code)=200];
+	// 请求参数错误
+	PARAMS_ERROR = 4000 [(description) = "参数错误",(http_code)=400];
+  // AUTH_ERROR
+  AUTH_ERROR = 4001 [(description) = "认证错误",(http_code)=401];
+  PREMISSION_DENIED = 4003[(description) = "权限不足",(http_code)=403];
+  NOT_FOUND = 4004[(description) = "找不到资源",(http_code)=404];
+  TOKEN_NOT_FOUND=4006 [(description) = "内部错误",(http_code)=404];
+	INTERNAL_ERROR=5000 [(description) = "内部错误",(http_code)=500];
+  METADATA_MISSING=4007 [(description) = "缺少元数据",(http_code)=400];
+}
+message APIResponse {
+    string message=1;
+    double code =2;
+    string response_type=3 [json_name="response_type"];
+    bytes data=4;
+}
+message EventStreamResponse {
+    string event=1;
+    string data =2;
+    int64 id=3 ;
+    int32 retry=4;
+}
+
+message Errors {
+      // 给前端的状态码
+      int32 code = 1;
+      // 这个对应着`google.rpc.Status.message`。
+      // 提供给用户的错误信息
+      string message = 2;
+      // 这个对应着`google.rpc.Status.details`
+      repeated google.protobuf.Any details = 4;
+      int32 grpc_status = 3;
+
+}
