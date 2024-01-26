@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.18.1
-	github.com/wetrycode/begonia v0.0.0-20240126032439-125cf65a1ffe
+	github.com/wetrycode/begonia v0.0.0-20240126043225-7711f520daaf
 	google.golang.org/genproto/googleapis/api v0.0.0-20231106174013-bbf56f31fb17
 	google.golang.org/grpc v1.59.0
 	google.golang.org/protobuf v1.32.0

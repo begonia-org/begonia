@@ -19,7 +19,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	newRegisterFunc := newEndpointSymbol.(func() endpoint.EndpointRegisters)
+	newRegisterFunc := newEndpointSymbol.(func() endpoint.EndpointRegister)
 	newEndpointRegisters := newRegisterFunc()
 	mux := runtime.NewServeMux()
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}

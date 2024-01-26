@@ -7,7 +7,8 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
 )
-type EndpointRegisters interface {
+
+type EndpointRegister interface {
 	RegisterService(serviceName string, ctx context.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) (err error)
 }
 type EndpointRegisterFunc func(serviceName string, ctx context.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) (err error)
@@ -23,4 +24,7 @@ func AddEndpoint(name string, registerFunc EndpointRegisterFunc) {
 	GlobalEndpoints[name] = registerFunc
 }
 
-
+// type Endpoint interface{
+// 	RegisterHandlerFromEndpoint(ctx context.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) (err error)
+// 	RegisterHandler(ctx context.Context, mux *runtime.ServeMux, conn *grpc.ClientConn) error
+// }

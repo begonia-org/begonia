@@ -19,7 +19,9 @@ import "google/protobuf/descriptor.proto";
 extend google.protobuf.EnumValueOptions {
   optional string msg = 50036;
 }
-
+message Endpoint {
+  string address = 1;
+}
 extend google.protobuf.FileOptions {
   optional string go_mod_pkg = 50037;
 }

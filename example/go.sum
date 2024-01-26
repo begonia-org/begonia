@@ -7,6 +7,8 @@ github.com/grpc-ecosystem/grpc-gateway/v2 v2.18.1 h1:6UKoz5ujsI55KNpsJH3UwCq3T8k
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.18.1/go.mod h1:YvJ2f6MplWDhfxiUC3KpyTy76kYUZA4W3pTv/wdKQ9Y=
 github.com/wetrycode/begonia v0.0.0-20240126032439-125cf65a1ffe h1:NPcQoxafwWu5xe6envjTXVZAFb0qOnQju8IWmhhvdAM=
 github.com/wetrycode/begonia v0.0.0-20240126032439-125cf65a1ffe/go.mod h1:RRT4/8fOh7nv/OBCAUSHS6mjETv/EKbHHb+n7+kO6p0=
+github.com/wetrycode/begonia v0.0.0-20240126043225-7711f520daaf h1:zic7pzZy400PvkaJgAOKip5AnEb1mju5dmJAg2DWLtw=
+github.com/wetrycode/begonia v0.0.0-20240126043225-7711f520daaf/go.mod h1:RRT4/8fOh7nv/OBCAUSHS6mjETv/EKbHHb+n7+kO6p0=
 golang.org/x/net v0.19.0 h1:zTwKpTd2XuCqf8huc7Fo2iSy+4RHPd10s4KzeTnVr1c=
 golang.org/x/net v0.19.0/go.mod h1:CfAk/cbD4CthTvqiEl8NpboMuiuOYsAr/7NOjZJtv1U=
 golang.org/x/sys v0.15.0 h1:h48lPFYpsTvQJZF4EKyI4aLHaev3CxivZmv7yZig9pc=
