@@ -10,23 +10,25 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/wetrycode/begonia/example/api/v1"
 	"google.golang.org/grpc"
+	"github.com/wetrycode/begonia/runtime/endpoint"
 )
 
-type endpointRegisters struct {
+
+type EndpointRegisterImpl struct {
 	serviceRegisters map[string]func(ctx context.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) (err error)
 }
 
-func NewEndpointRegisters() *endpointRegisters {
+func NewEndpointRegisters() endpoint.EndpointRegisters {
 	services := map[string]func(ctx context.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) (err error){
 
 		"Greeter": v1.RegisterGreeterHandlerFromEndpoint,
 	}
-	return &endpointRegisters{
+	return &EndpointRegisterImpl{
 		serviceRegisters: services,
 	}
 }
 
-func (e *endpointRegisters) RegisterService(serviceName string, ctx context.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) (err error) {
+func (e EndpointRegisterImpl) RegisterService(serviceName string, ctx context.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) (err error) {
 	if registerFunc, ok := e.serviceRegisters[serviceName]; ok {
 		return registerFunc(ctx, mux, endpoint, opts)
 	}
