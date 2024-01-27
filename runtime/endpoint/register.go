@@ -12,7 +12,7 @@ type EndpointRegister interface {
 	RegisterService(serviceName string, ctx context.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) (err error)
 	GetAllEndpoints() map[string]EndpointRegisterFunc
 }
-type EndpointRegisterFunc func(serviceName string, ctx context.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) (err error)
+type EndpointRegisterFunc func(ctx context.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) (err error)
 type Endpoints map[string]EndpointRegisterFunc
 
 var globalMutex sync.RWMutex
