@@ -134,11 +134,11 @@ func (p *protoLoaderImpl) LoadProto(zipFile string, pkg string, out string, name
 		return fmt.Errorf("解压文件失败,%w", err)
 	}
 	makefile := p.config.GetString("endpoints.proto.makefile")
-	// gomod:=p.config.GetString("endpoints.proto.gomod")
-	// err = p.CopyFile(gomod, filepath.Join(dir, "go.mod"))
-	// if err != nil {
-	// 	return err
-	// }
+	gomod := p.config.GetString("endpoints.proto.gomod")
+	err = p.CopyFile(gomod, filepath.Join(dir, "go.mod"))
+	if err != nil {
+		return err
+	}
 	err = p.CopyFile(makefile, filepath.Join(dir, "Makefile"))
 	if err != nil {
 		return err

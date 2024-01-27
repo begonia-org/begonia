@@ -12,7 +12,7 @@ import (
 	"github.com/wetrycode/begonia/internal/biz"
 	"github.com/wetrycode/begonia/internal/pkg/config"
 	"github.com/wetrycode/begonia/internal/pkg/logger"
-	"github.com/wetrycode/begonia/runtime/endpoint"
+	"github.com/wetrycode/begonia/endpoint"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
