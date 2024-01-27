@@ -31,7 +31,6 @@ TS_ARGS = --plugin="protoc-gen-ts=$(TS_PROTO_PLUGIN)" \
 
 common:
 	@mkdir -p $(OUTPUT_DIR)
-	@cp -f $(PROTO_DIR)/*/*.proto $(PROTO_DIR)/
 .PHONY: make_dir generate go python ts common
 clean:
 	@echo $(COMMON_PROTO_FILES) $(COMMON_FILES) “公共文件”
@@ -41,33 +40,7 @@ generate: make_dir go python ts common
 
 # 生成 Go 代码
 go: $(GO_PROTO_FILES) | common
-	$(PROTOC) -I=$(PROTO_DIR) $(GO_ARGS) $(COMMON_PROTO_FILES) $?
+	$(PROTOC) -I=$(PROTO_DIR) $(GO_ARGS) $?
 	protoc-go-inject-tag -input="$(OUTPUT_DIR)/*.pb.go"
 	@$(MAKE) clean
 
-# 生成 Python 代码
-python: $(PY_PROTO_FILES) | common
-	touch $(OUTPUT_DIR)/__init__.py
-	echo "#!/usr/bin/env python" > $(OUTPUT_DIR)/__init__.py
-	$(PYTHON) $(PY_ARGS) $(COMMON_PROTO_FILES) $?
-	sed -i '/from/!s/import \(.*\) as/from . import \1 as/g' $(OUTPUT_DIR)/*.py*
-	@$(MAKE) clean
-# 生成 TypeScript 代码
-ts: $(TS_PROTO_FILES) | common
-	$(PROTOC) -I=$(PROTO_DIR) $(TS_ARGS) $(COMMON_PROTO_FILES) $?
-	@$(MAKE) clean
-# 特定文件的规则
-%_go: $(PROTO_DIR)/%.proto | common
-	$(PROTOC) -I=$(PROTO_DIR) $(GO_ARGS) $(COMMON_PROTO_FILES) $< 
-	protoc-go-inject-tag -input="$(OUTPUT_DIR)/$*.pb.go"
-	@$(MAKE) clean
-%_py: $(PROTO_DIR)/%.proto | common
-	touch $(OUTPUT_DIR)/__init__.py
-	echo "#!/usr/bin/env python" > $(OUTPUT_DIR)/__init__.py
-	$(PYTHON) -m grpc_tools.protoc -I=$(PROTO_DIR) --python_out=$(OUTPUT_DIR) \
-    --pyi_out=$(OUTPUT_DIR) --grpc_python_out=$(OUTPUT_DIR) $(PY_ARGS) $(COMMON_PROTO_FILES) $< 
-	sed -i '/from/!s/import \(.*\) as/from . import \1 as/g' $(OUTPUT_DIR)/$*.py*
-	@$(MAKE) clean
-%_ts: $(PROTO_DIR)/%.proto | common
-	$(PROTOC) -I=$(PROTO_DIR) $(TS_ARGS) $(COMMON_PROTO_FILES) $<
-	@$(MAKE) clean

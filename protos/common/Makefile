@@ -7,7 +7,7 @@ TS_PROTO_PLUGIN = $(shell which protoc-gen-ts_proto)
 
 # 目标文件夹
 PROTO_DIR = .
-OUTPUT_DIR = ../pb
+OUTPUT_DIR = ../../common/api/v1
 
 # 文件列表
 GO_PROTO_FILES = $(wildcard $(PROTO_DIR)/*.proto)

@@ -45,7 +45,7 @@ func TestEndpointWatch(t *testing.T) {
 		// defer patch3.Reset()
 		go e.Watch(ctx, conf.GetPluginDir())
 		load := runtime.NewProtoLoaderImpl(conf)
-		err := load.LoadProto("../../example/protos.zip", "github.com/wetrycode/example", "./api/v1", "example")
+		err := load.LoadProto("../../example/protos.zip", "github.com/wetrycode/example2", "./api/v1", "example2")
 		t.Log(err)
 		c.So(err, c.ShouldBeNil)
 		time.Sleep(time.Second * 2)

@@ -3,8 +3,7 @@ package wetrycode.begonia;
 option go_package = "github.com/wetrycode/begonia/api/v1";
 import "google/api/annotations.proto";
 import "google/protobuf/descriptor.proto";
-
-import "web.proto";
+import "common/web.proto";
 import "user.proto";
 message LoginAPIRequest{
   string auth=1;
@@ -52,32 +51,32 @@ message AuthLogAPIResponse{
 	string timestamp=3;
 }
 service AuthService{
-rpc login (LoginAPIRequest) returns (APIResponse) {
+rpc login (LoginAPIRequest) returns (wetrycode.begonia.common.api.v1.APIResponse) {
 	option (google.api.http) = {
    post: "/api/v1/auth/login"
    body: "*"
  };
  
  }
- rpc logout (LogoutAPIRequest) returns (APIResponse) {
+ rpc logout (LogoutAPIRequest) returns (wetrycode.begonia.common.api.v1.APIResponse) {
 	option (google.api.http) = {
    get: "/api/v1/auth/logout"
  };
  }
- rpc account (AccountAPIRequest) returns (APIResponse) {
+ rpc account (AccountAPIRequest) returns (wetrycode.begonia.common.api.v1.APIResponse) {
 	option (google.api.http) = {
 		post: "/api/v1/auth/account"
 		body: "*"
  };
  
  }
- rpc authSeed (AuthLogAPIRequest) returns (APIResponse) {
+ rpc authSeed (AuthLogAPIRequest) returns (wetrycode.begonia.common.api.v1.APIResponse) {
 	option (google.api.http) = {
    post: "/api/v1/auth/log"
    body: "*"
  };
  }
- rpc regsiter(RegsiterAPIRequest)returns(APIResponse){
+ rpc regsiter(RegsiterAPIRequest)returns(wetrycode.begonia.common.api.v1.APIResponse){
 	option (google.api.http)={
 		post:"/api/v1/auth/regsiter"
 		body:"*"

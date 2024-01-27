@@ -3,6 +3,6 @@
     proto:
       makefile: "/data/work/wetrycode/begonia/internal/pkg/runtime/Makefile"
       gomod: "/data/work/wetrycode/begonia/go.mod"
-      wd: "/data/work/wetrycode/begonia"
+      wd: "/data/work/wetrycode"
     plugins:
       dir: "/data/work/wetrycode/begonia/plugins"

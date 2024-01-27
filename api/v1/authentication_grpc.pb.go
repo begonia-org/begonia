@@ -8,6 +8,7 @@ package v1
 
 import (
 	context "context"
+	v1 "github.com/wetrycode/begonia/common/api/v1"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -30,11 +31,11 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type AuthServiceClient interface {
-	Login(ctx context.Context, in *LoginAPIRequest, opts ...grpc.CallOption) (*APIResponse, error)
-	Logout(ctx context.Context, in *LogoutAPIRequest, opts ...grpc.CallOption) (*APIResponse, error)
-	Account(ctx context.Context, in *AccountAPIRequest, opts ...grpc.CallOption) (*APIResponse, error)
-	AuthSeed(ctx context.Context, in *AuthLogAPIRequest, opts ...grpc.CallOption) (*APIResponse, error)
-	Regsiter(ctx context.Context, in *RegsiterAPIRequest, opts ...grpc.CallOption) (*APIResponse, error)
+	Login(ctx context.Context, in *LoginAPIRequest, opts ...grpc.CallOption) (*v1.APIResponse, error)
+	Logout(ctx context.Context, in *LogoutAPIRequest, opts ...grpc.CallOption) (*v1.APIResponse, error)
+	Account(ctx context.Context, in *AccountAPIRequest, opts ...grpc.CallOption) (*v1.APIResponse, error)
+	AuthSeed(ctx context.Context, in *AuthLogAPIRequest, opts ...grpc.CallOption) (*v1.APIResponse, error)
+	Regsiter(ctx context.Context, in *RegsiterAPIRequest, opts ...grpc.CallOption) (*v1.APIResponse, error)
 }
 
 type authServiceClient struct {
@@ -45,8 +46,8 @@ func NewAuthServiceClient(cc grpc.ClientConnInterface) AuthServiceClient {
 	return &authServiceClient{cc}
 }
 
-func (c *authServiceClient) Login(ctx context.Context, in *LoginAPIRequest, opts ...grpc.CallOption) (*APIResponse, error) {
-	out := new(APIResponse)
+func (c *authServiceClient) Login(ctx context.Context, in *LoginAPIRequest, opts ...grpc.CallOption) (*v1.APIResponse, error) {
+	out := new(v1.APIResponse)
 	err := c.cc.Invoke(ctx, AuthService_Login_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -54,8 +55,8 @@ func (c *authServiceClient) Login(ctx context.Context, in *LoginAPIRequest, opts
 	return out, nil
 }
 
-func (c *authServiceClient) Logout(ctx context.Context, in *LogoutAPIRequest, opts ...grpc.CallOption) (*APIResponse, error) {
-	out := new(APIResponse)
+func (c *authServiceClient) Logout(ctx context.Context, in *LogoutAPIRequest, opts ...grpc.CallOption) (*v1.APIResponse, error) {
+	out := new(v1.APIResponse)
 	err := c.cc.Invoke(ctx, AuthService_Logout_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -63,8 +64,8 @@ func (c *authServiceClient) Logout(ctx context.Context, in *LogoutAPIRequest, op
 	return out, nil
 }
 
-func (c *authServiceClient) Account(ctx context.Context, in *AccountAPIRequest, opts ...grpc.CallOption) (*APIResponse, error) {
-	out := new(APIResponse)
+func (c *authServiceClient) Account(ctx context.Context, in *AccountAPIRequest, opts ...grpc.CallOption) (*v1.APIResponse, error) {
+	out := new(v1.APIResponse)
 	err := c.cc.Invoke(ctx, AuthService_Account_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -72,8 +73,8 @@ func (c *authServiceClient) Account(ctx context.Context, in *AccountAPIRequest, 
 	return out, nil
 }
 
-func (c *authServiceClient) AuthSeed(ctx context.Context, in *AuthLogAPIRequest, opts ...grpc.CallOption) (*APIResponse, error) {
-	out := new(APIResponse)
+func (c *authServiceClient) AuthSeed(ctx context.Context, in *AuthLogAPIRequest, opts ...grpc.CallOption) (*v1.APIResponse, error) {
+	out := new(v1.APIResponse)
 	err := c.cc.Invoke(ctx, AuthService_AuthSeed_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -81,8 +82,8 @@ func (c *authServiceClient) AuthSeed(ctx context.Context, in *AuthLogAPIRequest,
 	return out, nil
 }
 
-func (c *authServiceClient) Regsiter(ctx context.Context, in *RegsiterAPIRequest, opts ...grpc.CallOption) (*APIResponse, error) {
-	out := new(APIResponse)
+func (c *authServiceClient) Regsiter(ctx context.Context, in *RegsiterAPIRequest, opts ...grpc.CallOption) (*v1.APIResponse, error) {
+	out := new(v1.APIResponse)
 	err := c.cc.Invoke(ctx, AuthService_Regsiter_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -94,11 +95,11 @@ func (c *authServiceClient) Regsiter(ctx context.Context, in *RegsiterAPIRequest
 // All implementations must embed UnimplementedAuthServiceServer
 // for forward compatibility
 type AuthServiceServer interface {
-	Login(context.Context, *LoginAPIRequest) (*APIResponse, error)
-	Logout(context.Context, *LogoutAPIRequest) (*APIResponse, error)
-	Account(context.Context, *AccountAPIRequest) (*APIResponse, error)
-	AuthSeed(context.Context, *AuthLogAPIRequest) (*APIResponse, error)
-	Regsiter(context.Context, *RegsiterAPIRequest) (*APIResponse, error)
+	Login(context.Context, *LoginAPIRequest) (*v1.APIResponse, error)
+	Logout(context.Context, *LogoutAPIRequest) (*v1.APIResponse, error)
+	Account(context.Context, *AccountAPIRequest) (*v1.APIResponse, error)
+	AuthSeed(context.Context, *AuthLogAPIRequest) (*v1.APIResponse, error)
+	Regsiter(context.Context, *RegsiterAPIRequest) (*v1.APIResponse, error)
 	mustEmbedUnimplementedAuthServiceServer()
 }
 
@@ -106,19 +107,19 @@ type AuthServiceServer interface {
 type UnimplementedAuthServiceServer struct {
 }
 
-func (UnimplementedAuthServiceServer) Login(context.Context, *LoginAPIRequest) (*APIResponse, error) {
+func (UnimplementedAuthServiceServer) Login(context.Context, *LoginAPIRequest) (*v1.APIResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Login not implemented")
 }
-func (UnimplementedAuthServiceServer) Logout(context.Context, *LogoutAPIRequest) (*APIResponse, error) {
+func (UnimplementedAuthServiceServer) Logout(context.Context, *LogoutAPIRequest) (*v1.APIResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Logout not implemented")
 }
-func (UnimplementedAuthServiceServer) Account(context.Context, *AccountAPIRequest) (*APIResponse, error) {
+func (UnimplementedAuthServiceServer) Account(context.Context, *AccountAPIRequest) (*v1.APIResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Account not implemented")
 }
-func (UnimplementedAuthServiceServer) AuthSeed(context.Context, *AuthLogAPIRequest) (*APIResponse, error) {
+func (UnimplementedAuthServiceServer) AuthSeed(context.Context, *AuthLogAPIRequest) (*v1.APIResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AuthSeed not implemented")
 }
-func (UnimplementedAuthServiceServer) Regsiter(context.Context, *RegsiterAPIRequest) (*APIResponse, error) {
+func (UnimplementedAuthServiceServer) Regsiter(context.Context, *RegsiterAPIRequest) (*v1.APIResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Regsiter not implemented")
 }
 func (UnimplementedAuthServiceServer) mustEmbedUnimplementedAuthServiceServer() {}

@@ -24,7 +24,7 @@ GO_ARGS = --go_out=$(OUTPUT_DIR) --go_opt=paths=source_relative \
 
 common:
 	@mkdir -p $(OUTPUT_DIR)
-	@sed -i 's|github.com/wetrycode/begonia|$(PKG)|g' go.mod
+	@sed -i 's|module github.com/wetrycode/begonia|module $(PKG)|g' go.mod
 
 .PHONY: make_dir generate go python ts common clean
 clean:
