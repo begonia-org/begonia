@@ -5,8 +5,8 @@ github.com/google/go-cmp v0.5.5/go.mod h1:v8dTdLbMG2kIc/vJvl+f65V22dbkXbowE6jgT/
 github.com/google/go-cmp v0.6.0 h1:ofyhxvXcZhMsU5ulbFiLKl/XBFqE1GSq7atu8tAmTRI=
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.19.0 h1:Wqo399gCIufwto+VfwCSvsnfGpF/w5E9CNxSwbpD6No=
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.19.0/go.mod h1:qmOFXW2epJhM0qSnUUYpldc7gVz2KMQwJ/QYCDIa7XU=
-github.com/wetrycode/begonia v0.0.0-20240126104749-dabccb74cb88 h1:r96s38/6foq/GodzNl7RbDnR1T3wHlWBJ9bI9ipQ9Nc=
-github.com/wetrycode/begonia v0.0.0-20240126104749-dabccb74cb88/go.mod h1:RRT4/8fOh7nv/OBCAUSHS6mjETv/EKbHHb+n7+kO6p0=
+github.com/wetrycode/begonia v0.0.0-20240127075303-7a8f1d526049 h1:Q07t/JSGq4kBSvodRyEFm4rjeQISkQbcjh8JqMni9W0=
+github.com/wetrycode/begonia v0.0.0-20240127075303-7a8f1d526049/go.mod h1:NqVeRImvPgwDnjgZzCe9RpYFH5O5c/1qIRpFLXUAxqM=
 golang.org/x/net v0.19.0 h1:zTwKpTd2XuCqf8huc7Fo2iSy+4RHPd10s4KzeTnVr1c=
 golang.org/x/net v0.19.0/go.mod h1:CfAk/cbD4CthTvqiEl8NpboMuiuOYsAr/7NOjZJtv1U=
 golang.org/x/sys v0.15.0 h1:h48lPFYpsTvQJZF4EKyI4aLHaev3CxivZmv7yZig9pc=

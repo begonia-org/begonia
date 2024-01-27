@@ -17,7 +17,7 @@ import (
 )
 
 type ProtosLoader interface {
-	LoadProto(zipFile string, pkg string, out string,name string) error
+	LoadProto(zipFile string, pkg string, out string, name string) error
 }
 
 type protoLoaderImpl struct {
@@ -47,8 +47,8 @@ func (p *protoLoaderImpl) unzip(zipFile string, destDir string) error {
 		// 检查文件是否为目录
 		if f.FileInfo().IsDir() {
 			// 创建目录
-		    err:=os.MkdirAll(fpath, os.ModePerm)
-			if err!=nil{
+			err := os.MkdirAll(fpath, os.ModePerm)
+			if err != nil {
 				return err
 			}
 			continue
@@ -107,9 +107,9 @@ func (p *protoLoaderImpl) CopyFile(src, dst string) error {
 	err = destFile.Sync()
 	return err
 }
-func (p *protoLoaderImpl) Makefile(dir, pkg, outDir string) (string,error) {
-	pluginName:=strings.ReplaceAll(pkg,"/",".")
-	cmd := exec.Command("make", "go", "PKG="+pkg, "OUT="+outDir,"PLUGIN_NAME="+pluginName)
+func (p *protoLoaderImpl) Makefile(dir, pkg, outDir string) (string, error) {
+	pluginName := strings.ReplaceAll(pkg, "/", ".")
+	cmd := exec.Command("make", "go", "PKG="+pkg, "OUT="+outDir, "PLUGIN_NAME="+pluginName)
 	// 创建一个缓冲区用来存储命令的输出
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -119,11 +119,11 @@ func (p *protoLoaderImpl) Makefile(dir, pkg, outDir string) (string,error) {
 	err := cmd.Run()
 	if err != nil {
 		fmt.Println("Error:", err)
-		return "",fmt.Errorf("执行命令失败,%w,%s", err, out.String())
+		return "", fmt.Errorf("执行命令失败,%w,%s", err, out.String())
 	}
 	return pluginName, nil
 }
-func (p *protoLoaderImpl) LoadProto(zipFile string, pkg string, out string,name string) error {
+func (p *protoLoaderImpl) LoadProto(zipFile string, pkg string, out string, name string) error {
 	filename := filepath.Base(zipFile)
 	filename = strings.TrimSuffix(filename, filepath.Ext(filename))
 	protoDir := p.config.GetString("endpoints.proto.wd")
@@ -134,6 +134,11 @@ func (p *protoLoaderImpl) LoadProto(zipFile string, pkg string, out string,name 
 		return fmt.Errorf("解压文件失败,%w", err)
 	}
 	makefile := p.config.GetString("endpoints.proto.makefile")
+	// gomod:=p.config.GetString("endpoints.proto.gomod")
+	// err = p.CopyFile(gomod, filepath.Join(dir, "go.mod"))
+	// if err != nil {
+	// 	return err
+	// }
 	err = p.CopyFile(makefile, filepath.Join(dir, "Makefile"))
 	if err != nil {
 		return err
@@ -144,7 +149,7 @@ func (p *protoLoaderImpl) LoadProto(zipFile string, pkg string, out string,name 
 	if err != nil {
 		return fmt.Errorf("切换目录失败,%w", err)
 	}
-	pluginName,err:= p.Makefile(dir, pkg, out)
+	pluginName, err := p.Makefile(dir, pkg, out)
 	if err != nil {
 		return fmt.Errorf("构建插件失败,%w", err)
 	}
@@ -157,5 +162,5 @@ func (p *protoLoaderImpl) LoadProto(zipFile string, pkg string, out string,name 
 	defer func(dir string) {
 		os.RemoveAll(dir)
 	}(dir)
-	return p.CopyFile(filepath.Join(dir, fmt.Sprintf("%s.so", pluginName)), filepath.Join(pluginDir, fmt.Sprintf("%s.so",pluginName)))
+	return p.CopyFile(filepath.Join(dir, fmt.Sprintf("%s.so", pluginName)), filepath.Join(pluginDir, fmt.Sprintf("%s.so", pluginName)))
 }

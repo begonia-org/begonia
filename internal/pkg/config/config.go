@@ -5,9 +5,11 @@ import (
 
 	"github.com/spark-lence/tiga"
 )
+
 const (
 	APIPkg string = "api.v1"
 )
+
 type Config struct {
 	*tiga.Configuration
 }
@@ -45,4 +47,8 @@ func (c *Config) GetAesConfig() (key string, iv string) {
 }
 func (c *Config) GetCorsConfig() []string {
 	return c.GetStringSlice(fmt.Sprintf("%s.gateway.cors", c.GetEnv()))
+}
+
+func (c *Config) GetPluginDir() string {
+	return c.GetString("endpoints.plugins.dir")
 }

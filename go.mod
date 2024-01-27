@@ -3,6 +3,7 @@ module github.com/wetrycode/begonia
 go 1.20
 
 require (
+	github.com/agiledragon/gomonkey/v2 v2.11.0
 	github.com/allegro/bigcache/v3 v3.1.0
 	github.com/bsm/redislock v0.9.4
 	github.com/cockroachdb/errors v1.11.1
@@ -21,7 +22,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/colinmarc/hdfs/v2 v2.4.0 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
-	github.com/fsnotify/fsnotify v1.7.0 // indirect
+	github.com/fsnotify/fsnotify v1.7.0
 	github.com/go-sql-driver/mysql v1.7.1 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/uuid v1.5.0

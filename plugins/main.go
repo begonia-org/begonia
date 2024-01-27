@@ -11,7 +11,7 @@ import (
 )
 
 func main() {
-	p, err := plugin.Open("example.so")
+	p, err := plugin.Open("/data/work/wetrycode/begonia/example/example.so")
 	if err != nil {
 		panic(err)
 	}

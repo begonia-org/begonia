@@ -24,13 +24,7 @@ GO_ARGS = --go_out=$(OUTPUT_DIR) --go_opt=paths=source_relative \
 
 common:
 	@mkdir -p $(OUTPUT_DIR)
-	@if [ ! -f go.mod ]; then \
-		echo "Initializing go module"; \
-		go mod init $(PKG); \
-	else \
-		echo "go.mod already exists, skipping initialization"; \
-	fi
-	
+	@sed -i 's|github.com/wetrycode/begonia|$(PKG)|g' go.mod
 
 .PHONY: make_dir generate go python ts common clean
 clean:

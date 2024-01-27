@@ -14,11 +14,11 @@ import (
 )
 
 type endpointRegisters struct {
-	serviceRegisters map[string]func(ctx context.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) (err error)
+	serviceRegisters map[string]endpoint.EndpointRegisterFunc
 }
 
 func NewEndpointRegisters() endpoint.EndpointRegister {
-	services := map[string]func(ctx context.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) (err error){
+	services := map[string]endpoint.EndpointRegisterFunc{
 
 		"Greeter": v1.RegisterGreeterHandlerFromEndpoint,
 	}
@@ -30,6 +30,18 @@ func NewEndpointRegisters() endpoint.EndpointRegister {
 func (e *endpointRegisters) RegisterService(serviceName string, ctx context.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) (err error) {
 	if registerFunc, ok := e.serviceRegisters[serviceName]; ok {
 		return registerFunc(ctx, mux, endpoint, opts)
+	}
+	return nil
+}
+
+func (e *endpointRegisters) GetAllEndpoints() map[string]endpoint.EndpointRegisterFunc {
+	return e.serviceRegisters
+}
+func (e *endpointRegisters) RegisterAll(ctx context.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) (err error) {
+	for _, registerFunc := range e.serviceRegisters {
+		if err = registerFunc(ctx, mux, endpoint, opts); err != nil {
+			return err
+		}
 	}
 	return nil
 }
