@@ -1,6 +1,5 @@
 package config
 
-
 import (
 	"path/filepath"
 	"runtime"

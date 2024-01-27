@@ -17,7 +17,7 @@ import (
 )
 
 type ProtosLoader interface {
-	LoadProto(zipFile string, tmpDir string, pkg string, out string) error
+	LoadProto(zipFile string, pkg string, out string,name string) error
 }
 
 type protoLoaderImpl struct {
@@ -47,7 +47,10 @@ func (p *protoLoaderImpl) unzip(zipFile string, destDir string) error {
 		// 检查文件是否为目录
 		if f.FileInfo().IsDir() {
 			// 创建目录
-			os.MkdirAll(fpath, os.ModePerm)
+		    err:=os.MkdirAll(fpath, os.ModePerm)
+			if err!=nil{
+				return err
+			}
 			continue
 		}
 
@@ -104,8 +107,9 @@ func (p *protoLoaderImpl) CopyFile(src, dst string) error {
 	err = destFile.Sync()
 	return err
 }
-func (p *protoLoaderImpl) Makefile(dir, pkg, outDir string) error {
-	cmd := exec.Command("make", "go", "PKG="+pkg, "OUT="+outDir)
+func (p *protoLoaderImpl) Makefile(dir, pkg, outDir string) (string,error) {
+	pluginName:=strings.ReplaceAll(pkg,"/",".")
+	cmd := exec.Command("make", "go", "PKG="+pkg, "OUT="+outDir,"PLUGIN_NAME="+pluginName)
 	// 创建一个缓冲区用来存储命令的输出
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -115,20 +119,22 @@ func (p *protoLoaderImpl) Makefile(dir, pkg, outDir string) error {
 	err := cmd.Run()
 	if err != nil {
 		fmt.Println("Error:", err)
-		return fmt.Errorf("执行命令失败,%w,%s", err, string(out.Bytes()))
+		return "",fmt.Errorf("执行命令失败,%w,%s", err, out.String())
 	}
-	return nil
+	return pluginName, nil
 }
-func (p *protoLoaderImpl) LoadProto(zipFile string, tmpDir string, pkg string, out string) error {
+func (p *protoLoaderImpl) LoadProto(zipFile string, pkg string, out string,name string) error {
 	filename := filepath.Base(zipFile)
 	filename = strings.TrimSuffix(filename, filepath.Ext(filename))
-	dir := filepath.Join(tmpDir, filename, time.Now().Format("20060102150405"), "protos")
+	protoDir := p.config.GetString("endpoints.proto.wd")
+	dir := filepath.Join(protoDir, filename, time.Now().Format("20060102150405"), "protos")
 
 	err := p.unzip(zipFile, dir)
 	if err != nil {
 		return fmt.Errorf("解压文件失败,%w", err)
 	}
-	err = p.CopyFile("/data/work/wetrycode/begonia/internal/pkg/runtime/Makefile", filepath.Join(dir, "Makefile"))
+	makefile := p.config.GetString("endpoints.proto.makefile")
+	err = p.CopyFile(makefile, filepath.Join(dir, "Makefile"))
 	if err != nil {
 		return err
 	}
@@ -138,5 +144,18 @@ func (p *protoLoaderImpl) LoadProto(zipFile string, tmpDir string, pkg string, o
 	if err != nil {
 		return fmt.Errorf("切换目录失败,%w", err)
 	}
-	return p.Makefile(dir, pkg, out)
+	pluginName,err:= p.Makefile(dir, pkg, out)
+	if err != nil {
+		return fmt.Errorf("构建插件失败,%w", err)
+	}
+	pluginDir := p.config.GetString("endpoints.plugins.dir")
+	pluginDir = filepath.Join(pluginDir, name)
+	err = os.MkdirAll(pluginDir, os.ModePerm)
+	if err != nil {
+		return fmt.Errorf("创建插件目录失败,%w", err)
+	}
+	defer func(dir string) {
+		os.RemoveAll(dir)
+	}(dir)
+	return p.CopyFile(filepath.Join(dir, fmt.Sprintf("%s.so", pluginName)), filepath.Join(pluginDir, fmt.Sprintf("%s.so",pluginName)))
 }

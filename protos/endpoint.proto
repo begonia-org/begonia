@@ -1,0 +1,12 @@
+syntax = "proto3";
+package wetrycode.begonia;
+option go_package = "github.com/wetrycode/begonia/api/v1";
+import "google/api/annotations.proto";
+import "google/protobuf/descriptor.proto";
+
+message EndpointRequest{
+    string name=1;
+    string description=2;
+    string go_package=3 [json_name="go_package"]; 
+    string proto_path=4 [json_name="proto_path"];
+}

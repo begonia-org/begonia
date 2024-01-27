@@ -1,0 +1,7 @@
+"dev":
+  endpoints:
+    proto:
+      makefile: "/data/work/wetrycode/begonia/internal/pkg/runtime/Makefile"
+      wd: "/data/work/wetrycode/begonia"
+    plugins:
+      dir: "/data/work/wetrycode/begonia/plugins"
