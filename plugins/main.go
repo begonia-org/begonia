@@ -5,7 +5,7 @@ import (
 	"plugin"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	"github.com/wetrycode/begonia/runtime/endpoint"
+	"github.com/wetrycode/begonia/endpoint"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
