@@ -5,6 +5,8 @@ go 1.20
 require (
 	github.com/agiledragon/gomonkey/v2 v2.11.0
 	github.com/allegro/bigcache/v3 v3.1.0
+	github.com/begonia-org/begonia/common v0.0.0-20240128145039-c45ac93517b9
+	github.com/begonia-org/begonia/endpoint v0.0.0-20240128145039-c45ac93517b9
 	github.com/bsm/redislock v0.9.4
 	github.com/cockroachdb/errors v1.11.1
 	github.com/google/wire v0.5.0
@@ -12,8 +14,7 @@ require (
 	github.com/smartystreets/goconvey v1.8.1
 	github.com/spark-lence/tiga v0.0.0-20240128050857-770874fd3b9e
 	github.com/spf13/cobra v1.8.0
-	github.com/begonia-org/begonia/common v0.0.0-20240127130759-7b867e2ffa98
-	github.com/begonia-org/begonia/endpoint v0.0.0-20240127122023-ac67007d919a
+	golang.org/x/net v0.20.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20240125205218-1f4bbc51befe
 	google.golang.org/grpc v1.61.0
 	google.golang.org/protobuf v1.32.0
@@ -96,7 +97,6 @@ require (
 	go.etcd.io/etcd/client/pkg/v3 v3.5.11 // indirect
 	go.etcd.io/etcd/client/v3 v3.5.11 // indirect
 	go.uber.org/zap v1.26.0 // indirect
-	golang.org/x/net v0.20.0 // indirect
 	golang.org/x/sys v0.16.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	google.golang.org/genproto v0.0.0-20240125205218-1f4bbc51befe // indirect

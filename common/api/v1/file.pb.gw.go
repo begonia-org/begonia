@@ -136,7 +136,7 @@ func RegisterFileServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/begonia-org.begonia.common.api.v1.FileService/UploadFile", runtime.WithHTTPPathPattern("/api/v1/file/upload"))
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/begonia.org.begonia.common.api.v1.FileService/UploadFile", runtime.WithHTTPPathPattern("/api/v1/file/upload"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return

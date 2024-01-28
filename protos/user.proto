@@ -1,5 +1,5 @@
 syntax = "proto3";
-package begonia-org.begonia;
+package begonia.org.begonia;
 option go_package = "github.com/begonia-org/begonia/api/v1";
 import "google/protobuf/timestamp.proto";
 

@@ -1,5 +1,5 @@
 syntax = "proto3";
-package begonia-org.begonia;
+package begonia.org.begonia;
 option go_package = "github.com/begonia-org/begonia/api/v1";
 import "google/api/annotations.proto";
 import "google/protobuf/descriptor.proto";
@@ -51,32 +51,32 @@ message AuthLogAPIResponse{
 	string timestamp=3;
 }
 service AuthService{
-rpc login (LoginAPIRequest) returns (begonia-org.begonia.common.api.v1.APIResponse) {
+rpc login (LoginAPIRequest) returns (.begonia.org.begonia.common.api.v1.APIResponse) {
 	option (google.api.http) = {
    post: "/api/v1/auth/login"
    body: "*"
  };
  
  }
- rpc logout (LogoutAPIRequest) returns (begonia-org.begonia.common.api.v1.APIResponse) {
+ rpc logout (LogoutAPIRequest) returns (.begonia.org.begonia.common.api.v1.APIResponse) {
 	option (google.api.http) = {
    get: "/api/v1/auth/logout"
  };
  }
- rpc account (AccountAPIRequest) returns (begonia-org.begonia.common.api.v1.APIResponse) {
+ rpc account (AccountAPIRequest) returns (.begonia.org.begonia.common.api.v1.APIResponse) {
 	option (google.api.http) = {
 		post: "/api/v1/auth/account"
 		body: "*"
  };
  
  }
- rpc authSeed (AuthLogAPIRequest) returns (begonia-org.begonia.common.api.v1.APIResponse) {
+ rpc authSeed (AuthLogAPIRequest) returns (.begonia.org.begonia.common.api.v1.APIResponse) {
 	option (google.api.http) = {
    post: "/api/v1/auth/log"
    body: "*"
  };
  }
- rpc regsiter(RegsiterAPIRequest)returns(begonia-org.begonia.common.api.v1.APIResponse){
+ rpc regsiter(RegsiterAPIRequest)returns(.begonia.org.begonia.common.api.v1.APIResponse){
 	option (google.api.http)={
 		post:"/api/v1/auth/regsiter"
 		body:"*"
