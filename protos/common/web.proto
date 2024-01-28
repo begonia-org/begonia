@@ -45,3 +45,10 @@ message Errors {
       int32 grpc_status = 3;
 
 }
+
+message Headers {
+    string Uid=1;
+    string authentication=2;
+    string filename=3;
+    string token=4;
+}

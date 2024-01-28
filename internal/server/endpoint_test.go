@@ -18,7 +18,7 @@ import (
 func TestEndpointWatch(t *testing.T) {
 	c.Convey("test endpoint watch", t, func() {
 		conf := config.NewConfig(cfg.ReadConfig("dev"))
-		NewGatewayMux(nil, conf)
+		NewGatewayMux(conf)
 		e := NewEndpointManagerImpl(biz.NewEndpointUsecase(nil), conf)
 		ctx, cancel := context.WithCancel(context.Background())
 		patch := gomonkey.ApplyFunc((*biz.EndpointUsecase).GetEndpoint, func(_ *biz.EndpointUsecase, _ context.Context, _ string) (*api.Endpoints, error) {
@@ -43,7 +43,17 @@ func TestEndpointWatch(t *testing.T) {
 		// 	return endpointRegister,err
 		// })
 		// defer patch3.Reset()
-		go e.Watch(ctx, conf.GetPluginDir())
+		errChan := make(chan error, 10)
+		go func() {
+			err := e.Watch(ctx, conf.GetPluginDir(), errChan)
+			c.So(err, c.ShouldBeNil)
+		}()
+		go func(errChan <-chan error) {
+			for err := range errChan {
+				t.Log(err)
+				c.So(err, c.ShouldBeNil)
+			}
+		}(errChan)
 		load := runtime.NewProtoLoaderImpl(conf)
 		err := load.LoadProto("../../example/protos.zip", "github.com/wetrycode/example2", "./api/v1", "example2")
 		t.Log(err)

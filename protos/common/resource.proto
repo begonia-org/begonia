@@ -21,3 +21,21 @@ message Resource{
     google.protobuf.Timestamp updated_at = 7;
     
     }
+
+
+    message Files{
+    // @gotags: gorm:"primaryKey;autoIncrement;comment:自增id"
+    int64 ID = 1;
+        string name=2;
+        // @gotags:gorm:"type:varchar(256);comment:File's path"
+        string uri=3;
+        // @gotags:gorm:"type:varchar(128);unique;comment:File's sha"
+        string sha=4;
+        // @gotags: json:"author" gorm:"column:author;type:varchar(36);comment:文件上传者id"
+        string author=5;
+        bool is_deleted=6;
+        // @gotags: doc:"完成时间" gorm:"column:completed_at;type:datetime;serializer:timepb;comment:定时任务的最近一次完成时间"
+    google.protobuf.Timestamp created_at = 10;
+    // @gotags: doc:"更新时间" gorm:"autoUpdateTime;column:updated_at;type:datetime;serializer:timepb;comment:定时任务的更新时间"
+    google.protobuf.Timestamp updated_at = 11;
+    }

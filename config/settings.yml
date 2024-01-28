@@ -6,3 +6,37 @@
       wd: "/data/work/wetrycode"
     plugins:
       dir: "/data/work/wetrycode/begonia/plugins"
+  file:
+    upload:
+      dir: /data/work/wetrycode/begonia/upload
+  mysql:
+    host: "127.0.0.1"
+    port: 3306
+    user: "test"
+    password: "test"
+    database: "test"
+  admin:
+    name: "admin"
+    password: "admin"
+    email: "admin@example.com"
+    phone: "12345678901"
+  auth:
+    aes_key: "1234567890123456"
+    aes_iv: "L!#x].upV.>Jx0QN"
+  redis:
+    addr: "127.0.0.1:6379"
+    password: ""
+    db: 0
+    username: ""
+    connectSize: 15
+    timeout: 5
+  etcd:
+    endpoints:
+      - "http://127.0.0.1:2379"
+    timeout: 5
+    worker_prefix: "/go-scheduler/agent"
+  gateway:
+    cors:
+      - "localhost"
+  common:
+    rdb_key_prefix: "go-scheduler"

@@ -2,7 +2,8 @@ package routers
 
 import (
 	_ "github.com/wetrycode/begonia/api/v1"
-	api "github.com/wetrycode/begonia/api/v1"
+	common "github.com/wetrycode/begonia/common/api/v1"
+	_ "github.com/wetrycode/begonia/common/api/v1"
 	"github.com/wetrycode/begonia/internal/pkg/config"
 	"google.golang.org/genproto/googleapis/api/annotations"
 	"google.golang.org/protobuf/proto"
@@ -122,7 +123,7 @@ func (r *HttpURIRouteToSrvMethod) LoadAllRouters() {
 			}
 			authRequired := false
 			// 获取并打印 pb.auth_reqiured 注解
-			if authRequiredExt := r.getServiceOptionByExt(service, api.E_AuthReqiured); authRequiredExt != nil {
+			if authRequiredExt := r.getServiceOptionByExt(service, common.E_AuthReqiured); authRequiredExt != nil {
 				authRequired, _ = authRequiredExt.(bool)
 			}
 			// 遍历服务中的所有方法
@@ -134,7 +135,7 @@ func (r *HttpURIRouteToSrvMethod) LoadAllRouters() {
 		}
 		return true
 	})
-	if len(r.routers) == 0 {
-		panic("没有找到任何路由")
-	}
+	// if len(r.routers) == 0 {
+	// 	panic("没有找到任何路由")
+	// }
 }

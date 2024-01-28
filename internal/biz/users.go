@@ -10,6 +10,7 @@ import (
 	"github.com/spark-lence/tiga"
 	srvErr "github.com/spark-lence/tiga/errors"
 	api "github.com/wetrycode/begonia/api/v1"
+	common "github.com/wetrycode/begonia/common/api/v1"
 	"github.com/wetrycode/begonia/internal/pkg/config"
 	"github.com/wetrycode/begonia/internal/pkg/crypto"
 	"github.com/wetrycode/begonia/internal/pkg/errors"
@@ -64,7 +65,7 @@ func (u *UsersUsecase) DelToken(ctx context.Context, key string) error {
 func (u *UsersUsecase) AuthSeed(ctx context.Context, in *api.AuthLogAPIRequest) (string, error) {
 	token, err := u.authCrypto.GenerateAuthSeed(in.Timestamp)
 	if err != nil {
-		return "", srvErr.New(err, "auth seed生成错误", srvErr.WithMsgAndCode(int32(api.Code_INTERNAL_ERROR), "登陆失败"))
+		return "", srvErr.New(err, "auth seed生成错误", srvErr.WithMsgAndCode(int32(common.Code_INTERNAL_ERROR), "登陆失败"))
 	}
 	return token, nil
 
@@ -87,7 +88,7 @@ func (u *UsersUsecase) getUserAuth(ctx context.Context, in *api.LoginAPIRequest)
 	userAuth := &api.UserAuth{}
 	err = json.Unmarshal([]byte(authBytes), userAuth)
 	if err != nil {
-		err := srvErr.New(errors.ErrDecode, "登陆信息序列化", srvErr.WithMsgAndCode(int32(api.Code_AUTH_ERROR), "登录失败"))
+		err := srvErr.New(errors.ErrDecode, "登陆信息序列化", srvErr.WithMsgAndCode(int32(common.Code_AUTH_ERROR), "登录失败"))
 		return nil, err
 	}
 	return userAuth, nil
@@ -113,7 +114,7 @@ func (u *UsersUsecase) generateJWT(ctx context.Context, user *api.Users, isKeepL
 	}
 	err := u.repo.DelToken(ctx, u.config.GetUserBlackListKey(user.Uid))
 	if err != nil {
-		return "", srvErr.New(errors.ErrRemoveBlackList, "生成新的JWT TOKEN", srvErr.WithMsgAndCode(int32(api.Code_AUTH_ERROR), "登录失败"))
+		return "", srvErr.New(errors.ErrRemoveBlackList, "生成新的JWT TOKEN", srvErr.WithMsgAndCode(int32(common.Code_AUTH_ERROR), "登录失败"))
 	}
 
 	return tiga.GenerateJWT(payload, secret)
@@ -170,12 +171,12 @@ func (u *UsersUsecase) Logout(ctx context.Context, req *api.LogoutAPIRequest) er
 	md, ok := metadata.FromIncomingContext(ctx)
 
 	if !ok {
-		err := srvErr.New(errors.ErrNoMetadata, "登出账号", srvErr.WithMsgAndCode(int32(api.Code_METADATA_MISSING), "登出失败"))
+		err := srvErr.New(errors.ErrNoMetadata, "登出账号", srvErr.WithMsgAndCode(int32(common.Code_METADATA_MISSING), "登出失败"))
 		return err
 	}
 	token := md.Get("x-token")
 	if len(token) == 0 {
-		err := srvErr.New(errors.ErrTokenMissing, "登出账号", srvErr.WithMsgAndCode(int32(api.Code_TOKEN_NOT_FOUND), "登出失败"))
+		err := srvErr.New(errors.ErrTokenMissing, "登出账号", srvErr.WithMsgAndCode(int32(common.Code_TOKEN_NOT_FOUND), "登出失败"))
 		return err
 	}
 	key := u.config.GetUserBlackListKey(tiga.GetMd5(token[0]))
@@ -192,12 +193,12 @@ func (u *UsersUsecase) Account(ctx context.Context, req *api.AccountAPIRequest) 
 	md, ok := metadata.FromIncomingContext(ctx)
 
 	if !ok {
-		err := srvErr.New(errors.ErrNoMetadata, "账号信息", srvErr.WithMsgAndCode(int32(api.Code_METADATA_MISSING), "请重新登陆"))
+		err := srvErr.New(errors.ErrNoMetadata, "账号信息", srvErr.WithMsgAndCode(int32(common.Code_METADATA_MISSING), "请重新登陆"))
 		return nil, err
 	}
 	token := md.Get("x-token")
 	if len(token) == 0 {
-		err := srvErr.New(errors.ErrTokenMissing, "账号信息", srvErr.WithMsgAndCode(int32(api.Code_TOKEN_NOT_FOUND), "请重新登陆"))
+		err := srvErr.New(errors.ErrTokenMissing, "账号信息", srvErr.WithMsgAndCode(int32(common.Code_TOKEN_NOT_FOUND), "请重新登陆"))
 		return nil, err
 	}
 	clientUids := md.Get("x-uid")
@@ -207,7 +208,7 @@ func (u *UsersUsecase) Account(ctx context.Context, req *api.AccountAPIRequest) 
 		uid = clientUids[0]
 	}
 	if uid == "" {
-		err := srvErr.New(errors.ErrUidMissing, "账号信息", srvErr.WithMsgAndCode(int32(api.Code_TOKEN_NOT_FOUND), "请重新登陆"))
+		err := srvErr.New(errors.ErrUidMissing, "账号信息", srvErr.WithMsgAndCode(int32(common.Code_TOKEN_NOT_FOUND), "请重新登陆"))
 		return nil, err
 	}
 	uids := req.Uids

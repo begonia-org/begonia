@@ -11,7 +11,7 @@ import (
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 )
 
-var ProviderSet = wire.NewSet(tiga.NewMySQLDao, tiga.NewRedisDao, NewData, NewLocalCache, NewUserRepo)
+var ProviderSet = wire.NewSet(tiga.NewMySQLDao, tiga.NewRedisDao, NewData, NewLocalCache, NewUserRepo,NewFileRepoImpl)
 
 type Data struct {
 	// mysql

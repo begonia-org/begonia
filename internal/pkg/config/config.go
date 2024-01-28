@@ -52,3 +52,6 @@ func (c *Config) GetCorsConfig() []string {
 func (c *Config) GetPluginDir() string {
 	return c.GetString("endpoints.plugins.dir")
 }
+func (c *Config) GetUploadDir() string {
+	return c.GetString("file.upload.dir")
+}

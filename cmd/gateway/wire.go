@@ -16,6 +16,6 @@ import (
 
 func initApp(config *tiga.Configuration, log *logrus.Logger, endpoint string) *server.GatewayServer {
 
-	panic(wire.Build(biz.ProviderSet, pkg.ProviderSet, data.ProviderSet, service.ProviderSet, server.ProviderSet, server.NewGatewayServer))
+	panic(wire.Build(biz.ProviderSet, pkg.ProviderSet, data.ProviderSet, service.ProviderSet, server.ProviderSet))
 
 }

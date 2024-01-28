@@ -1,4 +1,4 @@
-package middlerware
+package middleware
 
 import (
 	"context"
@@ -53,12 +53,17 @@ func RequestIDMiddleware(ctx context.Context, r *http.Request) metadata.MD {
 func IncomingHeadersToMetadata(ctx context.Context, req *http.Request) metadata.MD {
 	// 创建一个新的 metadata.MD 实例
 	md := metadata.MD{}
-	needs := []string{"x-uid", "authorization"}
+	// needs := []string{"x-uid", "authorization"}
 
-	for _, need := range needs {
-		if val := req.Header.Get(need); val != "" {
-			md.Set(strings.ToLower(need), val)
-		}
+	// for _, need := range needs {
+	// 	if val := req.Header.Get(need); val != "" {
+	// 		md.Set(strings.ToLower(need), val)
+	// 	}
+	// }
+	for k, v := range req.Header {
+		if strings.ToLower(k) == "authorization" || strings.HasPrefix(strings.ToLower(k), "x-"){
+		md.Set(strings.ToLower(k), v...)
+	}
 	}
 	md.Set("x-request-id", uuid.New().String())
 	md.Set("uri", req.RequestURI)
@@ -74,5 +79,6 @@ func IncomingHeadersToMetadata(ctx context.Context, req *http.Request) metadata.
 	_ = grpc.SetHeader(ctx, metadata.Pairs("uri", uri))
 	_ = grpc.SetHeader(ctx, metadata.Pairs("method", method))
 	_ = grpc.SetHeader(ctx, metadata.Pairs("remote_addr", remoteAddr))
+	_ = grpc.SendHeader(ctx, md)
 	return md
 }

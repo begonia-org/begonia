@@ -1,4 +1,4 @@
-package middlerware
+package middleware
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/sirupsen/logrus"
-	api "github.com/wetrycode/begonia/api/v1"
+	common "github.com/wetrycode/begonia/common/api/v1"
 	"github.com/wetrycode/begonia/internal/pkg/logger"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
@@ -72,15 +72,16 @@ func HandleErrorWithLogger(logger *logrus.Logger) runtime.ErrorHandlerFunc {
 		code := http.StatusInternalServerError
 		if st, ok := status.FromError(err); ok {
 			code = runtime.HTTPStatusFromCode(st.Code())
+			log.WithField("status", http.StatusOK).Errorf("请求失败:%s", errors.Cause(err).Error())
+
 			for _, detail := range st.Details() {
 				switch t := detail.(type) {
 				case *anypb.Any:
-					var apiResp api.APIResponse
+					var apiResp common.APIResponse
 					if err := anypb.UnmarshalTo(t, &apiResp, proto.UnmarshalOptions{}); err == nil {
 						data, err := marshaler.Marshal(&apiResp)
 						if err != nil {
 							w.WriteHeader(500)
-							log.WithField("status", http.StatusOK).Errorf("请求失败:%s", errors.Cause(err).Error())
 							return
 						}
 						_, _ = w.Write(data)

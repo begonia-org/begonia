@@ -7,10 +7,10 @@ import (
 	"github.com/spark-lence/tiga"
 	srvErr "github.com/spark-lence/tiga/errors"
 	_ "github.com/wetrycode/begonia/api/v1"
-	api "github.com/wetrycode/begonia/api/v1"
 	"github.com/wetrycode/begonia/internal/pkg/config"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
+	common "github.com/wetrycode/begonia/common/api/v1"
 )
 
 func unwrap(err error) *srvErr.Errors {
@@ -21,9 +21,9 @@ func unwrap(err error) *srvErr.Errors {
 	return nil
 
 }
-func MakeResponse(data protoreflect.ProtoMessage, srcErr error) (*api.APIResponse, error) {
+func MakeResponse(data protoreflect.ProtoMessage, srcErr error) (*common.APIResponse, error) {
 	message := "Internal Error"
-	code := int32(api.Code_INTERNAL_ERROR.Number())
+	code := int32(common.Code_INTERNAL_ERROR.Number())
 	if srcErr != nil {
 		se := unwrap(srcErr)
 		if se != nil {
@@ -31,7 +31,7 @@ func MakeResponse(data protoreflect.ProtoMessage, srcErr error) (*api.APIRespons
 			code = se.Code()
 		}
 	} else {
-		code = int32(api.Code_OK.Number())
+		code = int32(common.Code_OK.Number())
 		message = "ok"
 	}
 	rsp, err := tiga.MakeResponse(code, data, srcErr, message, fmt.Sprintf("%s.APIResponse", config.APIPkg))
@@ -42,8 +42,8 @@ func MakeResponse(data protoreflect.ProtoMessage, srcErr error) (*api.APIRespons
 			return nil, fmt.Errorf("序列化响应失败,%w", mErr) // 处理错误
 			// 处理错误
 		}
-		// 反序列化为 api.APIResponse
-		var apiResponse *api.APIResponse = &api.APIResponse{}
+		// 反序列化为 common.APIResponse
+		var apiResponse *common.APIResponse = &common.APIResponse{}
 		mErr = proto.Unmarshal(serializedMsg, apiResponse)
 		if mErr != nil {
 			return nil, fmt.Errorf("反序列化响应失败,%w", mErr) // 处理错误

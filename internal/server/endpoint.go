@@ -18,7 +18,7 @@ import (
 )
 
 type EndpointManager interface {
-	Watch(ctx context.Context, dir string) error
+	Watch(ctx context.Context, dir string,errChan chan <-error) error
 }
 type EndpointManagerImpl struct {
 	biz    *biz.EndpointUsecase
@@ -67,7 +67,7 @@ func (imp *EndpointManagerImpl) getPluginSoFile(dir string) (string, error) {
 	}
 	return "", fmt.Errorf("not found so file")
 }
-func (imp *EndpointManagerImpl) Watch(ctx context.Context, dir string) error {
+func (imp *EndpointManagerImpl) Watch(ctx context.Context, dir string,errChan chan <-error) error {
 	watch, err := fsnotify.NewWatcher()
 	if err != nil {
 		return err
@@ -90,25 +90,28 @@ func (imp *EndpointManagerImpl) Watch(ctx context.Context, dir string) error {
 					filename = strings.TrimSuffix(filename, ".so")
 					endpoint, err := imp.biz.GetEndpoint(context.Background(), filename)
 					if err != nil {
+						errChan <- err
 						logger.Logger.Errorf("get endpoint error: %s", err.Error())
 						continue
 					}
 					filepath, err := imp.getPluginSoFile(ev.Name)
 					if err != nil {
+						errChan <- err
 						logger.Logger.Errorf("get plugin so file error: %s", err.Error())
 						continue
 					}
 					endpointRegister, err := imp.createEndpointRegister(filepath)
 					if err != nil {
+						errChan <- err
 						logger.Logger.Errorf("create endpoint register error: %s", err.Error())
 						continue
 					}
 					err = imp.addEndpoints(endpointRegister, endpoint.Endpoint)
 					if err != nil {
+						errChan <- err
 						logger.Logger.Errorf("add endpoint error: %s", err.Error())
 						continue
 					}
-					// log.Println("创建文件 : ", ev.Name, ev.String())
 				}
 
 			}

@@ -5,6 +5,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	api "github.com/wetrycode/begonia/api/v1"
+	common "github.com/wetrycode/begonia/common/api/v1"
 	"github.com/wetrycode/begonia/internal/biz"
 	"github.com/wetrycode/begonia/internal/pkg/config"
 	"github.com/wetrycode/begonia/internal/pkg/crypto"
@@ -23,7 +24,7 @@ func NewUserService(biz *biz.UsersUsecase, log *logrus.Logger, auth *crypto.User
 	return &UsersService{biz: biz, log: log, authCrypto: auth, config: config}
 }
 
-func (u *UsersService) AuthSeed(ctx context.Context, in *api.AuthLogAPIRequest) (*api.APIResponse, error) {
+func (u *UsersService) AuthSeed(ctx context.Context, in *api.AuthLogAPIRequest) (*common.APIResponse, error) {
 	token, err := u.biz.AuthSeed(ctx, in)
 	if err != nil {
 		return web.MakeResponse(nil, err)
@@ -35,7 +36,7 @@ func (u *UsersService) AuthSeed(ctx context.Context, in *api.AuthLogAPIRequest) 
 
 }
 
-func (u *UsersService) Login(ctx context.Context, in *api.LoginAPIRequest) (*api.APIResponse, error) {
+func (u *UsersService) Login(ctx context.Context, in *api.LoginAPIRequest) (*common.APIResponse, error) {
 	rsp, err := u.biz.Login(ctx, in)
 	if err != nil {
 		return web.MakeResponse(nil, err)
@@ -43,7 +44,7 @@ func (u *UsersService) Login(ctx context.Context, in *api.LoginAPIRequest) (*api
 	return web.MakeResponse(rsp, nil)
 }
 
-func (u *UsersService) Logout(ctx context.Context, req *api.LogoutAPIRequest) (*api.APIResponse, error) {
+func (u *UsersService) Logout(ctx context.Context, req *api.LogoutAPIRequest) (*common.APIResponse, error) {
 	err := u.biz.Logout(ctx, req)
 	if err != nil {
 		return web.MakeResponse(nil, err)
@@ -52,7 +53,7 @@ func (u *UsersService) Logout(ctx context.Context, req *api.LogoutAPIRequest) (*
 
 }
 
-func (u *UsersService) Account(ctx context.Context, req *api.AccountAPIRequest) (*api.APIResponse, error) {
+func (u *UsersService) Account(ctx context.Context, req *api.AccountAPIRequest) (*common.APIResponse, error) {
 	rsp, err := u.biz.Account(ctx, req)
 	if err != nil {
 		return web.MakeResponse(nil, err)
@@ -61,3 +62,4 @@ func (u *UsersService) Account(ctx context.Context, req *api.AccountAPIRequest) 
 		Users: rsp,
 	}, nil)
 }
+

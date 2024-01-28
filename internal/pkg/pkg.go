@@ -4,7 +4,7 @@ import (
 	"github.com/google/wire"
 	"github.com/wetrycode/begonia/internal/pkg/config"
 	"github.com/wetrycode/begonia/internal/pkg/crypto"
-	"github.com/wetrycode/begonia/internal/pkg/middlerware"
+	"github.com/wetrycode/begonia/internal/pkg/middleware"
 )
 
-var ProviderSet = wire.NewSet(config.NewConfig, middlerware.NewAPIVildator, crypto.NewUsersAuth)
+var ProviderSet = wire.NewSet(config.NewConfig, middleware.NewAPIVildator, crypto.NewUsersAuth)
