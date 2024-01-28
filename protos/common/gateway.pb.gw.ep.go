@@ -9,7 +9,7 @@ import (
 	"context"
 	"github.com/begonia-org/begonia/common/api/v1"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	"github.com/wetrycode/begonia/endpoint"
+	"github.com/begonia-org/begonia/endpoint"
 	"google.golang.org/grpc"
 )
 
