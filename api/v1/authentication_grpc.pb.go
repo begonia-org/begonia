@@ -8,7 +8,7 @@ package v1
 
 import (
 	context "context"
-	v1 "github.com/wetrycode/begonia/common/api/v1"
+	v1 "github.com/begonia-org/begonia/common/api/v1"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -20,11 +20,11 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	AuthService_Login_FullMethodName    = "/wetrycode.begonia.AuthService/login"
-	AuthService_Logout_FullMethodName   = "/wetrycode.begonia.AuthService/logout"
-	AuthService_Account_FullMethodName  = "/wetrycode.begonia.AuthService/account"
-	AuthService_AuthSeed_FullMethodName = "/wetrycode.begonia.AuthService/authSeed"
-	AuthService_Regsiter_FullMethodName = "/wetrycode.begonia.AuthService/regsiter"
+	AuthService_Login_FullMethodName    = "/begonia-org.begonia.AuthService/login"
+	AuthService_Logout_FullMethodName   = "/begonia-org.begonia.AuthService/logout"
+	AuthService_Account_FullMethodName  = "/begonia-org.begonia.AuthService/account"
+	AuthService_AuthSeed_FullMethodName = "/begonia-org.begonia.AuthService/authSeed"
+	AuthService_Regsiter_FullMethodName = "/begonia-org.begonia.AuthService/regsiter"
 )
 
 // AuthServiceClient is the client API for AuthService service.
@@ -229,7 +229,7 @@ func _AuthService_Regsiter_Handler(srv interface{}, ctx context.Context, dec fun
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var AuthService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "wetrycode.begonia.AuthService",
+	ServiceName: "begonia-org.begonia.AuthService",
 	HandlerType: (*AuthServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{

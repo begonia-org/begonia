@@ -384,7 +384,7 @@ var file_web_proto_extTypes = []protoimpl.ExtensionInfo{
 		ExtendedType:  (*descriptorpb.EnumValueOptions)(nil),
 		ExtensionType: (*string)(nil),
 		Field:         50031,
-		Name:          "wetrycode.begonia.common.api.v1.description",
+		Name:          "begonia-org.begonia.common.api.v1.description",
 		Tag:           "bytes,50031,opt,name=description",
 		Filename:      "web.proto",
 	},
@@ -392,7 +392,7 @@ var file_web_proto_extTypes = []protoimpl.ExtensionInfo{
 		ExtendedType:  (*descriptorpb.EnumValueOptions)(nil),
 		ExtensionType: (*int32)(nil),
 		Field:         50032,
-		Name:          "wetrycode.begonia.common.api.v1.http_code",
+		Name:          "begonia-org.begonia.common.api.v1.http_code",
 		Tag:           "varint,50032,opt,name=http_code",
 		Filename:      "web.proto",
 	},
@@ -500,18 +500,18 @@ func file_web_proto_rawDescGZIP() []byte {
 var file_web_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_web_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_web_proto_goTypes = []interface{}{
-	(Code)(0),                             // 0: wetrycode.begonia.common.api.v1.Code
-	(*APIResponse)(nil),                   // 1: wetrycode.begonia.common.api.v1.APIResponse
-	(*EventStreamResponse)(nil),           // 2: wetrycode.begonia.common.api.v1.EventStreamResponse
-	(*Errors)(nil),                        // 3: wetrycode.begonia.common.api.v1.Errors
-	(*Headers)(nil),                       // 4: wetrycode.begonia.common.api.v1.Headers
+	(Code)(0),                             // 0: begonia-org.begonia.common.api.v1.Code
+	(*APIResponse)(nil),                   // 1: begonia-org.begonia.common.api.v1.APIResponse
+	(*EventStreamResponse)(nil),           // 2: begonia-org.begonia.common.api.v1.EventStreamResponse
+	(*Errors)(nil),                        // 3: begonia-org.begonia.common.api.v1.Errors
+	(*Headers)(nil),                       // 4: begonia-org.begonia.common.api.v1.Headers
 	(*anypb.Any)(nil),                     // 5: google.protobuf.Any
 	(*descriptorpb.EnumValueOptions)(nil), // 6: google.protobuf.EnumValueOptions
 }
 var file_web_proto_depIdxs = []int32{
-	5, // 0: wetrycode.begonia.common.api.v1.Errors.details:type_name -> google.protobuf.Any
-	6, // 1: wetrycode.begonia.common.api.v1.description:extendee -> google.protobuf.EnumValueOptions
-	6, // 2: wetrycode.begonia.common.api.v1.http_code:extendee -> google.protobuf.EnumValueOptions
+	5, // 0: begonia-org.begonia.common.api.v1.Errors.details:type_name -> google.protobuf.Any
+	6, // 1: begonia-org.begonia.common.api.v1.description:extendee -> google.protobuf.EnumValueOptions
+	6, // 2: begonia-org.begonia.common.api.v1.http_code:extendee -> google.protobuf.EnumValueOptions
 	3, // [3:3] is the sub-list for method output_type
 	3, // [3:3] is the sub-list for method input_type
 	3, // [3:3] is the sub-list for extension type_name

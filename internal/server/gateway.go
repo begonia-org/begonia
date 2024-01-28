@@ -3,9 +3,9 @@ package server
 import (
 	"net/http"
 
+	"github.com/begonia-org/begonia/internal/pkg/logger"
+	"github.com/begonia-org/begonia/internal/service"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	"github.com/wetrycode/begonia/internal/pkg/logger"
-	"github.com/wetrycode/begonia/internal/service"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -20,7 +20,7 @@ func NewDialOptions() []grpc.DialOption {
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	}
 }
-func NewGrpcServerOptions()[]grpc.ServerOption{
+func NewGrpcServerOptions() []grpc.ServerOption {
 	return []grpc.ServerOption{
 		grpc.Creds(insecure.NewCredentials()),
 	}
@@ -31,7 +31,7 @@ func NewServiceOptions(user *service.UsersService, file *service.FileService, en
 		service.WithUserService(user, opts),
 	}
 }
-func New(mux *runtime.ServeMux, handle http.Handler,grpcServer *grpc.Server, endpoint string, opts []service.ServiceOptions) *GatewayServer {
+func New(mux *runtime.ServeMux, handle http.Handler, grpcServer *grpc.Server, endpoint string, opts []service.ServiceOptions) *GatewayServer {
 	server := NewHttpServer(endpoint, handle)
 	for _, opt := range opts {
 		err := opt(grpcServer, mux, endpoint)

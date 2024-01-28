@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/begonia-org/begonia/internal/pkg/config"
+	"github.com/begonia-org/begonia/internal/pkg/middleware"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	"github.com/wetrycode/begonia/internal/pkg/config"
-	"github.com/wetrycode/begonia/internal/pkg/middleware"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 	"google.golang.org/grpc"

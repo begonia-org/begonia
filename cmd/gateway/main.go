@@ -3,9 +3,9 @@ package main
 import (
 	"log"
 
+	"github.com/begonia-org/begonia/config"
+	"github.com/begonia-org/begonia/internal/pkg/logger"
 	"github.com/spf13/cobra"
-	"github.com/wetrycode/begonia/config"
-	"github.com/wetrycode/begonia/internal/pkg/logger"
 )
 
 // var ProviderSet = wire.NewSet(NewMasterCmd)

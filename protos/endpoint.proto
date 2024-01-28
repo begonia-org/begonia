@@ -1,6 +1,6 @@
 syntax = "proto3";
-package wetrycode.begonia;
-option go_package = "github.com/wetrycode/begonia/api/v1";
+package begonia-org.begonia;
+option go_package = "github.com/begonia-org/begonia/api/v1";
 import "google/api/annotations.proto";
 import "google/protobuf/descriptor.proto";
 import "google/protobuf/timestamp.proto";

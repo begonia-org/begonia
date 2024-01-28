@@ -6,13 +6,13 @@ import (
 	"time"
 
 	"github.com/agiledragon/gomonkey/v2"
+	api "github.com/begonia-org/begonia/api/v1"
+	cfg "github.com/begonia-org/begonia/config"
 	c "github.com/smartystreets/goconvey/convey"
-	api "github.com/wetrycode/begonia/api/v1"
-	cfg "github.com/wetrycode/begonia/config"
 
-	"github.com/wetrycode/begonia/internal/biz"
-	"github.com/wetrycode/begonia/internal/pkg/config"
-	"github.com/wetrycode/begonia/internal/pkg/runtime"
+	"github.com/begonia-org/begonia/internal/biz"
+	"github.com/begonia-org/begonia/internal/pkg/config"
+	"github.com/begonia-org/begonia/internal/pkg/runtime"
 ) // 别名导入
 
 func TestEndpointWatch(t *testing.T) {
@@ -23,7 +23,7 @@ func TestEndpointWatch(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		patch := gomonkey.ApplyFunc((*biz.EndpointUsecase).GetEndpoint, func(_ *biz.EndpointUsecase, _ context.Context, _ string) (*api.Endpoints, error) {
 			return &api.Endpoints{
-				PluginId: "github.com.wetrycode.example",
+				PluginId: "github.com.begonia-org.example",
 				Endpoint: "127.0.0.1:51001",
 			}, nil
 		})
@@ -55,7 +55,7 @@ func TestEndpointWatch(t *testing.T) {
 			}
 		}(errChan)
 		load := runtime.NewProtoLoaderImpl(conf)
-		err := load.LoadProto("../../example/protos.zip", "github.com/wetrycode/example2", "./api/v1", "example2")
+		err := load.LoadProto("../../example/protos.zip", "github.com/begonia-org/example2", "./api/v1", "example2")
 		t.Log(err)
 		c.So(err, c.ShouldBeNil)
 		time.Sleep(time.Second * 2)

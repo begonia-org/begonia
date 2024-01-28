@@ -1,4 +1,4 @@
-module github.com/wetrycode/begonia/endpoint
+module github.com/begonia-org/begonia/endpoint
 
 go 1.20
 

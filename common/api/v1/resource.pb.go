@@ -294,15 +294,15 @@ func file_resource_proto_rawDescGZIP() []byte {
 
 var file_resource_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_resource_proto_goTypes = []interface{}{
-	(*Resource)(nil),              // 0: wetrycode.begonia.common.api.v1.Resource
-	(*Files)(nil),                 // 1: wetrycode.begonia.common.api.v1.Files
+	(*Resource)(nil),              // 0: begonia-org.begonia.common.api.v1.Resource
+	(*Files)(nil),                 // 1: begonia-org.begonia.common.api.v1.Files
 	(*timestamppb.Timestamp)(nil), // 2: google.protobuf.Timestamp
 }
 var file_resource_proto_depIdxs = []int32{
-	2, // 0: wetrycode.begonia.common.api.v1.Resource.created_at:type_name -> google.protobuf.Timestamp
-	2, // 1: wetrycode.begonia.common.api.v1.Resource.updated_at:type_name -> google.protobuf.Timestamp
-	2, // 2: wetrycode.begonia.common.api.v1.Files.created_at:type_name -> google.protobuf.Timestamp
-	2, // 3: wetrycode.begonia.common.api.v1.Files.updated_at:type_name -> google.protobuf.Timestamp
+	2, // 0: begonia-org.begonia.common.api.v1.Resource.created_at:type_name -> google.protobuf.Timestamp
+	2, // 1: begonia-org.begonia.common.api.v1.Resource.updated_at:type_name -> google.protobuf.Timestamp
+	2, // 2: begonia-org.begonia.common.api.v1.Files.created_at:type_name -> google.protobuf.Timestamp
+	2, // 3: begonia-org.begonia.common.api.v1.Files.updated_at:type_name -> google.protobuf.Timestamp
 	4, // [4:4] is the sub-list for method output_type
 	4, // [4:4] is the sub-list for method input_type
 	4, // [4:4] is the sub-list for extension type_name

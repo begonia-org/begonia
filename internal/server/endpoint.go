@@ -8,17 +8,17 @@ import (
 	"plugin"
 	"strings"
 
+	"github.com/begonia-org/begonia/endpoint"
+	"github.com/begonia-org/begonia/internal/biz"
+	"github.com/begonia-org/begonia/internal/pkg/config"
+	"github.com/begonia-org/begonia/internal/pkg/logger"
 	"github.com/fsnotify/fsnotify"
-	"github.com/wetrycode/begonia/internal/biz"
-	"github.com/wetrycode/begonia/internal/pkg/config"
-	"github.com/wetrycode/begonia/internal/pkg/logger"
-	"github.com/wetrycode/begonia/endpoint"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
 type EndpointManager interface {
-	Watch(ctx context.Context, dir string,errChan chan <-error) error
+	Watch(ctx context.Context, dir string, errChan chan<- error) error
 }
 type EndpointManagerImpl struct {
 	biz    *biz.EndpointUsecase
@@ -48,7 +48,7 @@ func (imp *EndpointManagerImpl) createEndpointRegister(pluginPath string) (endpo
 	return newEndpointRegisters, nil
 }
 func (imp *EndpointManagerImpl) getPluginSoFile(dir string) (string, error) {
-	fileInfo,err := os.Stat(dir)
+	fileInfo, err := os.Stat(dir)
 	if err != nil {
 		return "", err
 	}
@@ -67,7 +67,7 @@ func (imp *EndpointManagerImpl) getPluginSoFile(dir string) (string, error) {
 	}
 	return "", fmt.Errorf("not found so file")
 }
-func (imp *EndpointManagerImpl) Watch(ctx context.Context, dir string,errChan chan <-error) error {
+func (imp *EndpointManagerImpl) Watch(ctx context.Context, dir string, errChan chan<- error) error {
 	watch, err := fsnotify.NewWatcher()
 	if err != nil {
 		return err

@@ -195,9 +195,9 @@ type Users struct {
 	// @gotags: doc:"account avatar" gorm:"type:varchar(512);comment:Users account avatar"
 	Avatar string `protobuf:"bytes,7,opt,name=avatar,proto3" json:"avatar,omitempty" doc:"account avatar" gorm:"type:varchar(512);comment:Users account avatar"`
 	// @gotags: doc:"account role" gorm:"comment:Users account Role"
-	Role Role `protobuf:"varint,8,opt,name=role,proto3,enum=wetrycode.begonia.Role" json:"role,omitempty" doc:"account role" gorm:"comment:Users account Role"`
+	Role Role `protobuf:"varint,8,opt,name=role,proto3,enum=begonia-org.begonia.Role" json:"role,omitempty" doc:"account role" gorm:"comment:Users account Role"`
 	// @gotags: doc:"account status" gorm:"comment:Users account status"
-	Status USER_STATUS `protobuf:"varint,9,opt,name=status,proto3,enum=wetrycode.begonia.USER_STATUS" json:"status,omitempty" doc:"account status" gorm:"comment:Users account status"`
+	Status USER_STATUS `protobuf:"varint,9,opt,name=status,proto3,enum=begonia-org.begonia.USER_STATUS" json:"status,omitempty" doc:"account status" gorm:"comment:Users account status"`
 	// @gotags: doc:"完成时间" gorm:"column:completed_at;type:datetime;serializer:timepb;comment:定时任务的最近一次完成时间"
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty" doc:"完成时间" gorm:"column:completed_at;type:datetime;serializer:timepb;comment:定时任务的最近一次完成时间"`
 	// @gotags: doc:"更新时间" gorm:"autoUpdateTime;column:updated_at;type:datetime;serializer:timepb;comment:定时任务的更新时间"
@@ -320,7 +320,7 @@ type BasicAuth struct {
 
 	Uid         string `protobuf:"bytes,1,opt,name=uid,proto3" json:"uid,omitempty"`
 	Name        string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Role        Role   `protobuf:"varint,3,opt,name=role,proto3,enum=wetrycode.begonia.Role" json:"role,omitempty"`
+	Role        Role   `protobuf:"varint,3,opt,name=role,proto3,enum=begonia-org.begonia.Role" json:"role,omitempty"`
 	Audience    string `protobuf:"bytes,4,opt,name=audience,proto3" json:"audience,omitempty"`
 	Issuer      string `protobuf:"bytes,5,opt,name=issuer,proto3" json:"issuer,omitempty"`
 	NotBefore   int64  `protobuf:"varint,6,opt,name=not_before,json=nbf,proto3" json:"not_before,omitempty"`
@@ -519,19 +519,19 @@ func file_user_proto_rawDescGZIP() []byte {
 var file_user_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
 var file_user_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_user_proto_goTypes = []interface{}{
-	(Role)(0),                     // 0: wetrycode.begonia.Role
-	(USER_STATUS)(0),              // 1: wetrycode.begonia.USER_STATUS
-	(UserSvrCode)(0),              // 2: wetrycode.begonia.UserSvrCode
-	(*Users)(nil),                 // 3: wetrycode.begonia.Users
-	(*BasicAuth)(nil),             // 4: wetrycode.begonia.BasicAuth
+	(Role)(0),                     // 0: begonia-org.begonia.Role
+	(USER_STATUS)(0),              // 1: begonia-org.begonia.USER_STATUS
+	(UserSvrCode)(0),              // 2: begonia-org.begonia.UserSvrCode
+	(*Users)(nil),                 // 3: begonia-org.begonia.Users
+	(*BasicAuth)(nil),             // 4: begonia-org.begonia.BasicAuth
 	(*timestamppb.Timestamp)(nil), // 5: google.protobuf.Timestamp
 }
 var file_user_proto_depIdxs = []int32{
-	0, // 0: wetrycode.begonia.Users.role:type_name -> wetrycode.begonia.Role
-	1, // 1: wetrycode.begonia.Users.status:type_name -> wetrycode.begonia.USER_STATUS
-	5, // 2: wetrycode.begonia.Users.created_at:type_name -> google.protobuf.Timestamp
-	5, // 3: wetrycode.begonia.Users.updated_at:type_name -> google.protobuf.Timestamp
-	0, // 4: wetrycode.begonia.BasicAuth.role:type_name -> wetrycode.begonia.Role
+	0, // 0: begonia-org.begonia.Users.role:type_name -> begonia-org.begonia.Role
+	1, // 1: begonia-org.begonia.Users.status:type_name -> begonia-org.begonia.USER_STATUS
+	5, // 2: begonia-org.begonia.Users.created_at:type_name -> google.protobuf.Timestamp
+	5, // 3: begonia-org.begonia.Users.updated_at:type_name -> google.protobuf.Timestamp
+	0, // 4: begonia-org.begonia.BasicAuth.role:type_name -> begonia-org.begonia.Role
 	5, // [5:5] is the sub-list for method output_type
 	5, // [5:5] is the sub-list for method input_type
 	5, // [5:5] is the sub-list for extension type_name

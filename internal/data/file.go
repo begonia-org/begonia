@@ -3,8 +3,8 @@ package data
 import (
 	"context"
 
-	"github.com/wetrycode/begonia/internal/biz"
-	common "github.com/wetrycode/begonia/common/api/v1"
+	common "github.com/begonia-org/begonia/common/api/v1"
+	"github.com/begonia-org/begonia/internal/biz"
 )
 
 type fileRepoImpl struct {

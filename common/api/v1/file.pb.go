@@ -184,14 +184,14 @@ func file_file_proto_rawDescGZIP() []byte {
 
 var file_file_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_file_proto_goTypes = []interface{}{
-	(*UploadFileAPIRequest)(nil), // 0: wetrycode.begonia.common.api.v1.UploadFileAPIRequest
-	(*UploadAPIResponse)(nil),    // 1: wetrycode.begonia.common.api.v1.UploadAPIResponse
+	(*UploadFileAPIRequest)(nil), // 0: begonia-org.begonia.common.api.v1.UploadFileAPIRequest
+	(*UploadAPIResponse)(nil),    // 1: begonia-org.begonia.common.api.v1.UploadAPIResponse
 	(*httpbody.HttpBody)(nil),    // 2: google.api.HttpBody
 }
 var file_file_proto_depIdxs = []int32{
-	2, // 0: wetrycode.begonia.common.api.v1.UploadFileAPIRequest.content:type_name -> google.api.HttpBody
-	2, // 1: wetrycode.begonia.common.api.v1.FileService.UploadFile:input_type -> google.api.HttpBody
-	1, // 2: wetrycode.begonia.common.api.v1.FileService.UploadFile:output_type -> wetrycode.begonia.common.api.v1.UploadAPIResponse
+	2, // 0: begonia-org.begonia.common.api.v1.UploadFileAPIRequest.content:type_name -> google.api.HttpBody
+	2, // 1: begonia-org.begonia.common.api.v1.FileService.UploadFile:input_type -> google.api.HttpBody
+	1, // 2: begonia-org.begonia.common.api.v1.FileService.UploadFile:output_type -> begonia-org.begonia.common.api.v1.UploadAPIResponse
 	2, // [2:3] is the sub-list for method output_type
 	1, // [1:2] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name

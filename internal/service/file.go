@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/wetrycode/begonia/common"
-	api "github.com/wetrycode/begonia/common/api/v1"
-	"github.com/wetrycode/begonia/internal/biz"
-	"github.com/wetrycode/begonia/internal/pkg/config"
+	"github.com/begonia-org/begonia/common"
+	api "github.com/begonia-org/begonia/common/api/v1"
+	"github.com/begonia-org/begonia/internal/biz"
+	"github.com/begonia-org/begonia/internal/pkg/config"
 )
 
 type FileService struct {
@@ -36,7 +36,7 @@ func (f *FileService) UploadFile(stream api.FileService_UploadFileServer) error 
 		return fmt.Errorf("filename is empty")
 	}
 	uid := header.GetHeader("x-uid")
-	dir := filepath.Join(uploadDir,uid, fmt.Sprintf("%d", t))
+	dir := filepath.Join(uploadDir, uid, fmt.Sprintf("%d", t))
 	err = os.MkdirAll(dir, 0755)
 	if err != nil {
 		return err

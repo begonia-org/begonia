@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	api "github.com/wetrycode/begonia/common/api/v1"
+	api "github.com/begonia-org/begonia/common/api/v1"
 	"google.golang.org/grpc/metadata"
 )
 

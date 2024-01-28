@@ -167,7 +167,7 @@ func RegisterAuthServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/wetrycode.begonia.AuthService/Login", runtime.WithHTTPPathPattern("/api/v1/auth/login"))
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/begonia-org.begonia.AuthService/Login", runtime.WithHTTPPathPattern("/api/v1/auth/login"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -192,7 +192,7 @@ func RegisterAuthServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/wetrycode.begonia.AuthService/Logout", runtime.WithHTTPPathPattern("/api/v1/auth/logout"))
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/begonia-org.begonia.AuthService/Logout", runtime.WithHTTPPathPattern("/api/v1/auth/logout"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -217,7 +217,7 @@ func RegisterAuthServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/wetrycode.begonia.AuthService/Account", runtime.WithHTTPPathPattern("/api/v1/auth/account"))
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/begonia-org.begonia.AuthService/Account", runtime.WithHTTPPathPattern("/api/v1/auth/account"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -242,7 +242,7 @@ func RegisterAuthServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/wetrycode.begonia.AuthService/AuthSeed", runtime.WithHTTPPathPattern("/api/v1/auth/log"))
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/begonia-org.begonia.AuthService/AuthSeed", runtime.WithHTTPPathPattern("/api/v1/auth/log"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -267,7 +267,7 @@ func RegisterAuthServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/wetrycode.begonia.AuthService/Regsiter", runtime.WithHTTPPathPattern("/api/v1/auth/regsiter"))
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/begonia-org.begonia.AuthService/Regsiter", runtime.WithHTTPPathPattern("/api/v1/auth/regsiter"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -331,7 +331,7 @@ func RegisterAuthServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/wetrycode.begonia.AuthService/Login", runtime.WithHTTPPathPattern("/api/v1/auth/login"))
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/begonia-org.begonia.AuthService/Login", runtime.WithHTTPPathPattern("/api/v1/auth/login"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -353,7 +353,7 @@ func RegisterAuthServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/wetrycode.begonia.AuthService/Logout", runtime.WithHTTPPathPattern("/api/v1/auth/logout"))
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/begonia-org.begonia.AuthService/Logout", runtime.WithHTTPPathPattern("/api/v1/auth/logout"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -375,7 +375,7 @@ func RegisterAuthServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/wetrycode.begonia.AuthService/Account", runtime.WithHTTPPathPattern("/api/v1/auth/account"))
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/begonia-org.begonia.AuthService/Account", runtime.WithHTTPPathPattern("/api/v1/auth/account"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -397,7 +397,7 @@ func RegisterAuthServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/wetrycode.begonia.AuthService/AuthSeed", runtime.WithHTTPPathPattern("/api/v1/auth/log"))
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/begonia-org.begonia.AuthService/AuthSeed", runtime.WithHTTPPathPattern("/api/v1/auth/log"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -419,7 +419,7 @@ func RegisterAuthServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/wetrycode.begonia.AuthService/Regsiter", runtime.WithHTTPPathPattern("/api/v1/auth/regsiter"))
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/begonia-org.begonia.AuthService/Regsiter", runtime.WithHTTPPathPattern("/api/v1/auth/regsiter"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return

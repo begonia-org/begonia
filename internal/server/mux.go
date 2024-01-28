@@ -3,10 +3,10 @@ package server
 import (
 	"sync"
 
+	"github.com/begonia-org/begonia/internal/pkg/config"
+	"github.com/begonia-org/begonia/internal/pkg/logger"
+	"github.com/begonia-org/begonia/internal/pkg/middleware"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	"github.com/wetrycode/begonia/internal/pkg/config"
-	"github.com/wetrycode/begonia/internal/pkg/logger"
-	"github.com/wetrycode/begonia/internal/pkg/middleware"
 )
 
 var GlobalMutex sync.RWMutex

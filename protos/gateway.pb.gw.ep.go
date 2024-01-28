@@ -8,8 +8,8 @@ package main
 import (
 	"context"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	"github.com/wetrycode/begonia/api/v1"
-	"github.com/wetrycode/begonia/endpoint"
+	"github.com/begonia-org/begonia/api/v1"
+	"github.com/begonia-org/begonia/endpoint"
 	"google.golang.org/grpc"
 )
 

@@ -8,9 +8,9 @@ import (
 	"os"
 	"path/filepath"
 
-	common "github.com/wetrycode/begonia/common/api/v1"
-	"github.com/wetrycode/begonia/internal/pkg/config"
-	"github.com/wetrycode/begonia/internal/pkg/logger"
+	common "github.com/begonia-org/begonia/common/api/v1"
+	"github.com/begonia-org/begonia/internal/pkg/config"
+	"github.com/begonia-org/begonia/internal/pkg/logger"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 

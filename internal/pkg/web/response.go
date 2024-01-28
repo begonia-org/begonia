@@ -3,14 +3,14 @@ package web
 import (
 	"fmt"
 
+	_ "github.com/begonia-org/begonia/api/v1"
+	common "github.com/begonia-org/begonia/common/api/v1"
+	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/cockroachdb/errors"
 	"github.com/spark-lence/tiga"
 	srvErr "github.com/spark-lence/tiga/errors"
-	_ "github.com/wetrycode/begonia/api/v1"
-	"github.com/wetrycode/begonia/internal/pkg/config"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
-	common "github.com/wetrycode/begonia/common/api/v1"
 )
 
 func unwrap(err error) *srvErr.Errors {

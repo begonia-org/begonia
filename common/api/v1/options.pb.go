@@ -25,7 +25,7 @@ var file_options_proto_extTypes = []protoimpl.ExtensionInfo{
 		ExtendedType:  (*descriptorpb.ServiceOptions)(nil),
 		ExtensionType: (*bool)(nil),
 		Field:         50033,
-		Name:          "wetrycode.begonia.common.api.v1.auth_reqiured",
+		Name:          "begonia-org.begonia.common.api.v1.auth_reqiured",
 		Tag:           "varint,50033,opt,name=auth_reqiured",
 		Filename:      "options.proto",
 	},
@@ -33,7 +33,7 @@ var file_options_proto_extTypes = []protoimpl.ExtensionInfo{
 		ExtendedType:  (*descriptorpb.ServiceOptions)(nil),
 		ExtensionType: (*bool)(nil),
 		Field:         50034,
-		Name:          "wetrycode.begonia.common.api.v1.method_auth_reqiured",
+		Name:          "begonia-org.begonia.common.api.v1.method_auth_reqiured",
 		Tag:           "varint,50034,opt,name=method_auth_reqiured",
 		Filename:      "options.proto",
 	},
@@ -41,7 +41,7 @@ var file_options_proto_extTypes = []protoimpl.ExtensionInfo{
 		ExtendedType:  (*descriptorpb.FieldOptions)(nil),
 		ExtensionType: (*bool)(nil),
 		Field:         50035,
-		Name:          "wetrycode.begonia.common.api.v1.jsontag",
+		Name:          "begonia-org.begonia.common.api.v1.jsontag",
 		Tag:           "varint,50035,opt,name=jsontag",
 		Filename:      "options.proto",
 	},
@@ -49,7 +49,7 @@ var file_options_proto_extTypes = []protoimpl.ExtensionInfo{
 		ExtendedType:  (*descriptorpb.EnumValueOptions)(nil),
 		ExtensionType: (*string)(nil),
 		Field:         50036,
-		Name:          "wetrycode.begonia.common.api.v1.msg",
+		Name:          "begonia-org.begonia.common.api.v1.msg",
 		Tag:           "bytes,50036,opt,name=msg",
 		Filename:      "options.proto",
 	},
@@ -57,7 +57,7 @@ var file_options_proto_extTypes = []protoimpl.ExtensionInfo{
 		ExtendedType:  (*descriptorpb.FileOptions)(nil),
 		ExtensionType: (*string)(nil),
 		Field:         50037,
-		Name:          "wetrycode.begonia.common.api.v1.go_mod_pkg",
+		Name:          "begonia-org.begonia.common.api.v1.go_mod_pkg",
 		Tag:           "bytes,50037,opt,name=go_mod_pkg",
 		Filename:      "options.proto",
 	},
@@ -132,11 +132,11 @@ var file_options_proto_goTypes = []interface{}{
 	(*descriptorpb.FileOptions)(nil),      // 3: google.protobuf.FileOptions
 }
 var file_options_proto_depIdxs = []int32{
-	0, // 0: wetrycode.begonia.common.api.v1.auth_reqiured:extendee -> google.protobuf.ServiceOptions
-	0, // 1: wetrycode.begonia.common.api.v1.method_auth_reqiured:extendee -> google.protobuf.ServiceOptions
-	1, // 2: wetrycode.begonia.common.api.v1.jsontag:extendee -> google.protobuf.FieldOptions
-	2, // 3: wetrycode.begonia.common.api.v1.msg:extendee -> google.protobuf.EnumValueOptions
-	3, // 4: wetrycode.begonia.common.api.v1.go_mod_pkg:extendee -> google.protobuf.FileOptions
+	0, // 0: begonia-org.begonia.common.api.v1.auth_reqiured:extendee -> google.protobuf.ServiceOptions
+	0, // 1: begonia-org.begonia.common.api.v1.method_auth_reqiured:extendee -> google.protobuf.ServiceOptions
+	1, // 2: begonia-org.begonia.common.api.v1.jsontag:extendee -> google.protobuf.FieldOptions
+	2, // 3: begonia-org.begonia.common.api.v1.msg:extendee -> google.protobuf.EnumValueOptions
+	3, // 4: begonia-org.begonia.common.api.v1.go_mod_pkg:extendee -> google.protobuf.FileOptions
 	5, // [5:5] is the sub-list for method output_type
 	5, // [5:5] is the sub-list for method input_type
 	5, // [5:5] is the sub-list for extension type_name

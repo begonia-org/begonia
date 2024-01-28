@@ -7,7 +7,7 @@
 package v1
 
 import (
-	v1 "github.com/wetrycode/begonia/common/api/v1"
+	v1 "github.com/begonia-org/begonia/common/api/v1"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
@@ -698,35 +698,35 @@ func file_authentication_proto_rawDescGZIP() []byte {
 
 var file_authentication_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_authentication_proto_goTypes = []interface{}{
-	(*LoginAPIRequest)(nil),    // 0: wetrycode.begonia.LoginAPIRequest
-	(*LogoutAPIRequest)(nil),   // 1: wetrycode.begonia.LogoutAPIRequest
-	(*LogoutAPIResponse)(nil),  // 2: wetrycode.begonia.LogoutAPIResponse
-	(*LoginAPIResponse)(nil),   // 3: wetrycode.begonia.LoginAPIResponse
-	(*AccountAPIRequest)(nil),  // 4: wetrycode.begonia.AccountAPIRequest
-	(*AccountAPIResponse)(nil), // 5: wetrycode.begonia.AccountAPIResponse
-	(*UserAuth)(nil),           // 6: wetrycode.begonia.UserAuth
-	(*RegsiterAPIRequest)(nil), // 7: wetrycode.begonia.RegsiterAPIRequest
-	(*AuthLogAPIRequest)(nil),  // 8: wetrycode.begonia.AuthLogAPIRequest
-	(*AuthSeed)(nil),           // 9: wetrycode.begonia.AuthSeed
-	(*AuthLogAPIResponse)(nil), // 10: wetrycode.begonia.AuthLogAPIResponse
-	nil,                        // 11: wetrycode.begonia.RegsiterAPIRequest.ExtEntry
-	(*Users)(nil),              // 12: wetrycode.begonia.Users
-	(*v1.APIResponse)(nil),     // 13: wetrycode.begonia.common.api.v1.APIResponse
+	(*LoginAPIRequest)(nil),    // 0: begonia-org.begonia.LoginAPIRequest
+	(*LogoutAPIRequest)(nil),   // 1: begonia-org.begonia.LogoutAPIRequest
+	(*LogoutAPIResponse)(nil),  // 2: begonia-org.begonia.LogoutAPIResponse
+	(*LoginAPIResponse)(nil),   // 3: begonia-org.begonia.LoginAPIResponse
+	(*AccountAPIRequest)(nil),  // 4: begonia-org.begonia.AccountAPIRequest
+	(*AccountAPIResponse)(nil), // 5: begonia-org.begonia.AccountAPIResponse
+	(*UserAuth)(nil),           // 6: begonia-org.begonia.UserAuth
+	(*RegsiterAPIRequest)(nil), // 7: begonia-org.begonia.RegsiterAPIRequest
+	(*AuthLogAPIRequest)(nil),  // 8: begonia-org.begonia.AuthLogAPIRequest
+	(*AuthSeed)(nil),           // 9: begonia-org.begonia.AuthSeed
+	(*AuthLogAPIResponse)(nil), // 10: begonia-org.begonia.AuthLogAPIResponse
+	nil,                        // 11: begonia-org.begonia.RegsiterAPIRequest.ExtEntry
+	(*Users)(nil),              // 12: begonia-org.begonia.Users
+	(*v1.APIResponse)(nil),     // 13: begonia-org.begonia.common.api.v1.APIResponse
 }
 var file_authentication_proto_depIdxs = []int32{
-	12, // 0: wetrycode.begonia.LoginAPIResponse.user:type_name -> wetrycode.begonia.Users
-	12, // 1: wetrycode.begonia.AccountAPIResponse.users:type_name -> wetrycode.begonia.Users
-	11, // 2: wetrycode.begonia.RegsiterAPIRequest.ext:type_name -> wetrycode.begonia.RegsiterAPIRequest.ExtEntry
-	0,  // 3: wetrycode.begonia.AuthService.login:input_type -> wetrycode.begonia.LoginAPIRequest
-	1,  // 4: wetrycode.begonia.AuthService.logout:input_type -> wetrycode.begonia.LogoutAPIRequest
-	4,  // 5: wetrycode.begonia.AuthService.account:input_type -> wetrycode.begonia.AccountAPIRequest
-	8,  // 6: wetrycode.begonia.AuthService.authSeed:input_type -> wetrycode.begonia.AuthLogAPIRequest
-	7,  // 7: wetrycode.begonia.AuthService.regsiter:input_type -> wetrycode.begonia.RegsiterAPIRequest
-	13, // 8: wetrycode.begonia.AuthService.login:output_type -> wetrycode.begonia.common.api.v1.APIResponse
-	13, // 9: wetrycode.begonia.AuthService.logout:output_type -> wetrycode.begonia.common.api.v1.APIResponse
-	13, // 10: wetrycode.begonia.AuthService.account:output_type -> wetrycode.begonia.common.api.v1.APIResponse
-	13, // 11: wetrycode.begonia.AuthService.authSeed:output_type -> wetrycode.begonia.common.api.v1.APIResponse
-	13, // 12: wetrycode.begonia.AuthService.regsiter:output_type -> wetrycode.begonia.common.api.v1.APIResponse
+	12, // 0: begonia-org.begonia.LoginAPIResponse.user:type_name -> begonia-org.begonia.Users
+	12, // 1: begonia-org.begonia.AccountAPIResponse.users:type_name -> begonia-org.begonia.Users
+	11, // 2: begonia-org.begonia.RegsiterAPIRequest.ext:type_name -> begonia-org.begonia.RegsiterAPIRequest.ExtEntry
+	0,  // 3: begonia-org.begonia.AuthService.login:input_type -> begonia-org.begonia.LoginAPIRequest
+	1,  // 4: begonia-org.begonia.AuthService.logout:input_type -> begonia-org.begonia.LogoutAPIRequest
+	4,  // 5: begonia-org.begonia.AuthService.account:input_type -> begonia-org.begonia.AccountAPIRequest
+	8,  // 6: begonia-org.begonia.AuthService.authSeed:input_type -> begonia-org.begonia.AuthLogAPIRequest
+	7,  // 7: begonia-org.begonia.AuthService.regsiter:input_type -> begonia-org.begonia.RegsiterAPIRequest
+	13, // 8: begonia-org.begonia.AuthService.login:output_type -> begonia-org.begonia.common.api.v1.APIResponse
+	13, // 9: begonia-org.begonia.AuthService.logout:output_type -> begonia-org.begonia.common.api.v1.APIResponse
+	13, // 10: begonia-org.begonia.AuthService.account:output_type -> begonia-org.begonia.common.api.v1.APIResponse
+	13, // 11: begonia-org.begonia.AuthService.authSeed:output_type -> begonia-org.begonia.common.api.v1.APIResponse
+	13, // 12: begonia-org.begonia.AuthService.regsiter:output_type -> begonia-org.begonia.common.api.v1.APIResponse
 	8,  // [8:13] is the sub-list for method output_type
 	3,  // [3:8] is the sub-list for method input_type
 	3,  // [3:3] is the sub-list for extension type_name

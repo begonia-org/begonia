@@ -4,14 +4,14 @@ import (
 	"context"
 	"plugin"
 
+	"github.com/begonia-org/begonia/endpoint"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	"github.com/wetrycode/begonia/endpoint"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
 func main() {
-	p, err := plugin.Open("/data/work/wetrycode/begonia/protos/20240127200712/protos/example.so")
+	p, err := plugin.Open("/data/work/begonia-org/begonia/protos/20240127200712/protos/example.so")
 	if err != nil {
 		panic(err)
 	}

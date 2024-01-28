@@ -3,8 +3,8 @@ package data
 import (
 	"context"
 
-	api "github.com/wetrycode/begonia/api/v1"
-	"github.com/wetrycode/begonia/internal/biz"
+	api "github.com/begonia-org/begonia/api/v1"
+	"github.com/begonia-org/begonia/internal/biz"
 )
 
 type endpointRepoImpl struct {
@@ -35,14 +35,14 @@ func (r *endpointRepoImpl) UpdateEndpoint(ctx context.Context, endpoints []*api.
 	return nil
 }
 
-func (r *endpointRepoImpl) GetEndpoint(ctx context.Context, pluginId string) (*api.Endpoints,error) {
+func (r *endpointRepoImpl) GetEndpoint(ctx context.Context, pluginId string) (*api.Endpoints, error) {
 	// var endpoint *api.Endpoints
 	// err := r.data.Get(&endpoint, pluginId)
 	// return err, endpoint
 	return nil, nil
 }
 
-func (r *endpointRepoImpl) ListEndpoint(ctx context.Context, plugins []string) ([]*api.Endpoints,error) {
+func (r *endpointRepoImpl) ListEndpoint(ctx context.Context, plugins []string) ([]*api.Endpoints, error) {
 	// var endpoints []*api.Endpoints
 	// err := r.data.List(&api.Endpoints{}, &endpoints, "plugin_id in (?)", plugins)
 	// return err, endpoints

@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/allegro/bigcache/v3"
+	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/sirupsen/logrus"
-	"github.com/wetrycode/begonia/internal/pkg/config"
 )
 
 type LocalCache struct {

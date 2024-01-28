@@ -91,7 +91,7 @@ type Endpoints struct {
 	// @gotags: json:"plugin_id" gorm:"column:plugin_id;type:bigint;comment:proto服务对应的插件id"
 	PluginId string `protobuf:"bytes,9,opt,name=plugin_id,proto3" json:"plugin_id" gorm:"column:plugin_id;type:bigint;comment:proto服务对应的插件id"`
 	// @gotags: json:"status" gorm:"column:status;type:tinyint;comment:proto服务状态"
-	Status EndpointStatus `protobuf:"varint,10,opt,name=status,proto3,enum=wetrycode.begonia.EndpointStatus" json:"status" gorm:"column:status;type:tinyint;comment:proto服务状态"`
+	Status EndpointStatus `protobuf:"varint,10,opt,name=status,proto3,enum=begonia-org.begonia.EndpointStatus" json:"status" gorm:"column:status;type:tinyint;comment:proto服务状态"`
 	// @gotags: json:"is_deleted" gorm:"column:is_deleted;type:tinyint;comment:proto服务是否删除"
 	IsDeleted bool `protobuf:"varint,11,opt,name=is_deleted,proto3" json:"is_deleted" gorm:"column:is_deleted;type:tinyint;comment:proto服务是否删除"`
 	// @gotags: doc:"完成时间" gorm:"column:completed_at;type:datetime;serializer:timepb;comment:定时任务的最近一次完成时间"
@@ -358,15 +358,15 @@ func file_endpoint_proto_rawDescGZIP() []byte {
 var file_endpoint_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_endpoint_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_endpoint_proto_goTypes = []interface{}{
-	(EndpointStatus)(0),           // 0: wetrycode.begonia.EndpointStatus
-	(*Endpoints)(nil),             // 1: wetrycode.begonia.Endpoints
-	(*EndpointRequest)(nil),       // 2: wetrycode.begonia.EndpointRequest
+	(EndpointStatus)(0),           // 0: begonia-org.begonia.EndpointStatus
+	(*Endpoints)(nil),             // 1: begonia-org.begonia.Endpoints
+	(*EndpointRequest)(nil),       // 2: begonia-org.begonia.EndpointRequest
 	(*timestamppb.Timestamp)(nil), // 3: google.protobuf.Timestamp
 }
 var file_endpoint_proto_depIdxs = []int32{
-	0, // 0: wetrycode.begonia.Endpoints.status:type_name -> wetrycode.begonia.EndpointStatus
-	3, // 1: wetrycode.begonia.Endpoints.created_at:type_name -> google.protobuf.Timestamp
-	3, // 2: wetrycode.begonia.Endpoints.updated_at:type_name -> google.protobuf.Timestamp
+	0, // 0: begonia-org.begonia.Endpoints.status:type_name -> begonia-org.begonia.EndpointStatus
+	3, // 1: begonia-org.begonia.Endpoints.created_at:type_name -> google.protobuf.Timestamp
+	3, // 2: begonia-org.begonia.Endpoints.updated_at:type_name -> google.protobuf.Timestamp
 	3, // [3:3] is the sub-list for method output_type
 	3, // [3:3] is the sub-list for method input_type
 	3, // [3:3] is the sub-list for extension type_name

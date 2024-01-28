@@ -1,4 +1,4 @@
-module github.com/wetrycode/begonia/common
+module github.com/begonia-org/begonia/common
 
 go 1.20
 

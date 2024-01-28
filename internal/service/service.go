@@ -3,10 +3,10 @@ package service
 import (
 	"context"
 
+	api "github.com/begonia-org/begonia/api/v1"
+	common "github.com/begonia-org/begonia/common/api/v1"
 	"github.com/google/wire"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	api "github.com/wetrycode/begonia/api/v1"
-	common "github.com/wetrycode/begonia/common/api/v1"
 	"google.golang.org/grpc"
 )
 

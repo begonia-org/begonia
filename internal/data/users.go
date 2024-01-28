@@ -5,10 +5,10 @@ import (
 	"time"
 
 	"github.com/allegro/bigcache/v3"
+	api "github.com/begonia-org/begonia/api/v1"
+	"github.com/begonia-org/begonia/internal/biz"
 	"github.com/cockroachdb/errors"
 	"github.com/sirupsen/logrus"
-	api "github.com/wetrycode/begonia/api/v1"
-	"github.com/wetrycode/begonia/internal/biz"
 )
 
 type userRepo struct {

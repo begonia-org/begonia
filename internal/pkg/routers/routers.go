@@ -1,10 +1,10 @@
 package routers
 
 import (
-	_ "github.com/wetrycode/begonia/api/v1"
-	common "github.com/wetrycode/begonia/common/api/v1"
-	_ "github.com/wetrycode/begonia/common/api/v1"
-	"github.com/wetrycode/begonia/internal/pkg/config"
+	_ "github.com/begonia-org/begonia/api/v1"
+	_ "github.com/begonia-org/begonia/common/api/v1"
+	common "github.com/begonia-org/begonia/common/api/v1"
+	"github.com/begonia-org/begonia/internal/pkg/config"
 	"google.golang.org/genproto/googleapis/api/annotations"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"

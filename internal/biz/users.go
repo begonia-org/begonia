@@ -6,14 +6,14 @@ import (
 	"fmt"
 	"time"
 
+	api "github.com/begonia-org/begonia/api/v1"
+	common "github.com/begonia-org/begonia/common/api/v1"
+	"github.com/begonia-org/begonia/internal/pkg/config"
+	"github.com/begonia-org/begonia/internal/pkg/crypto"
+	"github.com/begonia-org/begonia/internal/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spark-lence/tiga"
 	srvErr "github.com/spark-lence/tiga/errors"
-	api "github.com/wetrycode/begonia/api/v1"
-	common "github.com/wetrycode/begonia/common/api/v1"
-	"github.com/wetrycode/begonia/internal/pkg/config"
-	"github.com/wetrycode/begonia/internal/pkg/crypto"
-	"github.com/wetrycode/begonia/internal/pkg/errors"
 	"google.golang.org/grpc/metadata"
 )
 

@@ -1,7 +1,7 @@
 package grpc
 
 import (
-	_ "github.com/wetrycode/begonia/api/v1"
+	_ "github.com/begonia-org/begonia/api/v1"
 )
 
 type Endpoint interface {
@@ -36,7 +36,7 @@ func (e *EndpointImpl) RegisterService(serviceName string) {
 	// })
 
 	// c:=&loader.Config{}
-	// c.Import("github.com/wetrycode/begonia/api/v1")
+	// c.Import("github.com/begonia-org/begonia/api/v1")
 	// c.Load()
 	// for _,pkg:=range c.(){
 

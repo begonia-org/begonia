@@ -1,4 +1,4 @@
-module github.com/wetrycode/begonia
+module github.com/begonia-org/begonia
 
 go 1.20
 
@@ -12,8 +12,8 @@ require (
 	github.com/smartystreets/goconvey v1.8.1
 	github.com/spark-lence/tiga v0.0.0-20240128050857-770874fd3b9e
 	github.com/spf13/cobra v1.8.0
-	github.com/wetrycode/begonia/common v0.0.0-20240127130759-7b867e2ffa98
-	github.com/wetrycode/begonia/endpoint v0.0.0-20240127122023-ac67007d919a
+	github.com/begonia-org/begonia/common v0.0.0-20240127130759-7b867e2ffa98
+	github.com/begonia-org/begonia/endpoint v0.0.0-20240127122023-ac67007d919a
 	google.golang.org/genproto/googleapis/api v0.0.0-20240125205218-1f4bbc51befe
 	google.golang.org/grpc v1.61.0
 	google.golang.org/protobuf v1.32.0

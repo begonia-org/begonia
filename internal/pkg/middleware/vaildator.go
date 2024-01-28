@@ -10,16 +10,16 @@ import (
 
 	"github.com/bsm/redislock"
 
+	api "github.com/begonia-org/begonia/api/v1"
+	"github.com/begonia-org/begonia/internal/biz"
+	"github.com/begonia-org/begonia/internal/pkg/config"
+	"github.com/begonia-org/begonia/internal/pkg/errors"
+	"github.com/begonia-org/begonia/internal/pkg/routers"
+	"github.com/begonia-org/begonia/internal/pkg/web"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/spark-lence/tiga"
 	srvErr "github.com/spark-lence/tiga/errors"
-	api "github.com/wetrycode/begonia/api/v1"
-	"github.com/wetrycode/begonia/internal/biz"
-	"github.com/wetrycode/begonia/internal/pkg/config"
-	"github.com/wetrycode/begonia/internal/pkg/errors"
-	"github.com/wetrycode/begonia/internal/pkg/routers"
-	"github.com/wetrycode/begonia/internal/pkg/web"
 )
 
 type APIVildator struct {

@@ -1,14 +1,14 @@
 "dev":
   endpoints:
     proto:
-      makefile: "/data/work/wetrycode/begonia/internal/pkg/runtime/Makefile"
-      gomod: "/data/work/wetrycode/begonia/go.mod"
-      wd: "/data/work/wetrycode"
+      makefile: "/data/work/begonia-org/begonia/internal/pkg/runtime/Makefile"
+      gomod: "/data/work/begonia-org/begonia/go.mod"
+      wd: "/data/work/begonia-org"
     plugins:
-      dir: "/data/work/wetrycode/begonia/plugins"
+      dir: "/data/work/begonia-org/begonia/plugins"
   file:
     upload:
-      dir: /data/work/wetrycode/begonia/upload
+      dir: /data/work/begonia-org/begonia/upload
   mysql:
     host: "127.0.0.1"
     port: 3306

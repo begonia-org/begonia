@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/wetrycode/begonia/internal/pkg/config"
+	"github.com/begonia-org/begonia/internal/pkg/config"
 )
 
 type ProtosLoader interface {
