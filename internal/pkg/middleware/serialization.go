@@ -93,7 +93,7 @@ func (m *RawBinaryUnmarshaler) NewDecoder(r io.Reader) runtime.Decoder {
 func (m *EventSourceMarshaler) ContentType(v interface{}) string {
 	return "text/event-stream"
 }
-func (m *EventSourceMarshaler) ConvertDynamicMessageToEventStreamResponse(dynMsg *dynamicpb.Message) (*common.EventStreamResponse, error) {
+func (m *EventSourceMarshaler) ToEventStreamResponse(dynMsg *dynamicpb.Message) (*common.EventStreamResponse, error) {
 	esr := &common.EventStreamResponse{}
 
 	// 遍历所有字段
@@ -128,7 +128,7 @@ func (m *EventSourceMarshaler) Marshal(v interface{}) ([]byte, error) {
 		if err != nil {
 			return nil, fmt.Errorf("marshal response error: %w", err)
 		}
-		stream, err := m.ConvertDynamicMessageToEventStreamResponse(data.(*dynamicpb.Message))
+		stream, err := m.ToEventStreamResponse(data.(*dynamicpb.Message))
 		if err != nil {
 			return nil, fmt.Errorf("marshal response error: %w", err)
 		}
