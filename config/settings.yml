@@ -9,6 +9,8 @@
   file:
     upload:
       dir: /data/work/begonia-org/begonia/upload
+    protos: 
+      dir: /data/work/begonia-org/begonia/protos
   mysql:
     host: "127.0.0.1"
     port: 3306

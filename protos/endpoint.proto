@@ -3,12 +3,22 @@ package begonia.org.begonia;
 option go_package = "github.com/begonia-org/begonia/api/v1";
 import "google/protobuf/descriptor.proto";
 import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
+import "google/protobuf/field_mask.proto";
+
+import "common/web.proto";
+import "common/options.proto";
 
 enum EndpointStatus{
     ENABLED = 0;
     DISABLED = 1;
 }
-
+message EndpointMeta {
+    // @gotags: json:"addr" gorm:"column:addr;type:varchar(128);comment:服务地址"
+    string addr =1;
+    // @gotags: json:"weight" gorm:"column:weight;type:int;comment:服务权重"
+    int32 weight =2;
+}
 message Endpoints{
     // @gotags: doc:"历史ID" gorm:"primaryKey;autoIncrement;comment:自增id"
     int64 id=1;
@@ -23,23 +33,53 @@ message Endpoints{
     // @gotags: json:"proto_path" gorm:"column:proto_path;type:varchar(512);comment:proto文件路径"
     string proto_path=6 [json_name="proto_path"];
     // @gotags: json:"endpoint" gorm:"column:endpoint;type:varchar(512);comment:proto服务对应的endpoint 服务地址"
-    string endpoint=7;
-    // @gotags: json:"plugin_id" gorm:"column:plugin_id;type:bigint;comment:proto服务对应的插件id"
-    string plugin_id=9 [json_name="plugin_id"];
+    repeated EndpointMeta endpoint=7;
     // @gotags: json:"status" gorm:"column:status;type:tinyint;comment:proto服务状态"
-    EndpointStatus status=10 [json_name="status"];
+    EndpointStatus status=8 [json_name="status"];
     // @gotags: json:"is_deleted" gorm:"column:is_deleted;type:tinyint;comment:proto服务是否删除"
-    bool is_deleted=11 [json_name="is_deleted"];
+    bool is_deleted=9 [json_name="is_deleted"];
+    // @gotags: json:"balance" gorm:"column:balance;type:varchar(32);comment:负载均衡策略"
+    string balance=10;
+    // @gotags: json:"version" gorm:"column:version;type:varchar(32);comment:版本号"
+    string version=11;
     // @gotags: doc:"完成时间" gorm:"column:completed_at;type:datetime;serializer:timepb;comment:定时任务的最近一次完成时间"
     google.protobuf.Timestamp created_at = 12;
     // @gotags: doc:"更新时间" gorm:"autoUpdateTime;column:updated_at;type:datetime;serializer:timepb;comment:定时任务的更新时间"
     google.protobuf.Timestamp updated_at = 13;
+	// @gotags: gorm:"-" json:"update_mask"
+    google.protobuf.FieldMask update_mask = 18;
     
 
 }
 message EndpointRequest{
-    string name=1;
-    string description=2;
-    string go_package=3 [json_name="go_package"]; 
-    string proto_path=4 [json_name="proto_path"];
+   repeated Endpoints endpoints=1;
+}
+
+service EndpointService{
+    option (.begonia.org.begonia.common.api.v1.auth_reqiured)=true;
+    rpc Create(EndpointRequest) returns (.begonia.org.begonia.common.api.v1.APIResponse){
+        option (google.api.http) = {
+            post: "/api/v1/endpoint/create"
+            body: "*"
+          };
+          
+    };
+    rpc Update(EndpointRequest) returns (.begonia.org.begonia.common.api.v1.APIResponse){
+        option (google.api.http) = {
+            post: "/api/v1/endpoint/update"
+            body: "*"
+          };
+    };
+    rpc Delete(EndpointRequest) returns (.begonia.org.begonia.common.api.v1.APIResponse){
+        option (google.api.http) = {
+            post: "/api/v1/endpoint/delete"
+            body: "*"
+          };
+    };
+    rpc List(EndpointRequest) returns (.begonia.org.begonia.common.api.v1.APIResponse){
+        option (google.api.http) = {
+            post: "/api/v1/endpoint/list"
+            body: "*"
+          };
+    };
 }

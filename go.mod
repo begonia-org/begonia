@@ -20,6 +20,8 @@ require (
 	google.golang.org/protobuf v1.32.0
 )
 
+require github.com/gorilla/websocket v1.5.1 // indirect
+
 require (
 	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
@@ -77,6 +79,7 @@ require (
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2 // indirect
+	github.com/begonia-org/dynamic-proto v0.0.0-00010101000000-000000000000
 	github.com/cockroachdb/logtags v0.0.0-20230118201751-21c54148d20b // indirect
 	github.com/cockroachdb/redact v1.1.5 // indirect
 	github.com/coreos/go-semver v0.3.1 // indirect
@@ -104,3 +107,5 @@ require (
 )
 
 replace github.com/spark-lence/tiga => /data/work/spark-lence/tiga
+
+replace github.com/begonia-org/dynamic-proto => /data/work/begonia-org/dynamic-proto

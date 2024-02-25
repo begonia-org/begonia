@@ -1,0 +1,41 @@
+syntax = "proto3";
+package begonia.org.begonia;
+option go_package = "github.com/begonia-org/begonia/api/v1";
+import "google/protobuf/descriptor.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/field_mask.proto";
+
+import "google/api/annotations.proto";
+import "common/web.proto";
+
+enum APPStatus{
+    APP_ENABLED = 0;
+    APP_DISABLED = 1;
+}
+
+message Apps{
+	// @gotags: doc:"历史ID" gorm:"primaryKey;autoIncrement;comment:自增id"
+	int64 id = 1;
+    // @gotags: json:"name" gorm:"column:name;type:varchar(128);unique;comment:app服务名称"
+	string name = 2;
+    // @gotags: json:"description" gorm:"column:description;type:varchar(256);comment:app描述服务"
+	string description = 3;
+	// @gotags: json:"status" gorm:"column:status;type:tinyint;comment:app服务状态"
+	APPStatus status = 4;
+	// @gotags: json:"appid" gorm:"column:appid;type:varchar(64);unique;comment:app服务id"
+	string appid = 5;
+	// @gotags: json:"access_key" gorm:"column:access_key;type:varchar(64);unique;comment:app服务access_key"
+	string access_key = 6 [json_name="access_key"];
+	// @gotags json:"secret" gorm:"column:secret;type:varchar(64);unique;comment:app服务secret"
+	string secret = 7;
+	// @gotags: json:"owner" gorm:"column:owner;type:varchar(64);comment:app服务拥有者"
+	string owner = 8;
+    // @gotags: json:"is_deleted" gorm:"column:is_deleted;type:tinyint;comment:proto服务是否删除"
+    bool is_deleted=9 [json_name="is_deleted"];
+	// @gotags: doc:"完成时间" gorm:"column:completed_at;type:datetime;serializer:timepb;comment:定时任务的最近一次完成时间"
+    google.protobuf.Timestamp created_at = 12;
+    // @gotags: doc:"更新时间" gorm:"autoUpdateTime;column:updated_at;type:datetime;serializer:timepb;comment:定时任务的更新时间"
+    google.protobuf.Timestamp updated_at = 13;
+	// @gotags: gorm:"-" json:"update_mask"
+	google.protobuf.FieldMask update_mask = 18;
+}

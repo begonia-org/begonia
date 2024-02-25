@@ -1,0 +1,344 @@
+{
+    "/begonia.org.begonia.AuthService/Account": [
+        {
+            "Pattern": {},
+            "Template": {
+                "Version": 1,
+                "OpCodes": [
+                    2,
+                    0,
+                    2,
+                    1,
+                    2,
+                    2,
+                    2,
+                    3
+                ],
+                "Pool": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "account"
+                ],
+                "Verb": "",
+                "Fields": null,
+                "Template": "/api/v1/auth/account"
+            },
+            "HttpMethod": "POST",
+            "FullMethodName": "/begonia.org.begonia.AuthService/Account",
+            "HttpUri": "/api/v1/auth/account",
+            "PathParams": [],
+            "InName": "AccountAPIRequest",
+            "OutName": "APIResponse",
+            "IsClientStream": false,
+            "IsServerStream": false,
+            "Pkg": "begonia.org.begonia",
+            "InPkg": "begonia.org.begonia",
+            "OutPkg": "begonia.org.begonia.common.api.v1"
+        }
+    ],
+    "/begonia.org.begonia.AuthService/AuthSeed": [
+        {
+            "Pattern": {},
+            "Template": {
+                "Version": 1,
+                "OpCodes": [
+                    2,
+                    0,
+                    2,
+                    1,
+                    2,
+                    2,
+                    2,
+                    3
+                ],
+                "Pool": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "log"
+                ],
+                "Verb": "",
+                "Fields": null,
+                "Template": "/api/v1/auth/log"
+            },
+            "HttpMethod": "POST",
+            "FullMethodName": "/begonia.org.begonia.AuthService/AuthSeed",
+            "HttpUri": "/api/v1/auth/log",
+            "PathParams": [],
+            "InName": "AuthLogAPIRequest",
+            "OutName": "APIResponse",
+            "IsClientStream": false,
+            "IsServerStream": false,
+            "Pkg": "begonia.org.begonia",
+            "InPkg": "begonia.org.begonia",
+            "OutPkg": "begonia.org.begonia.common.api.v1"
+        }
+    ],
+    "/begonia.org.begonia.AuthService/Login": [
+        {
+            "Pattern": {},
+            "Template": {
+                "Version": 1,
+                "OpCodes": [
+                    2,
+                    0,
+                    2,
+                    1,
+                    2,
+                    2,
+                    2,
+                    3
+                ],
+                "Pool": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "login"
+                ],
+                "Verb": "",
+                "Fields": null,
+                "Template": "/api/v1/auth/login"
+            },
+            "HttpMethod": "POST",
+            "FullMethodName": "/begonia.org.begonia.AuthService/Login",
+            "HttpUri": "/api/v1/auth/login",
+            "PathParams": [],
+            "InName": "LoginAPIRequest",
+            "OutName": "APIResponse",
+            "IsClientStream": false,
+            "IsServerStream": false,
+            "Pkg": "begonia.org.begonia",
+            "InPkg": "begonia.org.begonia",
+            "OutPkg": "begonia.org.begonia.common.api.v1"
+        }
+    ],
+    "/begonia.org.begonia.AuthService/Logout": [
+        {
+            "Pattern": {},
+            "Template": {
+                "Version": 1,
+                "OpCodes": [
+                    2,
+                    0,
+                    2,
+                    1,
+                    2,
+                    2,
+                    2,
+                    3
+                ],
+                "Pool": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "logout"
+                ],
+                "Verb": "",
+                "Fields": null,
+                "Template": "/api/v1/auth/logout"
+            },
+            "HttpMethod": "GET",
+            "FullMethodName": "/begonia.org.begonia.AuthService/Logout",
+            "HttpUri": "/api/v1/auth/logout",
+            "PathParams": [],
+            "InName": "LogoutAPIRequest",
+            "OutName": "APIResponse",
+            "IsClientStream": false,
+            "IsServerStream": false,
+            "Pkg": "begonia.org.begonia",
+            "InPkg": "begonia.org.begonia",
+            "OutPkg": "begonia.org.begonia.common.api.v1"
+        }
+    ],
+    "/begonia.org.begonia.AuthService/Regsiter": [
+        {
+            "Pattern": {},
+            "Template": {
+                "Version": 1,
+                "OpCodes": [
+                    2,
+                    0,
+                    2,
+                    1,
+                    2,
+                    2,
+                    2,
+                    3
+                ],
+                "Pool": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "regsiter"
+                ],
+                "Verb": "",
+                "Fields": null,
+                "Template": "/api/v1/auth/regsiter"
+            },
+            "HttpMethod": "POST",
+            "FullMethodName": "/begonia.org.begonia.AuthService/Regsiter",
+            "HttpUri": "/api/v1/auth/regsiter",
+            "PathParams": [],
+            "InName": "RegsiterAPIRequest",
+            "OutName": "APIResponse",
+            "IsClientStream": false,
+            "IsServerStream": false,
+            "Pkg": "begonia.org.begonia",
+            "InPkg": "begonia.org.begonia",
+            "OutPkg": "begonia.org.begonia.common.api.v1"
+        }
+    ],
+    "/begonia.org.begonia.EndpointService/Create": [
+        {
+            "Pattern": {},
+            "Template": {
+                "Version": 1,
+                "OpCodes": [
+                    2,
+                    0,
+                    2,
+                    1,
+                    2,
+                    2,
+                    2,
+                    3
+                ],
+                "Pool": [
+                    "api",
+                    "v1",
+                    "endpoint",
+                    "create"
+                ],
+                "Verb": "",
+                "Fields": null,
+                "Template": "/api/v1/endpoint/create"
+            },
+            "HttpMethod": "POST",
+            "FullMethodName": "/begonia.org.begonia.EndpointService/Create",
+            "HttpUri": "/api/v1/endpoint/create",
+            "PathParams": [],
+            "InName": "EndpointRequest",
+            "OutName": "APIResponse",
+            "IsClientStream": false,
+            "IsServerStream": false,
+            "Pkg": "begonia.org.begonia",
+            "InPkg": "begonia.org.begonia",
+            "OutPkg": "begonia.org.begonia.common.api.v1"
+        }
+    ],
+    "/begonia.org.begonia.EndpointService/Delete": [
+        {
+            "Pattern": {},
+            "Template": {
+                "Version": 1,
+                "OpCodes": [
+                    2,
+                    0,
+                    2,
+                    1,
+                    2,
+                    2,
+                    2,
+                    3
+                ],
+                "Pool": [
+                    "api",
+                    "v1",
+                    "endpoint",
+                    "delete"
+                ],
+                "Verb": "",
+                "Fields": null,
+                "Template": "/api/v1/endpoint/delete"
+            },
+            "HttpMethod": "POST",
+            "FullMethodName": "/begonia.org.begonia.EndpointService/Delete",
+            "HttpUri": "/api/v1/endpoint/delete",
+            "PathParams": [],
+            "InName": "EndpointRequest",
+            "OutName": "APIResponse",
+            "IsClientStream": false,
+            "IsServerStream": false,
+            "Pkg": "begonia.org.begonia",
+            "InPkg": "begonia.org.begonia",
+            "OutPkg": "begonia.org.begonia.common.api.v1"
+        }
+    ],
+    "/begonia.org.begonia.EndpointService/List": [
+        {
+            "Pattern": {},
+            "Template": {
+                "Version": 1,
+                "OpCodes": [
+                    2,
+                    0,
+                    2,
+                    1,
+                    2,
+                    2,
+                    2,
+                    3
+                ],
+                "Pool": [
+                    "api",
+                    "v1",
+                    "endpoint",
+                    "list"
+                ],
+                "Verb": "",
+                "Fields": null,
+                "Template": "/api/v1/endpoint/list"
+            },
+            "HttpMethod": "POST",
+            "FullMethodName": "/begonia.org.begonia.EndpointService/List",
+            "HttpUri": "/api/v1/endpoint/list",
+            "PathParams": [],
+            "InName": "EndpointRequest",
+            "OutName": "APIResponse",
+            "IsClientStream": false,
+            "IsServerStream": false,
+            "Pkg": "begonia.org.begonia",
+            "InPkg": "begonia.org.begonia",
+            "OutPkg": "begonia.org.begonia.common.api.v1"
+        }
+    ],
+    "/begonia.org.begonia.EndpointService/Update": [
+        {
+            "Pattern": {},
+            "Template": {
+                "Version": 1,
+                "OpCodes": [
+                    2,
+                    0,
+                    2,
+                    1,
+                    2,
+                    2,
+                    2,
+                    3
+                ],
+                "Pool": [
+                    "api",
+                    "v1",
+                    "endpoint",
+                    "update"
+                ],
+                "Verb": "",
+                "Fields": null,
+                "Template": "/api/v1/endpoint/update"
+            },
+            "HttpMethod": "POST",
+            "FullMethodName": "/begonia.org.begonia.EndpointService/Update",
+            "HttpUri": "/api/v1/endpoint/update",
+            "PathParams": [],
+            "InName": "EndpointRequest",
+            "OutName": "APIResponse",
+            "IsClientStream": false,
+            "IsServerStream": false,
+            "Pkg": "begonia.org.begonia",
+            "InPkg": "begonia.org.begonia",
+            "OutPkg": "begonia.org.begonia.common.api.v1"
+        }
+    ]
+}

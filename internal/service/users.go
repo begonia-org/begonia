@@ -10,6 +10,7 @@ import (
 	"github.com/begonia-org/begonia/internal/pkg/crypto"
 	"github.com/begonia-org/begonia/internal/pkg/web"
 	"github.com/sirupsen/logrus"
+	"google.golang.org/grpc"
 )
 
 type UsersService struct {
@@ -61,4 +62,8 @@ func (u *UsersService) Account(ctx context.Context, req *api.AccountAPIRequest) 
 	return web.MakeResponse(&api.AccountAPIResponse{
 		Users: rsp,
 	}, nil)
+}
+
+func (u *UsersService) Desc() *grpc.ServiceDesc{
+	return &api.AuthService_ServiceDesc
 }

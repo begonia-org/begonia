@@ -22,7 +22,8 @@ func NewLocalCache(data *Data, config *config.Config, log *logrus.Logger) *Local
 		panic(err)
 	}
 	local := &LocalCache{cache: cache, data: data, config: config, log: log}
-	local.LoadRemoteCache(context.Background())
+	local.LoadRemoteCache(context.Background(),config.GetUserBlackListPrefix())
+	local.LoadRemoteCache(context.Background(),config.GetAPPAccessKeyPrefix())
 	local.Sync()
 	return local
 }
@@ -36,11 +37,11 @@ func (l *LocalCache) Get(ctx context.Context, key string) ([]byte, error) {
 func (l *LocalCache) Del(ctx context.Context, key string) error {
 	return l.cache.Delete(key)
 }
-func (l *LocalCache) LoadRemoteCache(ctx context.Context) {
+func (l *LocalCache) LoadRemoteCache(ctx context.Context,key string) {
 	var cursor uint64 = 0
 	for {
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
-		keys, cursor, err := l.data.ScanCache(ctx, cursor, l.config.GetUserBlackListPrefix(), 100)
+		keys, cursor, err := l.data.ScanCache(ctx, cursor, key, 100)
 		cancel()
 		if cursor == 0 {
 			break
@@ -51,7 +52,8 @@ func (l *LocalCache) LoadRemoteCache(ctx context.Context) {
 			break
 		}
 		for _, key := range keys {
-			err = l.cache.Set(key, []byte("1"))
+			val:=l.data.GetCache(ctx, key)
+			err = l.cache.Set(key, []byte(val))
 			if err != nil {
 				l.log.Errorf("set uid blacklist cache error %v", err)
 				continue
@@ -68,7 +70,8 @@ func (l *LocalCache) Sync() {
 
 	go func() {
 		for range ticker.C {
-			l.LoadRemoteCache(context.Background())
+			l.LoadRemoteCache(context.Background(),l.config.GetUserBlackListPrefix())
+			l.LoadRemoteCache(context.Background(),l.config.GetAPPAccessKeyPrefix())
 
 		}
 	}()

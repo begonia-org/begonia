@@ -10,6 +10,7 @@ import (
 	api "github.com/begonia-org/begonia/common/api/v1"
 	"github.com/begonia-org/begonia/internal/biz"
 	"github.com/begonia-org/begonia/internal/pkg/config"
+	"google.golang.org/grpc"
 )
 
 type FileService struct {
@@ -54,4 +55,8 @@ func (f *FileService) UploadFile(stream api.FileService_UploadFileServer) error 
 		Uri:    file.Uri,
 		Sha256: file.Sha,
 	})
+}
+
+func (f *FileService) Desc() *grpc.ServiceDesc {
+	return &api.FileService_ServiceDesc
 }

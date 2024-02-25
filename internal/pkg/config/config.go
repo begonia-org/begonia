@@ -17,6 +17,28 @@ type Config struct {
 func NewConfig(config *tiga.Configuration) *Config {
 	return &Config{Configuration: config}
 }
+
+func (c *Config) GetDefaultAdminPasswd() string {
+	return c.GetString("admin.password")
+}
+func (c *Config) GetDefaultAdminName() string {
+	return c.GetString("admin.name")
+}
+func (c *Config) GetDefaultAdminPhone() string {
+	return c.GetString("admin.phone")
+}
+func (c *Config) GetDefaultAdminEmail() string {
+	return c.GetString("admin.email")
+}
+
+func (c *Config) GetAesKey() string {
+	return c.GetString("auth.aes_key")
+}
+func (c *Config) GetAesIv() string {
+	return c.GetString("auth.aes_iv")
+}
+
+// jwt_secret
 func (c *Config) GetJWTLockKey(uid string) string {
 	prefix := c.GetString("common.rdb_key_prefix")
 	return fmt.Sprintf("%s:jwt_lock:%s", prefix, uid)
@@ -36,6 +58,14 @@ func (c *Config) GetUserBlackListPrefix() string {
 	prefix := c.GetString("common.rdb_key_prefix")
 	return fmt.Sprintf("%s:user:black:*", prefix)
 }
+func (c *Config) GetAPPAccessKey(access string) string {
+	prefix := c.GetString("common.rdb_key_prefix")
+	return fmt.Sprintf("%s:app:access_key:%s", prefix, access)
+}
+func (c *Config) GetAPPAccessKeyPrefix() string {
+	prefix := c.GetString("common.rdb_key_prefix")
+	return fmt.Sprintf("%s:app:access_key:*", prefix)
+}
 func (c *Config) GetWorkerTokenKey(token string) string {
 	prefix := c.GetString("common.rdb_key_prefix")
 	return fmt.Sprintf("%s:worker:%s", prefix, token)
@@ -54,4 +84,7 @@ func (c *Config) GetPluginDir() string {
 }
 func (c *Config) GetUploadDir() string {
 	return c.GetString("file.upload.dir")
+}
+func (c *Config) GetProtosDir() string {
+	return c.GetString("file.protos.dir")
 }

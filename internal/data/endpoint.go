@@ -22,7 +22,8 @@ func NewEndpointRepoImpl(data *Data) biz.EndpointRepo {
 // ListEndpoint(ctx context.Context, plugins[]string) (error, []*api.Endpoints)
 func (r *endpointRepoImpl) AddEndpoint(ctx context.Context, endpoints []*api.Endpoints) error {
 	// return r.data.CreateInBatches(endpoints)
-	return nil
+	sources := NewSourceTypeArray(endpoints)
+	return r.data.CreateInBatches(sources)
 }
 
 func (r *endpointRepoImpl) DeleteEndpoint(ctx context.Context, endpoints []*api.Endpoints) error {
