@@ -13,9 +13,26 @@ func addCommonCommand(cmd *cobra.Command) *cobra.Command {
 	cmd.Flags().StringP("env", "e", "dev", "Runtime Environment")
 	return cmd
 }
+func NewInitCmd() *cobra.Command {
+	var cmd = &cobra.Command{
+		Use:   "init",
+		Short: "初始化数据库",
+		Run: func(cmd *cobra.Command, args []string) {
+			env, _ := cmd.Flags().GetString("env")
+			config := config.ReadConfig(env)
+			operator := initOperatorApp(config)
+			err := operator.Init()
+			if err != nil {
+				log.Fatalf("failed to init database: %v", err)
+			}
+		},
+	}
+	return cmd
+
+}
 func NewGatewayCmd() *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:   "gateway start",
+		Use:   "start",
 		Short: "启动网关服务",
 
 		Run: func(cmd *cobra.Command, args []string) {
@@ -37,6 +54,10 @@ func NewGatewayCmd() *cobra.Command {
 func main() {
 	cmd := NewGatewayCmd()
 	cmd = addCommonCommand(cmd)
+	rootCmd := &cobra.Command{Use: "gateway", Short: "网关服务"}
+	rootCmd.AddCommand(cmd)
+	rootCmd.AddCommand(addCommonCommand(NewInitCmd()))
+
 	if err := cmd.Execute(); err != nil {
 		log.Fatalf("failed to start master: %v", err)
 	}
