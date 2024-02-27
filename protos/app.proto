@@ -7,6 +7,8 @@ import "google/protobuf/field_mask.proto";
 
 import "google/api/annotations.proto";
 import "common/web.proto";
+import "common/options.proto";
+
 
 enum APPStatus{
     APP_ENABLED = 0;
@@ -32,10 +34,49 @@ message Apps{
 	string owner = 8;
     // @gotags: json:"is_deleted" gorm:"column:is_deleted;type:tinyint;comment:proto服务是否删除"
     bool is_deleted=9 [json_name="is_deleted"];
+	// @gotags: json:"tags" gorm:"column:tags;type:json;comment:app服务标签"
+	repeated string tags = 10;
+
 	// @gotags: doc:"完成时间" gorm:"column:completed_at;type:datetime;serializer:timepb;comment:定时任务的最近一次完成时间"
     google.protobuf.Timestamp created_at = 12;
     // @gotags: doc:"更新时间" gorm:"autoUpdateTime;column:updated_at;type:datetime;serializer:timepb;comment:定时任务的更新时间"
     google.protobuf.Timestamp updated_at = 13;
 	// @gotags: gorm:"-" json:"update_mask"
 	google.protobuf.FieldMask update_mask = 18;
+}
+
+message AddAppsRequest {
+	// @gotags: json:"apps"
+	repeated Apps apps = 1;
+}
+message AppsListRequest{
+	// @gotags: json:"page" gorm:"column:page;type:int;comment:页码"
+	int32 page = 1;
+	// @gotags: json:"page_size" gorm:"column:page_size;type:int;comment:每页数量"
+	int32 page_size = 2;
+    repeated string tags = 3;
+    repeated string name = 4;
+    repeated string appid = 5;
+    repeated string owner = 6;
+    // @gotags: json:"access_key"
+    repeated string access_key = 7;
+    // @gotags: json:"status" gorm:"column:status;type:tinyint;comment:app服务状态"
+    repeated	APPStatus status = 8;
+}
+service AppsService {
+	option (.begonia.org.begonia.common.api.v1.auth_reqiured)=true;
+	// @gotags: doc:"添加app服务"
+	rpc AddApps(AddAppsRequest) returns (.begonia.org.begonia.common.api.v1.APIResponse){
+		option (google.api.http) = {
+            post: "/api/v1/app/create"
+            body: "*"
+          };
+	};
+	// @gotags: doc:"获取app服务"
+	rpc GetApps(AppsListRequest) returns (.begonia.org.begonia.common.api.v1.APIResponse){
+		option (google.api.http) = {
+			post: "/api/v1/app/list"
+			body: "*"
+		  };
+	};
 }

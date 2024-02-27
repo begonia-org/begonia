@@ -32,7 +32,7 @@ message Endpoints{
     string go_package=5 [json_name="go_package"];
     // @gotags: json:"proto_path" gorm:"column:proto_path;type:varchar(512);comment:proto文件路径"
     string proto_path=6 [json_name="proto_path"];
-    // @gotags: json:"endpoint" gorm:"column:endpoint;type:varchar(512);comment:proto服务对应的endpoint 服务地址"
+    // @gotags: json:"endpoint" gorm:"column:endpoint;type:json;comment:proto服务对应的endpoint 服务地址"
     repeated EndpointMeta endpoint=7;
     // @gotags: json:"status" gorm:"column:status;type:tinyint;comment:proto服务状态"
     EndpointStatus status=8 [json_name="status"];
