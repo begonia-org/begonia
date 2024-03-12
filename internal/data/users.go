@@ -2,12 +2,12 @@ package data
 
 import (
 	"context"
+	"fmt"
 	"time"
 
-	"github.com/allegro/bigcache/v3"
 	api "github.com/begonia-org/begonia/api/v1"
 	"github.com/begonia-org/begonia/internal/biz"
-	"github.com/cockroachdb/errors"
+	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 )
 
@@ -65,10 +65,35 @@ func (t *userRepo) DelToken(ctx context.Context, key string) error {
 	err := t.data.DelCache(ctx, key)
 	return err
 }
-func (t *userRepo) CheckInBlackList(ctx context.Context, key string) (bool, error) {
-	val, err := t.local.Get(ctx, key)
-	if err != nil && !errors.Is(err, bigcache.ErrEntryNotFound) {
-		return false, errors.Wrap(err, "获取本地缓存失败")
+func (t *userRepo) CheckInBlackList(ctx context.Context, token string) bool {
+	key := t.local.config.GetUserTokenBlackListBloom()
+	return t.local.BloomFilterTest(ctx, key, []byte(token))
+}
+
+func (t *userRepo) PutBlackList(ctx context.Context, token string) error {
+	key := t.local.config.GetUserTokenBlackListBloom()
+	return t.local.BloomFilterAdd(ctx, key, []byte(token))
+
+}
+
+func (u *userRepo) CacheUsers(ctx context.Context, prefix string, models []*api.Users, exp time.Duration, getValue func(user *api.Users) ([]byte, interface{})) redis.Pipeliner {
+	kv := make([]interface{}, 0)
+	for _, model := range models {
+		// status,_:=tiga.IntToBytes(int(model.Status))
+		valByte, val := getValue(model)
+		key := fmt.Sprintf("%s:%s", prefix, model.Uid)
+		if err := u.cacheUsers(ctx, prefix, model.Uid, valByte, exp); err != nil {
+			return nil
+		}
+		kv = append(kv, key, val)
 	}
-	return string(val) != "", nil
+	return u.data.BatchCacheByTx(ctx, exp, kv...)
+}
+func (u *userRepo) cacheUsers(ctx context.Context, prefix string, uid string, value []byte, exp time.Duration) error {
+	key := fmt.Sprintf("%s:%s", prefix, uid)
+	err := u.local.cache.Set(key, value)
+	if err != nil {
+		return err
+	}
+	return nil
 }

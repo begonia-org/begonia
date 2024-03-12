@@ -1,4 +1,80 @@
 {
+    "/begonia.org.begonia.AppsService/AddApps": [
+        {
+            "Pattern": {},
+            "Template": {
+                "Version": 1,
+                "OpCodes": [
+                    2,
+                    0,
+                    2,
+                    1,
+                    2,
+                    2,
+                    2,
+                    3
+                ],
+                "Pool": [
+                    "api",
+                    "v1",
+                    "app",
+                    "create"
+                ],
+                "Verb": "",
+                "Fields": null,
+                "Template": "/api/v1/app/create"
+            },
+            "HttpMethod": "POST",
+            "FullMethodName": "/begonia.org.begonia.AppsService/AddApps",
+            "HttpUri": "/api/v1/app/create",
+            "PathParams": [],
+            "InName": "AddAppsRequest",
+            "OutName": "APIResponse",
+            "IsClientStream": false,
+            "IsServerStream": false,
+            "Pkg": "begonia.org.begonia",
+            "InPkg": "begonia.org.begonia",
+            "OutPkg": "begonia.org.begonia.common.api.v1"
+        }
+    ],
+    "/begonia.org.begonia.AppsService/GetApps": [
+        {
+            "Pattern": {},
+            "Template": {
+                "Version": 1,
+                "OpCodes": [
+                    2,
+                    0,
+                    2,
+                    1,
+                    2,
+                    2,
+                    2,
+                    3
+                ],
+                "Pool": [
+                    "api",
+                    "v1",
+                    "app",
+                    "list"
+                ],
+                "Verb": "",
+                "Fields": null,
+                "Template": "/api/v1/app/list"
+            },
+            "HttpMethod": "POST",
+            "FullMethodName": "/begonia.org.begonia.AppsService/GetApps",
+            "HttpUri": "/api/v1/app/list",
+            "PathParams": [],
+            "InName": "AppsListRequest",
+            "OutName": "APIResponse",
+            "IsClientStream": false,
+            "IsServerStream": false,
+            "Pkg": "begonia.org.begonia",
+            "InPkg": "begonia.org.begonia",
+            "OutPkg": "begonia.org.begonia.common.api.v1"
+        }
+    ],
     "/begonia.org.begonia.AuthService/Account": [
         {
             "Pattern": {},

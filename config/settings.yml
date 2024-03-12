@@ -25,6 +25,19 @@
   auth:
     aes_key: "1234567890123456"
     aes_iv: "L!#x].upV.>Jx0QN"
+    jwt_secret: "WNjp6mW^GXnRf3]34asF"
+    jwt_expiration: 7200 # seconds
+    blacklist:
+      bloom:
+        m: 100000
+        error_rate: 0.001
+      pubsub:
+        channel: "gateway-blacklist"
+        group: "gateway-blacklist-group"
+      user:
+        cache_expire: 3600 # seconds  
+    app:
+      cache_expire: 3600 # seconds      
   redis:
     addr: "127.0.0.1:6379"
     password: ""
@@ -41,4 +54,7 @@
     cors:
       - "localhost"
   common:
-    rdb_key_prefix: "go-scheduler"
+    rdb_key_prefix: "begonia"
+    rdb_key_bloom: "begonia:bloom"
+    app_key_prefix: "begonia:app"
+

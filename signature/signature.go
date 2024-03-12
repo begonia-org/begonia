@@ -19,8 +19,12 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+type RequestHeader struct {
+	headers map[string]string
+}
+
 type GatewayRequest struct {
-	Headers map[string]string
+	Headers *RequestHeader
 	Payload io.ReadCloser
 	Method  string
 	URL     *url.URL
@@ -28,6 +32,7 @@ type GatewayRequest struct {
 }
 type AppAuthSigner interface {
 	Sign(request *GatewayRequest) (string, error)
+	SignRequest(request *GatewayRequest) error
 }
 
 type AppAuthSignerImpl struct {
@@ -37,7 +42,7 @@ type AppAuthSignerImpl struct {
 
 const (
 	DateFormat           = "20060102T150405Z"
-	SignAlgorithm        = "X-Sign-Algorithm"
+	SignAlgorithm        = "X-Sign-HMAC-SHA256"
 	HeaderXDateTime      = "X-Date"
 	HeaderXHost          = "host"
 	HeaderXAuthorization = "Authorization"
@@ -45,9 +50,31 @@ const (
 	HeaderXAccessKey     = "X-Access-Key"
 )
 
+func (h *RequestHeader) Set(key, value string) {
+	h.headers[strings.ToLower(key)] = value
+
+}
+func (h *RequestHeader) Get(key string) string {
+	return h.headers[strings.ToLower(key)]
+
+}
+func (h *RequestHeader) Del(key string) {
+	delete(h.headers, strings.ToLower(key))
+}
+func (h *RequestHeader) Keys() []string {
+	var keys []string
+	for k := range h.headers {
+		keys = append(keys, k)
+	}
+	return keys
+}
+func (h *RequestHeader) ToMetadata() metadata.MD {
+	md := metadata.New(h.headers)
+	return md
+}
 func NewGatewayRequestFromGrpc(ctx context.Context, req interface{}, fullMethod string) (*GatewayRequest, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
-	headers := make(map[string]string)
+	headers := &RequestHeader{headers: make(map[string]string)}
 	host := ""
 	if ok {
 		for k, v := range md {
@@ -55,7 +82,7 @@ func NewGatewayRequestFromGrpc(ctx context.Context, req interface{}, fullMethod 
 				host = v[0]
 
 			}
-			headers[k] = strings.Join(v, ",")
+			headers.Set(k, strings.Join(v, ","))
 		}
 	}
 	u, _ := url.Parse(fmt.Sprintf("http://%s%s", host, fullMethod))
@@ -68,11 +95,14 @@ func NewGatewayRequestFromGrpc(ctx context.Context, req interface{}, fullMethod 
 	}, nil
 }
 func NewGatewayRequestFromHttp(req *http.Request) (*GatewayRequest, error) {
-	headers := make(map[string]string)
+	// headers := make(map[string]string)
+	headers := &RequestHeader{headers: make(map[string]string)}
 	for k, v := range req.Header {
-		headers[k] = strings.Join(v, ",")
+		headers.Set(k, strings.Join(v, ","))
 	}
-	return &GatewayRequest{Headers: headers, Method: req.Method, URL: req.URL, Host: req.Host, Payload: req.Body}, nil
+	payload, _ := io.ReadAll(req.Body)
+	req.Body = io.NopCloser(bytes.NewBuffer(payload))
+	return &GatewayRequest{Headers: headers, Method: req.Method, URL: req.URL, Host: req.Host, Payload: io.NopCloser(bytes.NewBuffer(payload))}, nil
 }
 func NewAppAuthSigner(key, secret string) AppAuthSigner {
 	return &AppAuthSignerImpl{Key: key, Secret: secret}
@@ -89,7 +119,7 @@ func (app *AppAuthSignerImpl) hmacsha256(keyByte []byte, dataStr string) ([]byte
 func (app *AppAuthSignerImpl) CanonicalRequest(request *GatewayRequest, signedHeaders []string) (string, error) {
 	var hexencode string
 	var err error
-	if hex, ok := request.Headers[HeaderXContentSha256]; ok && hex != "" {
+	if hex := request.Headers.Get(HeaderXContentSha256); hex != "" {
 		hexencode = hex
 	} else {
 		bodyData, err := app.RequestPayload(request)
@@ -144,7 +174,7 @@ func (app *AppAuthSignerImpl) CanonicalQueryString(request *GatewayRequest) stri
 func (app *AppAuthSignerImpl) CanonicalHeaders(request *GatewayRequest, signerHeaders []string) string {
 	var canonicalHeaders []string
 	header := make(map[string][]string)
-	for k, v := range request.Headers {
+	for k, v := range request.Headers.headers {
 		header[strings.ToLower(k)] = strings.Split(v, ",")
 	}
 	for _, key := range signerHeaders {
@@ -163,8 +193,8 @@ func (app *AppAuthSignerImpl) CanonicalHeaders(request *GatewayRequest, signerHe
 // SignedHeaders
 func (app *AppAuthSignerImpl) SignedHeaders(r *GatewayRequest) []string {
 	var signedHeaders []string
-	for key := range r.Headers {
-		if strings.EqualFold(strings.ToLower(key), strings.ToLower(HeaderXAuthorization)) {
+	for key := range r.Headers.headers {
+		if strings.EqualFold(key, HeaderXAuthorization) {
 			continue
 		}
 		signedHeaders = append(signedHeaders, strings.ToLower(key))
@@ -223,7 +253,7 @@ func (app *AppAuthSignerImpl) Sign(request *GatewayRequest) (string, error) {
 	var t time.Time
 	var err error
 	var date string
-	if date, ok := request.Headers[HeaderXDateTime]; ok && date != "" {
+	if date := request.Headers.Get(HeaderXDateTime); date != "" {
 		t, err = time.Parse(DateFormat, date)
 		if time.Since(t) > time.Minute*1 {
 			return "", fmt.Errorf("X-Date is expired")
@@ -231,11 +261,12 @@ func (app *AppAuthSignerImpl) Sign(request *GatewayRequest) (string, error) {
 	}
 	if err != nil || date == "" {
 		t = time.Now()
-		request.Headers[HeaderXDateTime] = t.UTC().Format(DateFormat)
+		request.Headers.Set(HeaderXDateTime, t.UTC().Format(DateFormat))
 	}
-	request.Headers[HeaderXAccessKey] = app.Key
+	request.Headers.Set(HeaderXAccessKey, app.Key)
 	signedHeaders := app.SignedHeaders(request)
 	canonicalRequest, err := app.CanonicalRequest(request, signedHeaders)
+
 	if err != nil {
 		return "", fmt.Errorf("Failed to create canonical request: %w", err)
 	}
@@ -249,4 +280,13 @@ func (app *AppAuthSignerImpl) Sign(request *GatewayRequest) (string, error) {
 	}
 
 	return signatureStr, nil
+}
+
+func (app *AppAuthSignerImpl) SignRequest(request *GatewayRequest) error {
+	signature, err := app.Sign(request)
+	if err != nil {
+		return err
+	}
+	request.Headers.Set(HeaderXAuthorization, app.AuthHeaderValue(signature, app.Key, app.SignedHeaders(request)))
+	return nil
 }

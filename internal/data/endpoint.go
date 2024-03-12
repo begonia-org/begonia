@@ -4,8 +4,7 @@ import (
 	"context"
 
 	api "github.com/begonia-org/begonia/api/v1"
-	"github.com/begonia-org/begonia/internal/biz"
-)
+	"github.com/begonia-org/begonia/internal/biz")
 
 type endpointRepoImpl struct {
 	data *Data

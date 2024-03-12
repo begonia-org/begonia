@@ -1,4 +1,4 @@
-package middleware
+package validator
 
 import (
 	"context"
@@ -31,104 +31,28 @@ import (
 )
 
 type APIValidator struct {
-	biz    biz.UsersRepo
-	app    biz.AppRepo
-	config *config.Config
-	rdb    *tiga.RedisDao
-	// mysql *tiga.MySQLDao
+	biz        *biz.UsersUsecase
+	app        biz.AppRepo
+	config     *config.Config
+	rdb        *tiga.RedisDao
 	localCache *data.LocalCache
 	log        *logrus.Logger
 }
-type Header interface {
-	Set(key, value string)
-	SendHeader(key, value string)
-}
-type GrpcHeader struct {
-	in  metadata.MD
-	ctx context.Context
-	out metadata.MD
-}
-type httpHeader struct {
-	w http.ResponseWriter
-	r *http.Request
-}
-type GrpcStreamHeader struct {
-	*GrpcHeader
-	ss grpc.ServerStream
-}
-type grpcServerStream struct {
-	grpc.ServerStream
-	fullName string
-	validate *APIValidator
-	ctx      context.Context
-}
 
-func (g *grpcServerStream) Context() context.Context {
-	return g.ctx
-}
-func (s *grpcServerStream) RecvMsg(m interface{}) error {
-	if err := s.ServerStream.RecvMsg(m); err != nil {
-		return err
-	}
-	in, ok := metadata.FromIncomingContext(s.Context())
-	if !ok {
-		return status.Errorf(codes.Unauthenticated, "metadata not exists in context")
 
-	}
-	out, ok := metadata.FromOutgoingContext(s.Context())
-	if !ok {
-		out = metadata.MD{}
 
-	}
-	ctx, err := s.validate.ValidateGrpcRequest(s.Context(), m, s.fullName, &GrpcStreamHeader{
-		&GrpcHeader{in: in, ctx: s.Context(), out: out}, s.ServerStream,
-	})
-	s.ctx = ctx
 
-	return err
-}
-
-func (g *GrpcHeader) Set(key, value string) {
-	metadata.Join(g.in, metadata.Pairs(key, value))
-	newCtx := metadata.NewOutgoingContext(g.ctx, g.in)
-	g.ctx = newCtx
-
-	// g.SetHeader(metadata.Pairs(key, value))
-}
-func (g *GrpcHeader) SendHeader(key, value string) {
-	metadata.Join(g.out, metadata.Pairs(key, value))
-	grpc.SendHeader(g.ctx, g.out)
-}
-func (g *httpHeader) Set(key, value string) {
-	g.r.Header.Add(key, value)
-
-	// g.SetHeader(metadata.Pairs(key, value))
-}
-func (g *httpHeader) SendHeader(key, value string) {
-	g.w.Header().Add(key, value)
-}
-func (g *GrpcStreamHeader) Set(key, value string) {
-	metadata.Join(g.in, metadata.Pairs(key, value))
-	newCtx := metadata.NewIncomingContext(g.ctx, g.in)
-	g.ctx = newCtx
-
-	// g.SetHeader(metadata.Pairs(key, value))
-}
-func (g *GrpcStreamHeader) SendHeader(key, value string) {
-	metadata.Join(g.out, metadata.Pairs(key, value))
-	g.ss.SendHeader(g.out)
-}
 
 var onceValidate sync.Once
 var validator *APIValidator
 
-func NewAPIValidator(rdb *tiga.RedisDao, log *logrus.Logger, repo biz.UsersRepo, config *config.Config, mysql *tiga.MySQLDao, local *data.LocalCache) *APIValidator {
+func NewAPIValidator(rdb *tiga.RedisDao, log *logrus.Logger, user *biz.UsersUsecase, config *config.Config, mysql *tiga.MySQLDao, local *data.LocalCache) *APIValidator {
 	onceValidate.Do(func() {
 		validator = &APIValidator{
 			rdb:    rdb,
 			config: config,
 			log:    log,
-			biz:    repo,
+			biz:    user,
 			// mysql:mysql,
 			localCache: local,
 		}
@@ -168,7 +92,7 @@ func (a *APIValidator) checkJWTItem(ctx context.Context, payload *api.BasicAuth,
 	if payload.Issuer != "gateway" {
 		return false, srvErr.New(errors.ErrTokenIssuer, "登陆状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_INVILDAT_ERR), "请重新登陆"))
 	}
-	if ok, err := a.biz.CheckInBlackList(ctx, token); ok || err != nil {
+	if ok := a.biz.CheckInBlackList(ctx, tiga.GetMd5(token)); ok {
 		return false, srvErr.New(errors.ErrTokenBlackList, "登陆状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_INVILDAT_ERR), "非法的token"))
 	}
 	return true, nil
@@ -210,25 +134,28 @@ func (a *APIValidator) jwt2BasicAuth(authorization string) (*api.BasicAuth, erro
 
 // checkJWT 校验jwt
 // 提前刷新token
-func (a *APIValidator) checkJWT(ctx context.Context,authorization string, rspHeader Header, reqHeader Header) (bool, error) {
+func (a *APIValidator) checkJWT(ctx context.Context, authorization string, rspHeader Header, reqHeader Header) (ok bool, err error) {
 	payload, err := a.jwt2BasicAuth(authorization)
 	if err != nil {
 		return false, err
 	}
 	strArr := strings.Split(authorization, " ")
 	token := strArr[1]
-	ok, err := a.checkJWTItem(ctx, payload, token)
+	ok, err = a.checkJWTItem(ctx, payload, token)
 	if err != nil || !ok {
 		return false, err
 	}
-	// a.data.ch
-	// 15min快过期了，刷新token
+
 	left := payload.Expiration - time.Now().Unix()
-	if left <= 1*60*15 {
+	expiration := a.config.GetJWTExpiration()
+	// 10%的时间刷新token
+	if left <= int64(float64(expiration)*0.1) {
 		// 锁住之后再刷新
 		lock, err := a.JWTLock(payload.Uid)
 		defer func() {
 			if p := recover(); p != nil {
+				ok = false
+				err = fmt.Errorf("刷新token失败,%v", p)
 				a.log.Errorf("刷新token失败,%s", p)
 			}
 			if lock != nil {
@@ -256,7 +183,7 @@ func (a *APIValidator) checkJWT(ctx context.Context,authorization string, rspHea
 			return false, srvErr.New(err, "刷新token")
 		}
 		// 旧token加入黑名单
-		_ = a.biz.CacheToken(ctx, a.config.GetUserBlackListKey(tiga.GetMd5(token)), "1", time.Hour*24*3)
+	    go a.biz.PutBlackList(ctx, a.config.GetUserBlackListKey(tiga.GetMd5(token)))
 		rspHeader.SendHeader("Authorization", fmt.Sprintf("Bearer %s", newToken))
 		token = newToken
 
@@ -277,7 +204,8 @@ func (a *APIValidator) getAuthorizationFromMetadata(md metadata.MD) string {
 	return ""
 }
 func (a *APIValidator) ValidateStreamInterceptor(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-	grpcStream := &grpcServerStream{ss, info.FullMethod, a, ss.Context()}
+	grpcStream := NewGrpcStream(ss, info.FullMethod, ss.Context())
+	defer grpcStream.Release()
 	return handler(srv, grpcStream)
 }
 func (a *APIValidator) ValidateGrpcRequest(ctx context.Context, req interface{}, fullName string, headers Header) (context.Context, error) {
@@ -291,8 +219,8 @@ func (a *APIValidator) ValidateGrpcRequest(ctx context.Context, req interface{},
 	}
 	authorization := a.getAuthorizationFromMetadata(md)
 
-	if authorization != "" {
-		return nil, status.Errorf(codes.Unauthenticated, "auth not exists in context")
+	if authorization == "" {
+		return nil, status.Errorf(codes.Unauthenticated, errors.ErrTokenMissing.Error())
 	}
 	// JWT
 	if strings.Contains(authorization, "Bearer") {
@@ -305,7 +233,7 @@ func (a *APIValidator) ValidateGrpcRequest(ctx context.Context, req interface{},
 	// AK/SK
 	err = a.AppValidator(ctx, gwRequest)
 	if err != nil {
-		return nil, status.Errorf(codes.Unauthenticated, "app validate error,%v", err)
+		return nil, err
 	}
 	return ctx, nil
 }
@@ -319,11 +247,13 @@ func (a *APIValidator) ValidateUnaryInterceptor(ctx context.Context, req interfa
 	if !ok {
 		out = metadata.MD{}
 	}
-	ctx, err := a.ValidateGrpcRequest(ctx, req, info.FullMethod, &GrpcHeader{in, ctx, out})
+	header := NewGrpcHeader(in, ctx, out)
+	defer header.Release()
+	_, err := a.ValidateGrpcRequest(ctx, req, info.FullMethod, header)
 	if err != nil {
 		return nil, err
 	}
-	return handler(ctx, req)
+	return handler(header.ctx, req)
 }
 
 func (a *APIValidator) GrpcJTWValidator(ctx context.Context, req interface{}, fullName string, headers Header) (context.Context, error) {
@@ -347,7 +277,7 @@ func (a *APIValidator) GrpcJTWValidator(ctx context.Context, req interface{}, fu
 	}
 	// serverStream.SetHeader(metadata.Pairs("x-request-id", reqId[0]))
 	// header := &GrpcHeader{md}
-	ok, err := a.checkJWT(ctx,token, headers, headers)
+	ok, err := a.checkJWT(ctx, token, headers, headers)
 	newCtx := metadata.NewIncomingContext(ctx, md)
 
 	if err != nil {
@@ -400,7 +330,7 @@ func (a *APIValidator) HttpHandler(h http.Handler) http.Handler {
 					}
 					// 校验token
 					header := &httpHeader{w, r}
-					ok, err := a.checkJWT(r.Context(),token[0], header, header)
+					ok, err := a.checkJWT(r.Context(), token[0], header, header)
 					if err != nil {
 						a.writeRsp(w, reqId, err)
 						return
@@ -458,7 +388,8 @@ func (a *APIValidator) AppValidator(ctx context.Context, req *signature.GatewayR
 	xDate := ""
 	auth := ""
 	accessKey := ""
-	for k, v := range req.Headers {
+	for _, k := range req.Headers.Keys() {
+		v := req.Headers.Get(k)
 		if strings.EqualFold(k, signature.HeaderXDateTime) {
 			xDate = v
 		}
@@ -485,7 +416,7 @@ func (a *APIValidator) AppValidator(ctx context.Context, req *signature.GatewayR
 	}
 	// check timestamp
 	if time.Since(t) > time.Minute*1 {
-		return status.Error(codes.Unauthenticated, "X-Date is expired")
+		return status.Error(codes.Unauthenticated, errors.ErrRequestExpired.Error())
 	}
 	secret, err := a.getSecret(ctx, accessKey)
 	if err != nil {
@@ -497,7 +428,7 @@ func (a *APIValidator) AppValidator(ctx context.Context, req *signature.GatewayR
 		return status.Errorf(codes.Unauthenticated, "sign error,%v", err)
 	}
 	if sign != a.getSignature(auth) {
-		return status.Error(codes.Unauthenticated, "signature check failed")
+		return status.Error(codes.Unauthenticated, errors.ErrAppSignatureInvalid.Error())
 	}
 	return nil
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/crypto"
 	"github.com/begonia-org/begonia/internal/pkg/errors"
+	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 	"github.com/spark-lence/tiga"
 	srvErr "github.com/spark-lence/tiga/errors"
@@ -28,7 +29,10 @@ type UsersRepo interface {
 
 	CacheToken(ctx context.Context, key, token string, exp time.Duration) error
 	DelToken(ctx context.Context, key string) error
-	CheckInBlackList(ctx context.Context, key string) (bool, error)
+	CheckInBlackList(ctx context.Context, key string) bool
+	PutBlackList(ctx context.Context, token string) error
+
+	CacheUsers(ctx context.Context, prefix string, models []*api.Users, exp time.Duration, getValue func(user *api.Users) ([]byte, interface{})) redis.Pipeliner
 }
 
 type UsersUsecase struct {
@@ -55,9 +59,6 @@ func (u *UsersUsecase) UpdateUsers(ctx context.Context, conditions interface{}, 
 func (u *UsersUsecase) DeleteUsers(ctx context.Context, model []*api.Users) error {
 	return u.repo.DeleteUsers(ctx, model)
 }
-func (u *UsersUsecase) CacheToken(ctx context.Context, key, token string, exp time.Duration) error {
-	return u.repo.CacheToken(ctx, key, token, exp)
-}
 func (u *UsersUsecase) DelToken(ctx context.Context, key string) error {
 	return u.repo.DelToken(ctx, key)
 }
@@ -69,6 +70,12 @@ func (u *UsersUsecase) AuthSeed(ctx context.Context, in *api.AuthLogAPIRequest) 
 	}
 	return token, nil
 
+}
+func (u *UsersUsecase) PutBlackList(ctx context.Context, token string) error {
+	return u.repo.PutBlackList(ctx, token)
+}
+func (u *UsersUsecase) CheckInBlackList(ctx context.Context, token string) bool {
+	return u.repo.CheckInBlackList(ctx, token)
 }
 func (u *UsersUsecase) getUserAuth(ctx context.Context, in *api.LoginAPIRequest) (*api.UserAuth, error) {
 
@@ -93,13 +100,13 @@ func (u *UsersUsecase) getUserAuth(ctx context.Context, in *api.LoginAPIRequest)
 	}
 	return userAuth, nil
 }
-func (u *UsersUsecase) generateJWT(ctx context.Context, user *api.Users, isKeepLogin bool) (string, error) {
-	exp := time.Hour * 2
+func (u *UsersUsecase) GenerateJWT(ctx context.Context, user *api.Users, isKeepLogin bool) (string, error) {
+	exp := time.Duration(u.config.GetJWTExpiration()) * time.Second
 	if isKeepLogin {
 		exp = time.Hour * 24 * 3
 	}
 	secret := u.config.GetString("auth.jwt_secret")
-	vildateToken := tiga.ComputeHmacSha256(fmt.Sprintf("%s:%d", user.Uid, time.Now().Unix()), secret)
+	validateToken := tiga.ComputeHmacSha256(fmt.Sprintf("%s:%d", user.Uid, time.Now().Unix()), secret)
 	payload := &api.BasicAuth{
 		Uid:         user.Uid,
 		Name:        user.Name,
@@ -110,7 +117,7 @@ func (u *UsersUsecase) generateJWT(ctx context.Context, user *api.Users, isKeepL
 		NotBefore:   time.Now().Unix(),
 		IssuedAt:    time.Now().Unix(),
 		IsKeepLogin: isKeepLogin,
-		Token:       vildateToken,
+		Token:       validateToken,
 	}
 	err := u.repo.DelToken(ctx, u.config.GetUserBlackListKey(user.Uid))
 	if err != nil {
@@ -156,7 +163,7 @@ func (u *UsersUsecase) Login(ctx context.Context, in *api.LoginAPIRequest) (*api
 		return nil, err
 	}
 	// 生成jwt
-	token, err := u.generateJWT(ctx, user, in.IsKeepLogin)
+	token, err := u.GenerateJWT(ctx, user, in.IsKeepLogin)
 	if err != nil {
 		return nil, err
 	}

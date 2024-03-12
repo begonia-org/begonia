@@ -7,6 +7,7 @@ import (
 	"github.com/begonia-org/begonia/internal/pkg/gateway"
 	"github.com/begonia-org/begonia/internal/pkg/logger"
 	"github.com/begonia-org/begonia/internal/pkg/middleware"
+	"github.com/begonia-org/begonia/internal/pkg/middleware/validator"
 	"github.com/begonia-org/begonia/internal/pkg/routers"
 	"github.com/begonia-org/begonia/internal/service"
 	dp "github.com/begonia-org/dynamic-proto"
@@ -16,7 +17,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-var ProviderSet = wire.NewSet(NewGatewayConfig, New)
+var ProviderSet = wire.NewSet(NewGatewayConfig, NewGateway)
 
 func NewGatewayConfig(gw string) *dp.GatewayConfig {
 	return &dp.GatewayConfig{
@@ -24,7 +25,7 @@ func NewGatewayConfig(gw string) *dp.GatewayConfig {
 		GatewayAddr:   gw,
 	}
 }
-func New(cfg *dp.GatewayConfig, conf *config.Config, services []service.Service, validate *middleware.APIValidator) *dp.GatewayServer {
+func NewGateway(cfg *dp.GatewayConfig, conf *config.Config, services []service.Service, validate *validator.APIValidator) *dp.GatewayServer {
 	opts := &dp.GrpcServerOptions{
 		Middlewares:     make([]dp.GrpcProxyMiddleware, 0),
 		Options:         make([]grpc.ServerOption, 0),
@@ -38,7 +39,7 @@ func New(cfg *dp.GatewayConfig, conf *config.Config, services []service.Service,
 	opts.Options = append(opts.Options, grpc.ChainUnaryInterceptor(validate.ValidateUnaryInterceptor))
 	opts.Options = append(opts.Options, grpc.ChainStreamInterceptor(validate.ValidateStreamInterceptor))
 
-	runtime.WithMetadata(middleware.IncomingHeadersToMetadata) 
+	runtime.WithMetadata(middleware.IncomingHeadersToMetadata)
 	gw := gateway.New(cfg, opts)
 	protos := conf.GetProtosDir()
 	pd, err := dp.NewDescription(protos)
@@ -46,7 +47,7 @@ func New(cfg *dp.GatewayConfig, conf *config.Config, services []service.Service,
 		panic(err)
 	}
 	// api.RegisterFileServiceServer()
-	routersList:=routers.Get()
+	routersList := routers.Get()
 	for _, srv := range services {
 		err := gw.RegisterLocalService(context.Background(), pd, srv.Desc(), srv)
 		if err != nil {

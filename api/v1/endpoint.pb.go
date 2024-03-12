@@ -145,8 +145,8 @@ type Endpoints struct {
 	GoPackage string `protobuf:"bytes,5,opt,name=go_package,proto3" json:"go_package" gorm:"column:go_package;type:varchar(512);comment:proto服务对应的go mod 包名"`
 	// @gotags: json:"proto_path" gorm:"column:proto_path;type:varchar(512);comment:proto文件路径"
 	ProtoPath string `protobuf:"bytes,6,opt,name=proto_path,proto3" json:"proto_path" gorm:"column:proto_path;type:varchar(512);comment:proto文件路径"`
-	// @gotags: json:"endpoint" gorm:"column:endpoint;type:varchar(512);comment:proto服务对应的endpoint 服务地址"
-	Endpoint []*EndpointMeta `protobuf:"bytes,7,rep,name=endpoint,proto3" json:"endpoint" gorm:"column:endpoint;type:varchar(512);comment:proto服务对应的endpoint 服务地址"`
+	// @gotags: json:"endpoint" gorm:"column:endpoint;type:json;comment:proto服务对应的endpoint 服务地址"
+	Endpoint []*EndpointMeta `protobuf:"bytes,7,rep,name=endpoint,proto3" json:"endpoint" gorm:"column:endpoint;type:json;comment:proto服务对应的endpoint 服务地址"`
 	// @gotags: json:"status" gorm:"column:status;type:tinyint;comment:proto服务状态"
 	Status EndpointStatus `protobuf:"varint,8,opt,name=status,proto3,enum=begonia.org.begonia.EndpointStatus" json:"status" gorm:"column:status;type:tinyint;comment:proto服务状态"`
 	// @gotags: json:"is_deleted" gorm:"column:is_deleted;type:tinyint;comment:proto服务是否删除"

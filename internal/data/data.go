@@ -2,16 +2,42 @@ package data
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/bsm/redislock"
 	"github.com/cockroachdb/errors"
 	"github.com/google/wire"
+	"github.com/redis/go-redis/v9"
 	"github.com/spark-lence/tiga"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
+	"gorm.io/gorm"
 )
 
-var ProviderSet = wire.NewSet(tiga.NewMySQLDao, tiga.NewRedisDao, NewData, NewLocalCache, NewUserRepo,NewFileRepoImpl,NewEndpointRepoImpl)
+func GetRDBClient(rdb *tiga.RedisDao) *redis.Client {
+	return rdb.GetClient()
+}
+
+var onceRDB sync.Once
+var onceMySQL sync.Once
+var rdb *tiga.RedisDao
+var mysql *tiga.MySQLDao
+
+func NewRDB(config *tiga.Configuration) *tiga.RedisDao {
+	onceRDB.Do(func() {
+		rdb = tiga.NewRedisDao(config)
+	})
+	return rdb
+}
+func NewMySQL(config *tiga.Configuration) *tiga.MySQLDao {
+	onceMySQL.Do(func() {
+		mysql = tiga.NewMySQLDao(config)
+	})
+	return mysql
+
+}
+
+var ProviderSet = wire.NewSet(NewMySQL, NewRDB, GetRDBClient, NewData, NewLocalCache, NewUserRepo, NewFileRepoImpl, NewEndpointRepoImpl)
 
 type Data struct {
 	// mysql
@@ -48,14 +74,29 @@ func (d *Data) Create(model interface{}) error {
 	return d.db.Create(model)
 }
 func (d *Data) CreateInBatches(models []SourceType) error {
+	// db := d.db.Begin()
+
+	// err := db.CreateInBatches(models, len(models)).Error
+	// if err != nil {
+	// 	db.Rollback()
+	// 	return errors.Wrap(err, "批量插入失败")
+	// }
+	db, err := d.CreateInBatchesByTx(models)
+	if err != nil {
+		return err
+	}
+	return db.Commit().Error
+}
+func (d *Data) CreateInBatchesByTx(models []SourceType) (*gorm.DB, error) {
 	db := d.db.Begin()
 
 	err := db.CreateInBatches(models, len(models)).Error
 	if err != nil {
 		db.Rollback()
-		return errors.Wrap(err, "批量插入失败")
+		return nil, errors.Wrap(err, "批量插入失败")
 	}
-	return db.Commit().Error
+	return db, nil
+
 }
 func (d *Data) BatchUpdates(models []SourceType, dataModel interface{}) error {
 	size, err := tiga.GetElementCount(models)
@@ -101,6 +142,20 @@ func (d *Data) Cache(ctx context.Context, key string, value string, exp time.Dur
 }
 func (d *Data) GetCache(ctx context.Context, key string) string {
 	return d.rdb.Get(ctx, key)
+}
+func (d *Data) BatchCacheByTx(ctx context.Context, exp time.Duration, kv ...interface{}) redis.Pipeliner {
+	pipe := d.rdb.GetClient().TxPipeline()
+	for i := 0; i < len(kv); i += 2 {
+		pipe.Set(ctx, kv[i].(string), kv[i+1], exp)
+	}
+	return pipe
+}
+func (d *Data) DelCacheByTx(ctx context.Context, keys ...string) redis.Pipeliner {
+	pipe := d.rdb.GetClient().TxPipeline()
+	for _, key := range keys {
+		pipe.Del(ctx, key)
+	}
+	return pipe
 }
 func (d *Data) DelCache(ctx context.Context, key string) error {
 	return d.rdb.Del(ctx, key)
