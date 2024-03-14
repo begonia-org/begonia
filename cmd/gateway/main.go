@@ -6,7 +6,6 @@ import (
 	"github.com/begonia-org/begonia/config"
 	"github.com/begonia-org/begonia/internal/pkg/logger"
 	"github.com/begonia-org/begonia/internal/server"
-	golayeredbloom "github.com/begonia-org/go-layered-bloom"
 	"github.com/spf13/cobra"
 )
 
@@ -39,10 +38,10 @@ func NewGatewayCmd() *cobra.Command {
 
 		Run: func(cmd *cobra.Command, args []string) {
 			endpoint, _ := cmd.Flags().GetString("endpoint")
-			name, _ := cmd.Flags().GetString("name")
+			// name, _ := cmd.Flags().GetString("name")
 			env, _ := cmd.Flags().GetString("env")
 			config := config.ReadConfig(env)
-			server := server.New(config, logger.Logger, endpoint, golayeredbloom.ConsumerName(name))
+			server := server.New(config, logger.Logger, endpoint)
 			err := server.Start()
 			if err != nil {
 				log.Fatalf("failed to start master: %v", err)
@@ -50,8 +49,8 @@ func NewGatewayCmd() *cobra.Command {
 
 		},
 	}
-	cmd.Flags().StringP("endpoint", "", "0.0.0.0:12138", "Endpoint Of Your Service")
-	cmd.Flags().StringP("name", "", "begonia", "Name Of Your Gateway Server")
+	cmd.Flags().StringP("endpoint", "", "127.0.0.1:12138", "Endpoint Of Your Service")
+	// cmd.Flags().StringP("name", "", "begonia", "Name Of Your Gateway Server")
 
 	return cmd
 }

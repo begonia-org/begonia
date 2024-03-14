@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"reflect"
@@ -159,6 +160,21 @@ func NewEventSourceMarshaler() *EventSourceMarshaler {
 			},
 		}}}
 }
+func (m *ResponseJSONMarshaler) dynamicpbToMap(message *dynamicpb.Message) (map[string]interface{}, error) {
+	// 首先，将dynamicpb.Message转换为JSON
+	jsonBytes, err := protojson.Marshal(message)
+	if err != nil {
+		//   fmt.Println("Error marshalling to JSON:", err)
+		return nil, fmt.Errorf("Error marshalling to JSON: %w", err)
+	}
+
+	// 然后，将JSON字符串反序列化为map[string]interface{}
+	var result map[string]interface{}
+	if err := json.Unmarshal(jsonBytes, &result); err != nil {
+		return nil, fmt.Errorf("Error unmarshalling JSON to map: %w", err)
+	}
+	return result, nil
+}
 func (m *ResponseJSONMarshaler) Marshal(v interface{}) ([]byte, error) {
 	if response, ok := v.(map[string]interface{}); ok {
 		// result:=response
@@ -168,22 +184,26 @@ func (m *ResponseJSONMarshaler) Marshal(v interface{}) ([]byte, error) {
 
 	}
 	// 在这里定义你的自定义序列化逻辑
-	if response, ok := v.(*common.APIResponse); ok {
-		rsp, err := tiga.StructToMap(response)
+	if response, ok := v.(*dynamicpb.Message); ok {
+		// rsp, err := tiga.StructToMap(response)
+		// if err != nil {
+		// 	return nil, fmt.Errorf("marshal response error: %w", err)
+		// }
+		// var data interface{} = nil
+		newRsp := make(map[string]interface{})
+		newRsp["code"] = common.Code_OK
+		data, err := m.dynamicpbToMap(response)
 		if err != nil {
 			return nil, fmt.Errorf("marshal response error: %w", err)
 		}
-		var data interface{} = nil
-		newRsp := make(map[string]interface{})
-		newRsp["code"] = rsp["code"]
-		newRsp["message"] = rsp["message"]
-		if response.ResponseType != "" {
+		newRsp["message"] = "OK"
+		// if response.ResponseType != "" {
 
-			data, err = tiga.ProtoMsgUnserializer(fmt.Sprintf("%s.%s", config.APIPkg, response.ResponseType), response.Data)
-			if err != nil {
-				return nil, fmt.Errorf("marshal response error: %w", err)
-			}
-		}
+		// 	data, err = tiga.ProtoMsgUnserializer(fmt.Sprintf("%s.%s", config.APIPkg, response.ResponseType), response.Data)
+		// 	if err != nil {
+		// 		return nil, fmt.Errorf("marshal response error: %w", err)
+		// 	}
+		// }
 
 		newRsp["data"] = data
 		return m.JSONPb.Marshal(newRsp)

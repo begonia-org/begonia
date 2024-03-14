@@ -35,25 +35,20 @@ type APIValidator struct {
 	app        biz.AppRepo
 	config     *config.Config
 	rdb        *tiga.RedisDao
-	localCache *data.LocalCache
+	localCache *data.LayeredCache
 	log        *logrus.Logger
 }
-
-
-
-
 
 var onceValidate sync.Once
 var validator *APIValidator
 
-func NewAPIValidator(rdb *tiga.RedisDao, log *logrus.Logger, user *biz.UsersUsecase, config *config.Config, mysql *tiga.MySQLDao, local *data.LocalCache) *APIValidator {
+func NewAPIValidator(rdb *tiga.RedisDao, log *logrus.Logger, user *biz.UsersUsecase, config *config.Config, mysql *tiga.MySQLDao, local *data.LayeredCache) *APIValidator {
 	onceValidate.Do(func() {
 		validator = &APIValidator{
-			rdb:    rdb,
-			config: config,
-			log:    log,
-			biz:    user,
-			// mysql:mysql,
+			rdb:        rdb,
+			config:     config,
+			log:        log,
+			biz:        user,
 			localCache: local,
 		}
 	})
@@ -90,10 +85,13 @@ func (a *APIValidator) checkJWTItem(ctx context.Context, payload *api.BasicAuth,
 		return false, srvErr.New(errors.ErrTokenNotActive, "登陆状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_NOT_ACTIVTE_ERR), msg))
 	}
 	if payload.Issuer != "gateway" {
-		return false, srvErr.New(errors.ErrTokenIssuer, "登陆状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_INVILDAT_ERR), "请重新登陆"))
+		return false, srvErr.New(errors.ErrTokenIssuer, "登陆状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR), "请重新登陆"))
 	}
-	if ok := a.biz.CheckInBlackList(ctx, tiga.GetMd5(token)); ok {
-		return false, srvErr.New(errors.ErrTokenBlackList, "登陆状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_INVILDAT_ERR), "非法的token"))
+	if ok, err := a.biz.CheckInBlackList(ctx, tiga.GetMd5(token)); ok {
+		if err != nil {
+			return false, err
+		}
+		return false, srvErr.New(errors.ErrTokenBlackList, "登陆状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR), "非法的token"))
 	}
 	return true, nil
 }
@@ -106,11 +104,11 @@ func (a *APIValidator) jwt2BasicAuth(authorization string) (*api.BasicAuth, erro
 		token = strArr[1]
 	}
 	if token == "" {
-		return nil, srvErr.New(errors.ErrHeaderTokenFormat, "Token状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_INVILDAT_ERR), "缺少token"))
+		return nil, srvErr.New(errors.ErrHeaderTokenFormat, "Token状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR), "缺少token"))
 	}
 	jwtInfo := strings.Split(token, ".")
 	if len(jwtInfo) != 3 {
-		return nil, srvErr.New(errors.ErrHeaderTokenFormat, "token状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_INVILDAT_ERR), "非法的token"))
+		return nil, srvErr.New(errors.ErrHeaderTokenFormat, "token状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR), "非法的token"))
 	}
 	// 生成signature
 	sig := fmt.Sprintf("%s.%s", jwtInfo[0], jwtInfo[1])
@@ -118,16 +116,16 @@ func (a *APIValidator) jwt2BasicAuth(authorization string) (*api.BasicAuth, erro
 
 	sig = tiga.ComputeHmacSha256(sig, secret)
 	if sig != jwtInfo[2] {
-		return nil, srvErr.New(errors.ErrTokenInvalid, "token状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_INVILDAT_ERR), "非法的token"))
+		return nil, srvErr.New(errors.ErrTokenInvalid, "token状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR), "非法的token"))
 	}
 	payload := &api.BasicAuth{}
 	payloadBytes, err := tiga.Base64URL2Bytes(jwtInfo[1])
 	if err != nil {
-		return nil, srvErr.New(errors.ErrAuthDecrypt, "token状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_INVILDAT_ERR), "非法的token"))
+		return nil, srvErr.New(errors.ErrAuthDecrypt, "token状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR), "非法的token"))
 	}
 	err = json.Unmarshal(payloadBytes, payload)
 	if err != nil {
-		return nil, srvErr.New(errors.ErrDecode, "token状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_INVILDAT_ERR), "非法的token"))
+		return nil, srvErr.New(errors.ErrDecode, "token状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR), "非法的token"))
 	}
 	return payload, nil
 }
@@ -183,7 +181,7 @@ func (a *APIValidator) checkJWT(ctx context.Context, authorization string, rspHe
 			return false, srvErr.New(err, "刷新token")
 		}
 		// 旧token加入黑名单
-	    go a.biz.PutBlackList(ctx, a.config.GetUserBlackListKey(tiga.GetMd5(token)))
+		go a.biz.PutBlackList(ctx, a.config.GetUserBlackListKey(tiga.GetMd5(token)))
 		rspHeader.SendHeader("Authorization", fmt.Sprintf("Bearer %s", newToken))
 		token = newToken
 
@@ -204,6 +202,10 @@ func (a *APIValidator) getAuthorizationFromMetadata(md metadata.MD) string {
 	return ""
 }
 func (a *APIValidator) ValidateStreamInterceptor(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+	if !a.IfNeedValidate(ss.Context(), info.FullMethod) {
+		a.log.Infof("不需要校验,%s", info.FullMethod)
+		return handler(srv, ss)
+	}
 	grpcStream := NewGrpcStream(ss, info.FullMethod, ss.Context())
 	defer grpcStream.Release()
 	return handler(srv, grpcStream)
@@ -237,7 +239,20 @@ func (a *APIValidator) ValidateGrpcRequest(ctx context.Context, req interface{},
 	}
 	return ctx, nil
 }
+func (a *APIValidator) IfNeedValidate(ctx context.Context, fullMethod string) bool {
+	routersList := routers.Get()
+	router := routersList.GetRouteByGrpcMethod(strings.ToUpper(fullMethod))
+	if router == nil {
+		return false
+	}
+	return router.AuthRequired
+
+}
 func (a *APIValidator) ValidateUnaryInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	if !a.IfNeedValidate(ctx, info.FullMethod) {
+		return handler(ctx, req)
+
+	}
 	in, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
 		return nil, status.Errorf(codes.Unauthenticated, "metadata not exists in context")
@@ -342,7 +357,7 @@ func (a *APIValidator) HttpHandler(h http.Handler) http.Handler {
 					}
 				} else {
 					logger.Warn("请求头缺失Authorization")
-					a.writeRsp(w, reqId, srvErr.New(errors.ErrTokenMissing, "token状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_INVILDAT_ERR), "缺少token")))
+					a.writeRsp(w, reqId, srvErr.New(errors.ErrTokenMissing, "token状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR), "缺少token")))
 					return
 				}
 			}
@@ -355,11 +370,6 @@ func (a *APIValidator) getSecret(ctx context.Context, accessKey string) (string,
 	secretBytes, err := a.localCache.Get(ctx, cacheKey)
 	secret := string(secretBytes)
 	if err != nil {
-		secret = a.rdb.Get(ctx, cacheKey)
-		if secret != "" {
-			_ = a.localCache.Set(ctx, cacheKey, []byte(secret))
-			return secret, nil
-		}
 		apps, err := a.app.GetApps(ctx, []string{accessKey})
 		if err != nil {
 			return "", err
@@ -367,8 +377,8 @@ func (a *APIValidator) getSecret(ctx context.Context, accessKey string) (string,
 		if len(apps) > 0 {
 			secret = apps[0].Secret
 		}
-		_ = a.rdb.Set(ctx, cacheKey, secret, time.Hour*24*3)
-		_ = a.localCache.Set(ctx, cacheKey, []byte(secret))
+		// _ = a.rdb.Set(ctx, cacheKey, secret, time.Hour*24*3)
+		_ = a.localCache.Set(ctx, cacheKey, []byte(secret), time.Hour*24*3)
 	}
 	return secret, nil
 }

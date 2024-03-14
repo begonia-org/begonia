@@ -9,7 +9,7 @@
   file:
     upload:
       dir: /data/work/begonia-org/begonia/upload
-    protos: 
+    protos:
       dir: /data/work/begonia-org/begonia/protos
   mysql:
     host: "127.0.0.1"
@@ -28,16 +28,16 @@
     jwt_secret: "WNjp6mW^GXnRf3]34asF"
     jwt_expiration: 7200 # seconds
     blacklist:
-      bloom:
-        m: 100000
-        error_rate: 0.001
+      filter:
+        entries: 100000
+        error_rate: 0.01
       pubsub:
         channel: "gateway-blacklist"
         group: "gateway-blacklist-group"
       user:
-        cache_expire: 3600 # seconds  
+        cache_expire: 3600 # seconds
     app:
-      cache_expire: 3600 # seconds      
+      cache_expire: 3600 # seconds
   redis:
     addr: "127.0.0.1:6379"
     password: ""
@@ -55,6 +55,11 @@
       - "localhost"
   common:
     rdb_key_prefix: "begonia"
-    rdb_key_bloom: "begonia:bloom"
-    app_key_prefix: "begonia:app"
+    filter_key_prefix: "begonia:filter"
+    app_key_prefix: "begonia:kv:app"
+    blacklist_key_prefix: "begonia:blacklist"
+    pubsub_key_prefix: "begonia:pubsub"
+    multi_cache_strategy: 1
+    kv_prefix: "begonia:kv"
+    pubsub_key_channel: "begonia:pubsub:channel"
 

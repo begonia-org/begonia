@@ -2,6 +2,7 @@ package routers
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 
 	_ "github.com/begonia-org/begonia/api/v1"
@@ -149,7 +150,7 @@ func (r *HttpURIRouteToSrvMethod) LoadAllRouters(pd dp.ProtobufDescription) {
 			// 遍历服务中的所有方法
 			for _, method := range service.GetMethod() {
 				key := fmt.Sprintf("/%s.%s/%s", fd.GetPackage(), service.GetName(), method.GetName())
-				r.addRouterDetails(key, authRequired, method)
+				r.addRouterDetails(strings.ToUpper(key), authRequired, method)
 			}
 
 		}

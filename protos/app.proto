@@ -63,6 +63,12 @@ message AppsListRequest{
     // @gotags: json:"status" gorm:"column:status;type:tinyint;comment:app服务状态"
     repeated	APPStatus status = 8;
 }
+message AppsListResponse{
+	// @gotags: json:"apps"
+	repeated Apps apps = 1;
+	// @gotags: json:"total" gorm:"column:total;type:int;comment:总数"
+	int32 total = 2;
+}
 service AppsService {
 	option (.begonia.org.begonia.common.api.v1.auth_reqiured)=true;
 	// @gotags: doc:"添加app服务"
@@ -75,8 +81,7 @@ service AppsService {
 	// @gotags: doc:"获取app服务"
 	rpc GetApps(AppsListRequest) returns (.begonia.org.begonia.common.api.v1.APIResponse){
 		option (google.api.http) = {
-			post: "/api/v1/app/list"
-			body: "*"
+			get: "/api/v1/app/list"
 		  };
 	};
 }

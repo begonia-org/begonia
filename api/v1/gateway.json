@@ -62,7 +62,7 @@
                 "Fields": null,
                 "Template": "/api/v1/app/list"
             },
-            "HttpMethod": "POST",
+            "HttpMethod": "GET",
             "FullMethodName": "/begonia.org.begonia.AppsService/GetApps",
             "HttpUri": "/api/v1/app/list",
             "PathParams": [],
@@ -105,12 +105,12 @@
             "HttpUri": "/api/v1/auth/account",
             "PathParams": [],
             "InName": "AccountAPIRequest",
-            "OutName": "APIResponse",
+            "OutName": "AccountAPIResponse",
             "IsClientStream": false,
             "IsServerStream": false,
             "Pkg": "begonia.org.begonia",
             "InPkg": "begonia.org.begonia",
-            "OutPkg": "begonia.org.begonia.common.api.v1"
+            "OutPkg": "begonia.org.begonia"
         }
     ],
     "/begonia.org.begonia.AuthService/AuthSeed": [
@@ -143,12 +143,12 @@
             "HttpUri": "/api/v1/auth/log",
             "PathParams": [],
             "InName": "AuthLogAPIRequest",
-            "OutName": "APIResponse",
+            "OutName": "AuthLogAPIResponse",
             "IsClientStream": false,
             "IsServerStream": false,
             "Pkg": "begonia.org.begonia",
             "InPkg": "begonia.org.begonia",
-            "OutPkg": "begonia.org.begonia.common.api.v1"
+            "OutPkg": "begonia.org.begonia"
         }
     ],
     "/begonia.org.begonia.AuthService/Login": [
@@ -181,12 +181,12 @@
             "HttpUri": "/api/v1/auth/login",
             "PathParams": [],
             "InName": "LoginAPIRequest",
-            "OutName": "APIResponse",
+            "OutName": "LoginAPIResponse",
             "IsClientStream": false,
             "IsServerStream": false,
             "Pkg": "begonia.org.begonia",
             "InPkg": "begonia.org.begonia",
-            "OutPkg": "begonia.org.begonia.common.api.v1"
+            "OutPkg": "begonia.org.begonia"
         }
     ],
     "/begonia.org.begonia.AuthService/Logout": [
@@ -219,12 +219,12 @@
             "HttpUri": "/api/v1/auth/logout",
             "PathParams": [],
             "InName": "LogoutAPIRequest",
-            "OutName": "APIResponse",
+            "OutName": "LogoutAPIResponse",
             "IsClientStream": false,
             "IsServerStream": false,
             "Pkg": "begonia.org.begonia",
             "InPkg": "begonia.org.begonia",
-            "OutPkg": "begonia.org.begonia.common.api.v1"
+            "OutPkg": "begonia.org.begonia"
         }
     ],
     "/begonia.org.begonia.AuthService/Regsiter": [
@@ -257,12 +257,12 @@
             "HttpUri": "/api/v1/auth/regsiter",
             "PathParams": [],
             "InName": "RegsiterAPIRequest",
-            "OutName": "APIResponse",
+            "OutName": "RegsiterAPIResponse",
             "IsClientStream": false,
             "IsServerStream": false,
             "Pkg": "begonia.org.begonia",
             "InPkg": "begonia.org.begonia",
-            "OutPkg": "begonia.org.begonia.common.api.v1"
+            "OutPkg": "begonia.org.begonia"
         }
     ],
     "/begonia.org.begonia.EndpointService/Create": [

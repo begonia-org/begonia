@@ -5,101 +5,111 @@ import (
 	"sync"
 	"time"
 
-	"github.com/allegro/bigcache/v3"
 	"github.com/begonia-org/begonia/internal/pkg/config"
-	lbf "github.com/begonia-org/go-layered-bloom"
 	glc "github.com/begonia-org/go-layered-cache"
-	"github.com/begonia-org/go-layered-bloom/gocuckoo"
+	"github.com/begonia-org/go-layered-cache/gocuckoo"
+	"github.com/begonia-org/go-layered-cache/source"
 	"github.com/sirupsen/logrus"
 )
 
-type LocalCache struct {
-	cache       glc.LayeredKeyValueCache
+type LayeredCache struct {
+	kv          glc.LayeredKeyValueCache
 	data        *Data
 	config      *config.Config
 	log         *logrus.Logger
 	mux         sync.Mutex
-	filters     glc.LayeredFilter
-	cuckoo      glc.LayeredCuckooFilter
+	filters     glc.LayeredCuckooFilter
 	onceOnStart sync.Once
-	kv 		glc.LayeredKeyValueCache
 }
 
-func NewLocalCache(data *Data, config *config.Config, log *logrus.Logger) *LocalCache {
-	// cache, err := bigcache.New(context.Background(), bigcache.DefaultConfig(10*time.Minute))
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// local := &LocalCache{cache: cache, data: data, config: config, log: log, filters: bf, mux: sync.Mutex{}, cuckoo: cuckoo}
-	// local.LoadRemoteCache(context.Background(), config.GetAPPAccessKeyPrefix())
-	
-	return nil
+func NewLayeredCache(ctx context.Context, data *Data, config *config.Config, log *logrus.Logger) *LayeredCache {
+
+	kvWatcher := source.NewWatchOptions([]interface{}{config.GetKeyValuePubsubKey()})
+	strategy := glc.CacheReadStrategy(config.GetMultiCacheReadStrategy())
+	KvOptions := glc.LayeredBuildOptions{
+		RDB:       data.rdb.GetClient(),
+		Strategy:  glc.CacheReadStrategy(strategy),
+		Watcher:   kvWatcher,
+		Channel:   config.GetKeyValuePubsubKey(),
+		Log:       log,
+		KeyPrefix: config.GetKeyValuePrefix(),
+	}
+	kv, err := glc.NewKeyValueCache(ctx, KvOptions, 5*100*100)
+	if err != nil {
+		panic(err)
+
+	}
+	filterWatcher := source.NewWatchOptions([]interface{}{config.GetFilterPubsubKey()})
+	filterOptions := glc.LayeredBuildOptions{
+		RDB:       data.rdb.GetClient(),
+		Strategy:  glc.LocalOnly,
+		Watcher:   filterWatcher,
+		Channel:   config.GetFilterPubsubKey(),
+		Log:       log,
+		KeyPrefix: config.GetFilterPrefix(),
+	}
+	filter := glc.NewLayeredCuckoo(&filterOptions, gocuckoo.CuckooBuildOptions{
+		Entries:       100000,
+		BucketSize:    4,
+		MaxIterations: 20,
+		Expansion:     2,
+	})
+	local := &LayeredCache{kv: kv, data: data, config: config, log: log, mux: sync.Mutex{}, onceOnStart: sync.Once{}, filters: filter}
+	return local
 }
-func (l *LocalCache) OnStart() {
+func (l *LayeredCache) OnStart() {
 	l.onceOnStart.Do(func() {
 		l.Sync()
-		errChan := l.filters.OnStart(context.Background())
+		errChan := l.filters.Watch(context.Background())
 		go func() {
 			for err := range errChan {
 				l.log.Errorf("bloom filter error %v", err)
 			}
 		}()
+		errKvChan := l.kv.Watch(context.Background())
+		go func() {
+			for err := range errKvChan {
+				l.log.Errorf("kv error %v", err)
+			}
+		}()
 	})
 }
-func (l *LocalCache) Set(ctx context.Context, key string, value []byte) error {
-	return l.cache.Set(key, value)
+func (l *LayeredCache) Set(ctx context.Context, key string, value []byte, exp time.Duration) error {
+	return l.kv.Set(ctx, key, value, exp)
 }
-func (l *LocalCache) Get(ctx context.Context, key string) ([]byte, error) {
-	return l.cache.Get(key)
+func (l *LayeredCache) Get(ctx context.Context, key string) ([]byte, error) {
+	return l.kv.Get(ctx, key)
 }
-func (l *LocalCache) Del(ctx context.Context, key string) error {
-	return l.cache.Delete(key)
+func (l *LayeredCache) Del(ctx context.Context, key string) error {
+	return l.kv.Del(ctx, key)
 }
 
-func (l *LocalCache) LoadRemoteCache(ctx context.Context, key string) {
-	var cursor uint64 = 0
-	for {
-		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
-		keys, cursor, err := l.data.ScanCache(ctx, cursor, key, 100)
-		cancel()
-		if cursor == 0 {
-			break
-		}
+func (l *LayeredCache) LoadRemoteCache(ctx context.Context, key string) {
 
-		if err != nil {
-			l.log.Errorf("scan cache error %v", err)
-			break
-		}
-		for _, key := range keys {
-			val := l.data.GetCache(ctx, key)
-			err = l.cache.Set(key, []byte(val))
-			if err != nil {
-				l.log.Errorf("set uid blacklist cache error %v", err)
-				continue
-			}
-		}
+	err := l.kv.LoadDump(ctx)
+	if err != nil {
+		l.log.Errorf("load remote cache error %v", err)
+	}
+	err = l.filters.LoadDump(ctx)
+	if err != nil {
+		l.log.Errorf("load remote cache error %v", err)
+
 	}
 
 }
-func (l *LocalCache) BloomFilterTest(ctx context.Context, key string, value []byte) bool {
-	return l.filters.Test(ctx, key, value)
-}
-func (l *LocalCache) FilterTest(ctx context.Context, key string, value []byte) bool {
-	return l.cuckoo.Check(ctx, key, value)
-}
-func (l *LocalCache) BloomFilterAdd(ctx context.Context, key string, value []byte) error {
-	m := l.config.GetBlacklistBloomM()
-	errRate := l.config.GetBlacklistBloomErrRate()
-	return l.filters.Add(ctx, key, value, uint(m), errRate)
-}
-func (l *LocalCache) FilterAdd(ctx context.Context, key string, value []byte) error {
-	return l.cuckoo.Insert(ctx, key, value)
-}
-func (l *LocalCache) BloomFilterDel(ctx context.Context, key string, value []byte) error {
-	return l.cuckoo.Delete(ctx, key,value)
+
+func (l *LayeredCache) CheckInFilter(ctx context.Context, key string, value []byte) (bool, error) {
+	return l.filters.Check(ctx, key, value)
 }
 
-func (l *LocalCache) Sync() {
+func (l *LayeredCache) AddToFilter(ctx context.Context, key string, value []byte) error {
+	return l.filters.Add(ctx, key, value)
+}
+func (l *LayeredCache) DelInFilter(ctx context.Context, key string, value []byte) error {
+	return l.filters.Del(ctx, key, value)
+}
+
+func (l *LayeredCache) Sync() {
 	ticker := time.NewTicker(5 * time.Minute) // 5分钟同步一次
 	defer ticker.Stop()
 

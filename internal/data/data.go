@@ -32,12 +32,13 @@ func NewRDB(config *tiga.Configuration) *tiga.RedisDao {
 func NewMySQL(config *tiga.Configuration) *tiga.MySQLDao {
 	onceMySQL.Do(func() {
 		mysql = tiga.NewMySQLDao(config)
+		mysql.RegisterTimeSerializer()
 	})
 	return mysql
 
 }
 
-var ProviderSet = wire.NewSet(NewMySQL, NewRDB, GetRDBClient, NewData, NewLocalCache, NewUserRepo, NewFileRepoImpl, NewEndpointRepoImpl)
+var ProviderSet = wire.NewSet(NewMySQL, NewRDB, GetRDBClient, NewData, NewLayeredCache, NewUserRepo, NewFileRepoImpl, NewEndpointRepoImpl)
 
 type Data struct {
 	// mysql
@@ -70,6 +71,9 @@ func (d *Data) List(model interface{}, data interface{}, conds ...interface{}) e
 		return nil
 	}
 }
+// func (d *Data) Get(model interface{}, data interface{}, conds ...interface{}) error {
+// 	return d.db.GetModel(model).First(data, conds...).Error
+// }
 func (d *Data) Create(model interface{}) error {
 	return d.db.Create(model)
 }

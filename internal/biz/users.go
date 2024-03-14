@@ -29,7 +29,7 @@ type UsersRepo interface {
 
 	CacheToken(ctx context.Context, key, token string, exp time.Duration) error
 	DelToken(ctx context.Context, key string) error
-	CheckInBlackList(ctx context.Context, key string) bool
+	CheckInBlackList(ctx context.Context, key string) (bool, error)
 	PutBlackList(ctx context.Context, token string) error
 
 	CacheUsers(ctx context.Context, prefix string, models []*api.Users, exp time.Duration, getValue func(user *api.Users) ([]byte, interface{})) redis.Pipeliner
@@ -74,7 +74,7 @@ func (u *UsersUsecase) AuthSeed(ctx context.Context, in *api.AuthLogAPIRequest) 
 func (u *UsersUsecase) PutBlackList(ctx context.Context, token string) error {
 	return u.repo.PutBlackList(ctx, token)
 }
-func (u *UsersUsecase) CheckInBlackList(ctx context.Context, token string) bool {
+func (u *UsersUsecase) CheckInBlackList(ctx context.Context, token string) (bool,error) {
 	return u.repo.CheckInBlackList(ctx, token)
 }
 func (u *UsersUsecase) getUserAuth(ctx context.Context, in *api.LoginAPIRequest) (*api.UserAuth, error) {

@@ -14,10 +14,10 @@ import (
 type userRepo struct {
 	data  *Data
 	log   *logrus.Logger
-	local *LocalCache
+	local *LayeredCache
 }
 
-func NewUserRepo(data *Data, log *logrus.Logger, local *LocalCache) biz.UsersRepo {
+func NewUserRepo(data *Data, log *logrus.Logger, local *LayeredCache) biz.UsersRepo {
 	return &userRepo{data: data, log: log, local: local}
 }
 
@@ -45,8 +45,7 @@ func (t *userRepo) DeleteUsers(ctx context.Context, models []*api.Users) error {
 	return t.data.BatchDelete(sources, &api.Users{})
 }
 func (t *userRepo) CacheToken(ctx context.Context, key, token string, exp time.Duration) error {
-	_ = t.local.Set(ctx, key, []byte(token))
-	return t.data.Cache(ctx, key, token, exp)
+    return t.local.Set(ctx, key, []byte(token),exp)
 }
 func (t *userRepo) GetToken(ctx context.Context, key string) string {
 	token, _ := t.local.Get(ctx, key)
@@ -54,25 +53,22 @@ func (t *userRepo) GetToken(ctx context.Context, key string) string {
 		return string(token)
 	}
 
-	val := t.data.GetCache(ctx, key)
-	if val != "" {
-		_ = t.local.Set(ctx, key, []byte(val))
-	}
-	return val
+
+	return ""
 }
 func (t *userRepo) DelToken(ctx context.Context, key string) error {
-	_ = t.local.Del(ctx, key)
-	err := t.data.DelCache(ctx, key)
+	err := t.local.Del(ctx, key)
+	// err := t.data.DelCache(ctx, key)
 	return err
 }
-func (t *userRepo) CheckInBlackList(ctx context.Context, token string) bool {
+func (t *userRepo) CheckInBlackList(ctx context.Context, token string) (bool, error) {
 	key := t.local.config.GetUserTokenBlackListBloom()
-	return t.local.BloomFilterTest(ctx, key, []byte(token))
+	return t.local.CheckInFilter(ctx, key, []byte(token))
 }
 
 func (t *userRepo) PutBlackList(ctx context.Context, token string) error {
 	key := t.local.config.GetUserTokenBlackListBloom()
-	return t.local.BloomFilterAdd(ctx, key, []byte(token))
+	return t.local.AddToFilter(ctx, key, []byte(token))
 
 }
 
@@ -91,7 +87,7 @@ func (u *userRepo) CacheUsers(ctx context.Context, prefix string, models []*api.
 }
 func (u *userRepo) cacheUsers(ctx context.Context, prefix string, uid string, value []byte, exp time.Duration) error {
 	key := fmt.Sprintf("%s:%s", prefix, uid)
-	err := u.local.cache.Set(key, value)
+	err := u.local.Set(ctx,key, value,exp)
 	if err != nil {
 		return err
 	}

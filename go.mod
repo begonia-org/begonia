@@ -4,10 +4,10 @@ go 1.20
 
 require (
 	github.com/agiledragon/gomonkey/v2 v2.11.0
-	github.com/allegro/bigcache/v3 v3.1.0
 	github.com/begonia-org/begonia/common v0.0.0-20240220080319-965ae95c8876
 	github.com/begonia-org/begonia/endpoint v0.0.0-20240220080319-965ae95c8876
 	github.com/begonia-org/dynamic-proto v0.0.0-00010101000000-000000000000
+	github.com/begonia-org/go-layered-cache v0.0.0-20240312022317-e888e2200e7f
 	github.com/bsm/redislock v0.9.4
 	github.com/cockroachdb/errors v1.11.1
 	github.com/google/wire v0.5.0
@@ -21,11 +21,7 @@ require (
 )
 
 require (
-	github.com/begonia-org/go-layered-bloom v0.0.0-20240227110132-68b5a1d1d759 // indirect
-	github.com/begonia-org/go-layered-cache v0.0.0-20240312022317-e888e2200e7f // indirect
-	github.com/bits-and-blooms/bitset v1.13.0 // indirect
-	github.com/gorilla/websocket v1.5.1 // indirect
-	github.com/twmb/murmur3 v1.1.8 // indirect
+	github.com/allegro/bigcache/v3 v3.1.0 // indirect
 	golang.org/x/net v0.21.0 // indirect
 )
 
@@ -57,7 +53,7 @@ require (
 	github.com/oapi-codegen/runtime v1.1.1 // indirect
 	github.com/pelletier/go-toml/v2 v2.1.1 // indirect
 	github.com/pierrec/lz4/v4 v4.1.21 // indirect
-	github.com/redis/go-redis/v9 v9.5.1 // indirect
+	github.com/redis/go-redis/v9 v9.5.1
 	github.com/sagikazarmark/locafero v0.4.0 // indirect
 	github.com/sagikazarmark/slog-shim v0.1.0 // indirect
 	github.com/segmentio/kafka-go v0.4.47 // indirect
@@ -81,12 +77,11 @@ require (
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	gorm.io/driver/mysql v1.5.4 // indirect
-	gorm.io/gorm v1.25.7 // indirect
+	gorm.io/gorm v1.25.7
 )
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2 // indirect
-	github.com/bits-and-blooms/bloom/v3 v3.6.0
 	github.com/cockroachdb/logtags v0.0.0-20230118201751-21c54148d20b // indirect
 	github.com/cockroachdb/redact v1.1.5 // indirect
 	github.com/coreos/go-semver v0.3.1 // indirect
@@ -96,6 +91,7 @@ require (
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/gopherjs/gopherjs v1.17.2 // indirect
+	github.com/gorilla/websocket v1.5.1 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jtolds/gls v4.20.0+incompatible // indirect
 	github.com/kr/pretty v0.3.1 // indirect
@@ -117,4 +113,4 @@ replace github.com/spark-lence/tiga => /data/work/spark-lence/tiga
 
 replace github.com/begonia-org/dynamic-proto => ../dynamic-proto
 
-replace github.com/begonia-org/go-layered-bloom => ../go-layered-bloom
+replace github.com/begonia-org/go-layered-cache => ../go-layered-cache

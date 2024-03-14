@@ -7,7 +7,6 @@ import (
 
 	api "github.com/begonia-org/begonia/api/v1"
 	"github.com/begonia-org/begonia/internal/biz"
-	golayeredbloom "github.com/begonia-org/go-layered-bloom"
 	"github.com/spark-lence/tiga"
 )
 
@@ -15,10 +14,10 @@ type dataOperatorRepo struct {
 	data  *Data
 	app   biz.AppRepo
 	user  biz.UsersRepo
-	local *LocalCache
+	local *LayeredCache
 }
 
-func NewDataOperatorRepo(data *Data, app biz.AppRepo, user biz.UsersRepo, local *LocalCache, lock biz.DataLock) biz.DataOperatorRepo {
+func NewDataOperatorRepo(data *Data, app biz.AppRepo, user biz.UsersRepo, local *LayeredCache, lock biz.DataLock) biz.DataOperatorRepo {
 	return &dataOperatorRepo{data: data, app: app, user: user, local: local}
 }
 
@@ -75,27 +74,27 @@ func (d *dataOperatorRepo) FlashUsersCache(ctx context.Context, prefix string, m
 	_, err := pipe.Exec(ctx)
 	return err
 }
-func (d *dataOperatorRepo) LoadAppsLocalCache(ctx context.Context, prefix string, models []*api.Apps, exp time.Duration) error {
+func (d *dataOperatorRepo) LoadAppsLayeredCache(ctx context.Context, prefix string, models []*api.Apps, exp time.Duration) error {
 	for _, model := range models {
 		key := fmt.Sprintf("%s:%s", prefix, model.AccessKey)
-		if err := d.local.cache.Set(key, []byte(model.Secret)); err != nil {
+		if err := d.local.Set(ctx, key, []byte(model.Secret), exp); err != nil {
 			return err
 		}
-
 	}
 	return nil
 }
-func (d *dataOperatorRepo) LoadUsersLocalCache(ctx context.Context, prefix string, models []*api.Users, exp time.Duration) error {
+func (d *dataOperatorRepo) LoadUsersLayeredCache(ctx context.Context, prefix string, models []*api.Users, exp time.Duration) error {
 	for _, model := range models {
 		key := fmt.Sprintf("%s:%s", prefix, model.Uid)
 		val, _ := tiga.IntToBytes(int(model.Status))
-		if err := d.local.cache.Set(key, val); err != nil {
+		if err := d.local.Set(ctx, key, val, exp); err != nil {
 			return err
 		}
 
 	}
 	return nil
 }
+
 // func (r *dataOperatorRepo) ScanUsersFromCache(ctx context.Context, prefix string, exp time.Duration) ([]*api.Users, error) {
 // 	key := fmt.Sprintf("%s:*", prefix)
 // 	var cursor uint64
@@ -116,9 +115,10 @@ func (r *dataOperatorRepo) CacheUsers(ctx context.Context, prefix string, models
 func (r *dataOperatorRepo) PullBloom(ctx context.Context, key string) []byte {
 	return r.data.rdb.GetBytes(ctx, key)
 }
-func (d *dataOperatorRepo) LoadLocalBloom(ctx context.Context, keys []*golayeredbloom.BloomConfig) error {
-	return d.local.filters.LoadFrom(ctx, keys)
-}
+
+// func (d *dataOperatorRepo) LoadLocalBloom(ctx context.Context, keys []*golayeredbloom.BloomConfig) error {
+// 	return d.local.filters.LoadFrom(ctx, keys)
+// }
 
 func (d *dataOperatorRepo) LastUpdated(ctx context.Context, key string) (time.Time, error) {
 	// return d.data.rdb.SetBytes(ctx, keys, exp)

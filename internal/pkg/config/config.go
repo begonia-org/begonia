@@ -3,12 +3,11 @@ package config
 import (
 	"fmt"
 
-	golayeredbloom "github.com/begonia-org/go-layered-bloom"
 	"github.com/spark-lence/tiga"
 )
 
 const (
-	APIPkg string = "api.v1"
+	APIPkg string = "begonia.org.begonia.common.api.v1"
 )
 
 type Config struct {
@@ -59,7 +58,7 @@ func (c *Config) GetUserBlackListLockKey() string {
 	prefix := c.GetUserBlackListPrefix()
 	return fmt.Sprintf("%s:lock", prefix)
 }
-func (c *Config)GetAppsLockKey() string {
+func (c *Config) GetAppsLockKey() string {
 	prefix := c.GetAPPAccessKeyPrefix()
 	return fmt.Sprintf("%s:lock", prefix)
 }
@@ -79,28 +78,56 @@ func (c *Config) GetUserBlackListPrefix() string {
 	return fmt.Sprintf("%s:user:black:", prefix)
 }
 func (c *Config) GetUserTokenBlackListBloom() string {
-	prefix := c.GetString("common.rdb_key_bloom")
+	prefix := c.GetFilterPrefix()
 	return fmt.Sprintf("%s:user:black", prefix)
 }
 func (c *Config) GetBlacklistPubSubChannel() string {
 	return c.GetString("auth.blacklist.pubsub.channel")
 }
+func (c *Config) GetKeyValuePubsubKey() string {
+	prefix := c.GetString("common.pubsub_key_prefix")
+	return fmt.Sprintf("%s:kv", prefix)
+}
+func (c *Config) GetFilterPubsubKey() string {
+	prefix := c.GetString("common.pubsub_key_channel")
+	return fmt.Sprintf("%s:filter", prefix)
+}
+func (c *Config) GetMultiCacheReadStrategy() int {
+	return c.GetInt("common.multi_cache_strategy")
+}
+func (c *Config) GetKeyValuePrefix() string {
+	return c.GetString("common.kv_prefix")
+}
+func (c *Config) GetFilterPrefix() string {
+	return c.GetString("common.filter_key_prefix")
+}
 func (c *Config) GetBlacklistPubSubGroup() string {
 	return c.GetString("auth.blacklist.pubsub.group")
 }
-func (c *Config) GetBlacklistBloomM() int {
-	return c.GetInt("auth.blacklist.bloom.m")
+func (c *Config) GetBlacklistFilterEntries() int {
+	return c.GetInt("auth.blacklist.filter.entries")
+}
+func (c *Config) GetBlacklistFilterErrorRate() int {
+	return c.GetInt("auth.blacklist.filter.error_rate")
 }
 func (c *Config) GetBlacklistBloomErrRate() float64 {
 	return c.GetFloat64(fmt.Sprintf("%s.auth.blacklist.bloom.error_rate", c.GetEnv()))
 }
+
+func (c *Config) GetBlacklistBloomM() int {
+	return c.GetInt("auth.blacklist.bloom.m")
+}
+
+//	func (c *Config) GetBlacklistBloomErrRate() float64 {
+//		return c.GetFloat64(fmt.Sprintf("%s.auth.blacklist.bloom.error_rate", c.GetEnv()))
+//	}
 func (c *Config) GetAPPAccessKey(access string) string {
 	prefix := c.GetAPPAccessKeyPrefix()
 	return fmt.Sprintf("%s:%s", prefix, access)
 }
 func (c *Config) GetAPPAccessKeyPrefix() string {
-	prefix := c.GetString("common.rdb_key_prefix")
-	return fmt.Sprintf("%s:app:access_key", prefix)
+	prefix := c.GetString("common.app_key_prefix")
+	return fmt.Sprintf("%s:access_key", prefix)
 }
 
 func (c *Config) GetAesConfig() (key string, iv string) {
@@ -130,10 +157,10 @@ func (c *Config) GetProtosDir() string {
 // 	return prefix
 // }
 
-func GetBlacklistPubSubChannel(c *Config) golayeredbloom.ChannelName {
-	return golayeredbloom.ChannelName(c.GetBlacklistPubSubChannel())
-}
+// func GetBlacklistPubSubChannel(c *Config) golayeredbloom.ChannelName {
+// 	return golayeredbloom.ChannelName(c.GetBlacklistPubSubChannel())
+// }
 
-func GetBlacklistPubSubGroup(c *Config) golayeredbloom.GroupName {
-	return golayeredbloom.GroupName(c.GetBlacklistPubSubGroup())
-}
+// func GetBlacklistPubSubGroup(c *Config) golayeredbloom.GroupName {
+// 	return golayeredbloom.GroupName(c.GetBlacklistPubSubGroup())
+// }

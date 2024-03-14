@@ -19,7 +19,9 @@ type grpcServerStream struct {
 
 var streamPool = &sync.Pool{
 	New: func() interface{} {
-		return &grpcServerStream{}
+		return &grpcServerStream{
+			validate: validator,
+		}
 	},
 }
 func NewGrpcStream(s grpc.ServerStream, fullName string, ctx context.Context) *grpcServerStream {

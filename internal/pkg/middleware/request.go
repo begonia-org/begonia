@@ -17,11 +17,14 @@ func preflightHandler(w http.ResponseWriter, r *http.Request) {
 	methods := []string{"GET", "HEAD", "POST", "PUT", "DELETE"}
 	w.Header().Set("Access-Control-Allow-Methods", strings.Join(methods, ","))
 }
-func AllowCORS(h http.Handler, cors []string) http.Handler {
+type CorsMiddleware struct{
+	Cors []string
+} 
+func (cors *CorsMiddleware)Handle(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if clientOrigin := r.Header.Get("Origin"); clientOrigin != "" {
 			var isAllowed bool
-			for _, origin := range cors {
+			for _, origin := range cors.Cors {
 				if origin == "*" || strings.HasSuffix(clientOrigin, origin) {
 					isAllowed = true
 					break

@@ -8,7 +8,6 @@ import (
 
 	api "github.com/begonia-org/begonia/api/v1"
 	"github.com/begonia-org/begonia/internal/pkg/config"
-	golayeredbloom "github.com/begonia-org/go-layered-bloom"
 	"github.com/bsm/redislock"
 	"github.com/sirupsen/logrus"
 )
@@ -22,10 +21,9 @@ type DataOperatorRepo interface {
 	GetAllAppsFromDB(ctx context.Context) ([]*api.Apps, error)
 	FlashAppsCache(ctx context.Context, prefix string, models []*api.Apps, exp time.Duration) error
 	FlashUsersCache(ctx context.Context, prefix string, models []*api.Users, exp time.Duration) error
-	LoadAppsLocalCache(ctx context.Context, prefix string, models []*api.Apps, exp time.Duration) error
+	// LoadAppsLocalCache(ctx context.Context, prefix string, models []*api.Apps, exp time.Duration) error
 	GetAllForbiddenUsersFromDB(ctx context.Context) ([]*api.Users, error)
-	LoadUsersLocalCache(ctx context.Context, prefix string, models []*api.Users, exp time.Duration) error
-	LoadLocalBloom(ctx context.Context, keys []*golayeredbloom.BloomConfig) error
+	// LoadUsersLocalCache(ctx context.Context, prefix string, models []*api.Users, exp time.Duration) error
 	Lock(ctx context.Context, key string, exp time.Duration) (DataLock, error)
 	LastUpdated(ctx context.Context, key string) (time.Time, error)
 }
@@ -51,7 +49,7 @@ func (d *DataOperatorUsecase) LoadCache(ctx context.Context) {
 	actions := []operationAction{
 		d.loadUsersBlacklist,
 		d.loadApps,
-		d.loadLocalBloom,
+		// d.loadLocalBloom,
 	}
 	for _, action := range actions {
 		wg.Add(1)
@@ -106,6 +104,8 @@ func (d *DataOperatorUsecase) loadUsersBlacklist(ctx context.Context) error {
 	// d.repo.LoadUsersLocalCache()
 	return err
 }
+
+// loadApps 加载可用的app信息
 func (d *DataOperatorUsecase) loadApps(ctx context.Context) error {
 	apps, err := d.repo.GetAllAppsFromDB(ctx)
 	if err != nil {
@@ -113,19 +113,7 @@ func (d *DataOperatorUsecase) loadApps(ctx context.Context) error {
 	}
 	prefix := d.config.GetAPPAccessKeyPrefix()
 	exp := d.config.GetAPPAccessKeyExpiration()
-	return d.repo.CacheApps(ctx, prefix, apps, time.Duration(exp)*time.Second)
-}
-func (d *DataOperatorUsecase) loadLocalBloom(ctx context.Context) error {
-	bloomConfig := make([]*golayeredbloom.BloomConfig, 0)
-	key := d.config.GetUserTokenBlackListBloom()
-	N := d.config.GetBlacklistBloomM()
-	P := d.config.GetBlacklistBloomErrRate()
-	bloomConfig = append(bloomConfig, &golayeredbloom.BloomConfig{
-		Key: key,
-		N:   uint(N),
-		P:   P,
-	})
-	return d.repo.LoadLocalBloom(ctx, bloomConfig)
+	return d.repo.FlashAppsCache(ctx, prefix, apps, time.Duration(exp)*time.Second)
 }
 
 func (d *DataOperatorUsecase) Refresh(duratoin time.Duration) {

@@ -13,7 +13,6 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/anypb"
 )
 
 func HttpResponseModifier(ctx context.Context, w http.ResponseWriter, p proto.Message) error {
@@ -73,23 +72,32 @@ func HandleErrorWithLogger(logger *logrus.Logger) runtime.ErrorHandlerFunc {
 		if st, ok := status.FromError(err); ok {
 			code = runtime.HTTPStatusFromCode(st.Code())
 			log.WithField("status", http.StatusOK).Errorf("请求失败:%s", errors.Cause(err).Error())
-
-			for _, detail := range st.Details() {
-				switch t := detail.(type) {
-				case *anypb.Any:
-					var apiResp common.APIResponse
-					if err := anypb.UnmarshalTo(t, &apiResp, proto.UnmarshalOptions{}); err == nil {
-						data, err := marshaler.Marshal(&apiResp)
-						if err != nil {
-							w.WriteHeader(500)
-							return
-						}
-						_, _ = w.Write(data)
-
-						w.WriteHeader(200)
-					}
-				}
+			rsp := &common.APIResponse{
+				Code:    float64(common.Code_INTERNAL_ERROR),
+				Message: "内部错误",
+				Data:    nil,
 			}
+			data, _ := marshaler.Marshal(rsp)
+			w.WriteHeader(code)
+
+			_, _ = w.Write(data)
+			return
+			// for _, detail := range st.Details() {
+			// 	switch t := detail.(type) {
+			// 	case *anypb.Any:
+			// 		var apiResp common.APIResponse
+			// 		if err := anypb.UnmarshalTo(t, &apiResp, proto.UnmarshalOptions{}); err == nil {
+			// 			data, err := marshaler.Marshal(&apiResp)
+			// 			if err != nil {
+			// 				w.WriteHeader(500)
+			// 				return
+			// 			}
+			// 			_, _ = w.Write(data)
+
+			// 			w.WriteHeader(200)
+			// 		}
+			// 	}
+			// }
 
 		}
 		w.WriteHeader(code)

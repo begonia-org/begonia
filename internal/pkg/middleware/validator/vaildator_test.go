@@ -11,6 +11,7 @@ import (
 	"github.com/agiledragon/gomonkey/v2"
 	api "github.com/begonia-org/begonia/api/v1"
 	"github.com/begonia-org/begonia/signature"
+	"github.com/begonia-org/go-layered-cache/source"
 	"github.com/bsm/redislock"
 
 	cfg "github.com/begonia-org/begonia/config"
@@ -21,7 +22,6 @@ import (
 	"github.com/begonia-org/begonia/internal/pkg/errors"
 	"github.com/begonia-org/begonia/internal/pkg/routers"
 	dp "github.com/begonia-org/dynamic-proto"
-	lbf "github.com/begonia-org/go-layered-bloom"
 	"github.com/sirupsen/logrus"
 	c "github.com/smartystreets/goconvey/convey"
 	"github.com/spark-lence/tiga"
@@ -36,28 +36,21 @@ type MockServerStream struct {
 	ctx context.Context
 }
 
-type commonMock struct {
-	patches []*gomonkey.Patches
-}
 
-func NewCommonMock() *commonMock {
-	patch := gomonkey.ApplyFunc((*data.LocalCache).LoadRemoteCache, func(_ *data.LocalCache, _ context.Context, _ string) {
+
+func NewCommonMock() *gomonkey.Patches {
+	patches := gomonkey.ApplyFunc((*data.LayeredCache).LoadRemoteCache, func(_ *data.LayeredCache, _ context.Context, _ string) {
 	})
-	patch1 := gomonkey.ApplyFunc((*data.Data).DelCache, func(_ *data.Data, _ context.Context, _ string) error {
+	patches.ApplyFunc((*data.Data).DelCache, func(_ *data.Data, _ context.Context, _ string) error {
 		return nil
 	})
-	patch2 := gomonkey.ApplyFunc((*lbf.BloomPubSubImpl).Publish, func(_ *lbf.BloomPubSubImpl, _ context.Context, _ string, _ *lbf.BloomBroadcastMessage) error {
+	patches.ApplyFunc((*source.CacheSourceImpl).Del, func(_ *source.CacheSourceImpl, _ context.Context, _ interface{}, _ ...interface{}) error {
 		return nil
 	})
-	patches := []*gomonkey.Patches{patch, patch1, patch2}
-	return &commonMock{
-		patches: patches,
-	}
-}
-func (c *commonMock) Reset() {
-	for _, patch := range c.patches {
-		patch.Reset()
-	}
+	// patches.ApplyFunc((*lbf.BloomPubSubImpl).Publish, func(_ *lbf.BloomPubSubImpl, _ context.Context, _ string, _ *lbf.BloomBroadcastMessage) error {
+	// 	return nil
+	// })
+	return patches
 }
 
 // RecvMsg mock实现
@@ -115,15 +108,18 @@ func newMockValidate() *mockValidate {
 		rdb := &tiga.RedisDao{}
 		mysql := &tiga.MySQLDao{}
 		d := data.NewData(mysql, rdb)
-		pubsub := lbf.NewBloomPubSub(rdb.GetClient(), "gateway-blacklist", "gateway-01", log)
-		bf := lbf.NewLayeredBloomFilter(pubsub, "gateway-blacklist", "gateway-01")
-		local := data.NewLocalCache(d, conf, log, bf)
+		// pubsub := lbf.NewBloomPubSub(rdb.GetClient(), "gateway-blacklist", "gateway-01", log)
+		// bf := lbf.NewLayeredBloomFilter(pubsub, "gateway-blacklist", "gateway-01")
+		local := data.NewLayeredCache(context.Background(), d, conf, log)
 		repo := data.NewUserRepo(d, logrus.New(), local)
 		bizUseCase := biz.NewUsersUsecase(repo, log, crypto.NewUsersAuth(), conf)
 		bgCtx := context.Background()
 		protos := conf.GetProtosDir()
 
-		pd, _ := dp.NewDescription(protos)
+		pd, err := dp.NewDescription(protos)
+		if err != nil {
+			log.Fatal(err)
+		}
 		router := routers.Get()
 		router.LoadAllRouters(pd)
 		validator := NewAPIValidator(
@@ -162,8 +158,7 @@ func TestMain(m *testing.M) {
 }
 func TestJWTGrpcValidate(t *testing.T) {
 	c.Convey("check grpc jwt token if validate", t, func() {
-		// patches := NewCommonMock()
-		// defer patches.Reset()
+
 		ep := []*api.Endpoints{
 			{
 				Name:        "test",
@@ -237,23 +232,21 @@ func TestGrpcJWTExpired(t *testing.T) {
 		info := &grpc.UnaryServerInfo{
 			FullMethod: "/begonia.org.begonia.EndpointService/Create",
 		}
-		patch2 := gomonkey.ApplyFunc((*config.Config).GetJWTExpiration, func(_ *config.Config) int64 {
+		patches := gomonkey.ApplyFunc((*config.Config).GetJWTExpiration, func(_ *config.Config) int64 {
 			return 86400 * 100
 		})
-		patch3 := gomonkey.ApplyFunc((*APIValidator).JWTLock, func(_ *APIValidator, _ string) (*redislock.Lock, error) {
+		patches.ApplyFunc((*APIValidator).JWTLock, func(_ *APIValidator, _ string) (*redislock.Lock, error) {
 			return &redislock.Lock{}, nil
 		})
-		patch4 := gomonkey.ApplyFunc((*redislock.Lock).Release, func(_ *redislock.Lock, _ context.Context) error {
+		patches.ApplyFunc((*redislock.Lock).Release, func(_ *redislock.Lock, _ context.Context) error {
 			return nil
 		})
-		patch5 := gomonkey.ApplyFunc((*data.Data).Cache, func(_ *data.Data, _ context.Context, _ string, _ string, _ time.Duration) error {
+		patches.ApplyFunc((*data.Data).Cache, func(_ *data.Data, _ context.Context, _ string, _ string, _ time.Duration) error {
 			return nil
 
 		})
-		defer patch2.Reset()
-		defer patch3.Reset()
-		defer patch4.Reset()
-		defer patch5.Reset()
+		defer patches.Reset()
+
 		// 等待一段时间，避免刷新token计算出来的时间戳一样
 		time.Sleep(3 * time.Second)
 		_, err := validator.validate.ValidateUnaryInterceptor(ctx, req, info, grpc.UnaryHandler(func(ctx context.Context, req any) (any, error) {
@@ -268,37 +261,37 @@ func TestGrpcJWTExpired(t *testing.T) {
 }
 
 func TestStreamGrpcJWTExpired(t *testing.T) {
-	c.Convey("check jwt token if expired", t, func() {
-		patch := gomonkey.ApplyFunc((*data.LocalCache).LoadRemoteCache, func(_ *data.LocalCache, _ context.Context, _ string) {
+	c.Convey("check grpc stream jwt token if expired", t, func() {
+		patches := gomonkey.ApplyFunc((*data.LayeredCache).LoadRemoteCache, func(_ *data.LayeredCache, _ context.Context, _ string) {
 		})
-		patch1 := gomonkey.ApplyFunc((*data.Data).DelCache, func(_ *data.Data, _ context.Context, _ string) error {
+		patches.ApplyFunc((*data.Data).DelCache, func(_ *data.Data, _ context.Context, _ string) error {
 			return nil
 		})
-		defer patch.Reset()
-		defer patch1.Reset()
+		defer patches.Reset()
 
 		validator := newMockValidate()
 		auth := "Bearer " + validator.jwt
 		md := metadata.New(map[string]string{"authorization": auth})
 		ctx := metadata.NewIncomingContext(validator.ctx, md)
 
-		patch2 := gomonkey.ApplyFunc((*config.Config).GetJWTExpiration, func(_ *config.Config) int64 {
+		patches.ApplyFunc((*config.Config).GetJWTExpiration, func(_ *config.Config) int64 {
 			return 86400 * 100
 		})
-		patch3 := gomonkey.ApplyFunc((*APIValidator).JWTLock, func(_ *APIValidator, _ string) (*redislock.Lock, error) {
+		patches.ApplyFunc((*APIValidator).JWTLock, func(_ *APIValidator, _ string) (*redislock.Lock, error) {
 			return &redislock.Lock{}, nil
 		})
-		patch4 := gomonkey.ApplyFunc((*redislock.Lock).Release, func(_ *redislock.Lock, _ context.Context) error {
+		patches.ApplyFunc((*redislock.Lock).Release, func(_ *redislock.Lock, _ context.Context) error {
 			return nil
 		})
-		patch5 := gomonkey.ApplyFunc((*data.Data).Cache, func(_ *data.Data, _ context.Context, _ string, _ string, _ time.Duration) error {
+		patches.ApplyFunc((*data.Data).Cache, func(_ *data.Data, _ context.Context, _ string, _ string, _ time.Duration) error {
 			return nil
 
 		})
-		defer patch2.Reset()
-		defer patch3.Reset()
-		defer patch4.Reset()
-		defer patch5.Reset()
+		patches.ApplyFunc((*source.DataSourceFromRedis).TxWriteHandle, func(_ *source.DataSourceFromRedis, _ context.Context, _ *source.TxHandleKeysOptions) error {
+			return nil
+		})
+		defer patches.Reset()
+	
 		// 等待一段时间，避免刷新token计算出来的时间戳一样
 		time.Sleep(3 * time.Second)
 
