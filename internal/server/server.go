@@ -43,6 +43,7 @@ func NewGateway(cfg *dp.GatewayConfig, conf *config.Config, services []service.S
 	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithMarshalerOption("application/json", middleware.NewResponseJSONMarshaler()))
 	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithErrorHandler(middleware.HandleErrorWithLogger(logger.Logger)))
 	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithMetadata(middleware.IncomingHeadersToMetadata))
+	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithForwardResponseOption(middleware.HttpResponseModifier))
 	// 连接池配置
 	opts.PoolOptions = append(opts.PoolOptions, pool.WithMaxActiveConns(100))
 	opts.PoolOptions = append(opts.PoolOptions, pool.WithPoolSize(128))

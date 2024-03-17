@@ -9,13 +9,11 @@ import (
 	_ "github.com/begonia-org/begonia/api/v1"
 	common "github.com/begonia-org/begonia/common/api/v1"
 	"github.com/begonia-org/begonia/internal/pkg/errors"
-	"github.com/begonia-org/begonia/internal/pkg/logger"
 	"github.com/google/uuid"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -24,26 +22,27 @@ import (
 )
 
 func HttpResponseModifier(ctx context.Context, w http.ResponseWriter, p proto.Message) error {
-	statusCode := http.StatusOK
-	defer func() {
-		logger := logger.LoggerFromContext(ctx)
-		logger.WithField("status", statusCode).Info("响应结束")
-	}()
-	md, ok := metadata.FromOutgoingContext(ctx)
+	// statusCode := http.StatusOK
+	// defer func() {
+	// 	logger := logger.LoggerFromContext(ctx)
+	// 	logger.WithField("status", statusCode).Info("响应结束")
+	// }()
+	// md, ok := metadata.FromOutgoingContext(ctx)
 
-	if !ok {
-		serverMD, ok := runtime.ServerMetadataFromContext(ctx)
-		if !ok {
-			return nil
-		}
-		md = serverMD.HeaderMD
-	}
-	requestID := md.Get("x-request-id")
-	if len(requestID) > 0 {
-		w.Header().Set("x-request-id", requestID[0])
-	}
-	w.Header().Del("Grpc-Metadata-Content-Type")
-	w.Header().Del("Grpc-Metadata-X-Request-Id")
+	// if !ok {
+	// 	serverMD, ok := runtime.ServerMetadataFromContext(ctx)
+	// 	if !ok {
+	// 		return nil
+	// 	}
+	// 	md = serverMD.HeaderMD
+	// }
+	// requestID := md.Get("x-request-id")
+	// if len(requestID) > 0 {
+	// 	w.Header().Set("x-request-id", requestID[0])
+	// }
+	// w.Header().Del("Grpc-Metadata-Content-Type")
+	// w.Header().Del("Grpc-Metadata-X-Request-Id")
+	w.Header().Set("Content-Type", "application/json")
 	return nil
 }
 
@@ -120,6 +119,7 @@ func HandleErrorWithLogger(logger *logrus.Logger) runtime.ErrorHandlerFunc {
 			log.Errorf("request fail:%s", msg)
 
 			data, _ := marshaler.Marshal(rsp)
+			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(code)
 
 			_, _ = w.Write(data)
