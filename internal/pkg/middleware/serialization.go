@@ -164,7 +164,6 @@ func (m *ResponseJSONMarshaler) dynamicpbToMap(message *dynamicpb.Message) (map[
 	// 首先，将dynamicpb.Message转换为JSON
 	jsonBytes, err := protojson.Marshal(message)
 	if err != nil {
-		//   fmt.Println("Error marshalling to JSON:", err)
 		return nil, fmt.Errorf("Error marshalling to JSON: %w", err)
 	}
 
@@ -177,7 +176,6 @@ func (m *ResponseJSONMarshaler) dynamicpbToMap(message *dynamicpb.Message) (map[
 }
 func (m *ResponseJSONMarshaler) Marshal(v interface{}) ([]byte, error) {
 	if response, ok := v.(map[string]interface{}); ok {
-		// result:=response
 		if _, ok := response["result"]; ok {
 			v = response["result"]
 		}
@@ -185,11 +183,6 @@ func (m *ResponseJSONMarshaler) Marshal(v interface{}) ([]byte, error) {
 	}
 	// 在这里定义你的自定义序列化逻辑
 	if response, ok := v.(*dynamicpb.Message); ok {
-		// rsp, err := tiga.StructToMap(response)
-		// if err != nil {
-		// 	return nil, fmt.Errorf("marshal response error: %w", err)
-		// }
-		// var data interface{} = nil
 		newRsp := make(map[string]interface{})
 		newRsp["code"] = common.Code_OK
 		data, err := m.dynamicpbToMap(response)
@@ -197,13 +190,6 @@ func (m *ResponseJSONMarshaler) Marshal(v interface{}) ([]byte, error) {
 			return nil, fmt.Errorf("marshal response error: %w", err)
 		}
 		newRsp["message"] = "OK"
-		// if response.ResponseType != "" {
-
-		// 	data, err = tiga.ProtoMsgUnserializer(fmt.Sprintf("%s.%s", config.APIPkg, response.ResponseType), response.Data)
-		// 	if err != nil {
-		// 		return nil, fmt.Errorf("marshal response error: %w", err)
-		// 	}
-		// }
 
 		newRsp["data"] = data
 		return m.JSONPb.Marshal(newRsp)

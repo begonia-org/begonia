@@ -12,27 +12,30 @@ import (
 )
 
 func preflightHandler(w http.ResponseWriter, r *http.Request) {
-	headers := []string{"Content-Type", "Accept", "Authorization", "X-Token"}
-	w.Header().Set("Access-Control-Allow-Headers", strings.Join(headers, ","))
-	methods := []string{"GET", "HEAD", "POST", "PUT", "DELETE"}
-	w.Header().Set("Access-Control-Allow-Methods", strings.Join(methods, ","))
+	// headers := []string{"Content-Type", "Accept", "Authorization", "X-Token", "x-date", "x-access-key"}
+	w.Header().Set("Access-Control-Allow-Headers", "*")
+	// methods := []string{"GET", "HEAD", "POST", "PUT", "DELETE"}
+	w.Header().Set("Access-Control-Allow-Methods", "*")
 }
-type CorsMiddleware struct{
+
+type CorsMiddleware struct {
 	Cors []string
-} 
-func (cors *CorsMiddleware)Handle(h http.Handler) http.Handler {
+}
+
+func (cors *CorsMiddleware) Handle(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if clientOrigin := r.Header.Get("Origin"); clientOrigin != "" {
 			var isAllowed bool
+
 			for _, origin := range cors.Cors {
 				if origin == "*" || strings.HasSuffix(clientOrigin, origin) {
 					isAllowed = true
 					break
 				}
 			}
-			if !isAllowed {
+			if isAllowed {
 				w.Header().Set("Access-Control-Allow-Origin", clientOrigin)
-				if r.Method == "OPTIONS" && r.Header.Get("Access-Control-Request-Method") != "" {
+				if r.Method == "OPTIONS" {
 					preflightHandler(w, r)
 					return
 				}
@@ -64,9 +67,9 @@ func IncomingHeadersToMetadata(ctx context.Context, req *http.Request) metadata.
 	// 	}
 	// }
 	for k, v := range req.Header {
-		if strings.ToLower(k) == "authorization" || strings.HasPrefix(strings.ToLower(k), "x-"){
-		md.Set(strings.ToLower(k), v...)
-	}
+		if strings.ToLower(k) == "authorization" || strings.HasPrefix(strings.ToLower(k), "x-") {
+			md.Set(strings.ToLower(k), v...)
+		}
 	}
 	md.Set("x-request-id", uuid.New().String())
 	md.Set("uri", req.RequestURI)

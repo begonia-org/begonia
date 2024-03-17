@@ -203,7 +203,6 @@ func (a *APIValidator) getAuthorizationFromMetadata(md metadata.MD) string {
 }
 func (a *APIValidator) ValidateStreamInterceptor(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 	if !a.IfNeedValidate(ss.Context(), info.FullMethod) {
-		a.log.Infof("不需要校验,%s", info.FullMethod)
 		return handler(srv, ss)
 	}
 	grpcStream := NewGrpcStream(ss, info.FullMethod, ss.Context())
@@ -222,7 +221,7 @@ func (a *APIValidator) ValidateGrpcRequest(ctx context.Context, req interface{},
 	authorization := a.getAuthorizationFromMetadata(md)
 
 	if authorization == "" {
-		return nil, status.Errorf(codes.Unauthenticated, errors.ErrTokenMissing.Error())
+		return nil, errors.New(errors.ErrTokenMissing, int32(api.UserSvrCode_USER_AUTH_MISSING_ERR), codes.Unauthenticated, "authorization_check")
 	}
 	// JWT
 	if strings.Contains(authorization, "Bearer") {
@@ -315,14 +314,6 @@ func (a *APIValidator) HttpHandler(h http.Handler) http.Handler {
 			reqId = uuid.New().String()
 		}
 
-		defer func() {
-			a.log.WithFields(logrus.Fields{
-				"x-request-id": reqId,
-				"uri":          uri,
-				"method":       r.Method,
-				"remote_addr":  r.RemoteAddr,
-			}).Info("请求开始")
-		}()
 		if router != nil {
 
 			if router.AuthRequired {
@@ -426,19 +417,23 @@ func (a *APIValidator) AppValidator(ctx context.Context, req *signature.GatewayR
 	}
 	// check timestamp
 	if time.Since(t) > time.Minute*1 {
-		return status.Error(codes.Unauthenticated, errors.ErrRequestExpired.Error())
+		return errors.New(errors.ErrRequestExpired, int32(api.APPSvrCode_APP_REQUEST_EXPIRED_ERR), codes.DeadlineExceeded, "app_timestamp")
 	}
 	secret, err := a.getSecret(ctx, accessKey)
+	a.log.Info("secret:", secret)
 	if err != nil {
 		return status.Errorf(codes.Unauthenticated, "get secret error,%v", err)
 	}
 	signer := signature.NewAppAuthSigner(accessKey, secret)
+	// a.log.Infof("req:%v,%v,%v,%v,%v", req.Headers, req.Host, req.Method, req.Host, req.URL.String())
 	sign, err := signer.Sign(req)
 	if err != nil {
 		return status.Errorf(codes.Unauthenticated, "sign error,%v", err)
 	}
+	a.log.Infof("sign:%s", sign)
+	a.log.Infof("auth:%s", a.getSignature(auth))
 	if sign != a.getSignature(auth) {
-		return status.Error(codes.Unauthenticated, errors.ErrAppSignatureInvalid.Error())
+		return errors.New(errors.ErrAppSignatureInvalid, int32(api.APPSvrCode_APP_SIGNATURE_ERR), codes.Unauthenticated, "app签名校验")
 	}
 	return nil
 }

@@ -15,6 +15,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spark-lence/tiga"
 	srvErr "github.com/spark-lence/tiga/errors"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -74,7 +75,7 @@ func (u *UsersUsecase) AuthSeed(ctx context.Context, in *api.AuthLogAPIRequest) 
 func (u *UsersUsecase) PutBlackList(ctx context.Context, token string) error {
 	return u.repo.PutBlackList(ctx, token)
 }
-func (u *UsersUsecase) CheckInBlackList(ctx context.Context, token string) (bool,error) {
+func (u *UsersUsecase) CheckInBlackList(ctx context.Context, token string) (bool, error) {
 	return u.repo.CheckInBlackList(ctx, token)
 }
 func (u *UsersUsecase) getUserAuth(ctx context.Context, in *api.LoginAPIRequest) (*api.UserAuth, error) {
@@ -82,15 +83,16 @@ func (u *UsersUsecase) getUserAuth(ctx context.Context, in *api.LoginAPIRequest)
 	timestamp := in.Seed / 10000
 	now := time.Now().Unix()
 	if now-timestamp > 60 {
-		err := srvErr.New(errors.ErrTokenExpired, "token校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_EXPIRE_ERR.Number()), "token过期"))
-		return nil, err
+		// err := srvErr.New(errors.ErrTokenExpired, "token校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_EXPIRE_ERR.Number()), "token过期"))
+
+		return nil, errors.New(errors.ErrTokenExpired, int32(api.UserSvrCode_USER_TOKEN_EXPIRE_ERR.Number()), codes.InvalidArgument, "种子有效期校验")
 	}
 	auth := in.Auth
 	authBytes, err := u.authCrypto.RSADecrypt(auth)
 
 	if err != nil {
-		err := srvErr.New(errors.ErrAuthDecrypt, "登陆", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_AUTH_DECRYPT_ERR.Number()), "登录失败"))
-		return nil, err
+		// err := srvErr.New(errors.ErrAuthDecrypt, "登陆", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_AUTH_DECRYPT_ERR.Number()), "登录失败"))
+		return nil, errors.New(errors.ErrAuthDecrypt, int32(api.UserSvrCode_USER_AUTH_DECRYPT_ERR.Number()), codes.InvalidArgument, "登陆信息解密")
 	}
 	userAuth := &api.UserAuth{}
 	err = json.Unmarshal([]byte(authBytes), userAuth)

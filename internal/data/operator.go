@@ -54,7 +54,7 @@ func (d *dataOperatorRepo) FlashAppsCache(ctx context.Context, prefix string, mo
 
 	kv := make([]interface{}, 0)
 	for _, model := range models {
-		key := fmt.Sprintf("%s:%s", prefix, model.AccessKey)
+		key := fmt.Sprintf("%s:%s", prefix, model.Key)
 		kv = append(kv, key, model.Secret)
 	}
 	pipe := d.data.BatchCacheByTx(ctx, exp, kv...)
@@ -70,13 +70,13 @@ func (d *dataOperatorRepo) FlashUsersCache(ctx context.Context, prefix string, m
 	}
 	pipe := d.data.BatchCacheByTx(ctx, exp, kv...)
 	// 记录最后更新时间
-	pipe.Set(ctx, fmt.Sprintf("%s:last_updated"), time.Now().UnixMilli(), exp)
+	pipe.Set(ctx, fmt.Sprintf("%s:last_updated", prefix), time.Now().UnixMilli(), exp)
 	_, err := pipe.Exec(ctx)
 	return err
 }
 func (d *dataOperatorRepo) LoadAppsLayeredCache(ctx context.Context, prefix string, models []*api.Apps, exp time.Duration) error {
 	for _, model := range models {
-		key := fmt.Sprintf("%s:%s", prefix, model.AccessKey)
+		key := fmt.Sprintf("%s:%s", prefix, model.Key)
 		if err := d.local.Set(ctx, key, []byte(model.Secret), exp); err != nil {
 			return err
 		}

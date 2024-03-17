@@ -360,7 +360,7 @@ func TestGrpcAppValidate(t *testing.T) {
 
 		validator := newMockValidate()
 		app := &api.Apps{
-			AccessKey: "tesFFFFFFFFSSt",
+			Key: "tesFFFFFFFFSSt",
 			Secret:    "132e423dfwfwefrwefw",
 			Appid:     "123456",
 			Name:      "test",
@@ -369,7 +369,7 @@ func TestGrpcAppValidate(t *testing.T) {
 			return app.Secret, nil
 		})
 		defer patch2.Reset()
-		signer := signature.NewAppAuthSigner(app.AccessKey, app.Secret)
+		signer := signature.NewAppAuthSigner(app.Key, app.Secret)
 
 		info := &grpc.UnaryServerInfo{
 			FullMethod: "/begonia.org.begonia.EndpointService/Create",
@@ -416,7 +416,7 @@ func TestStreamGrpcAppValidate(t *testing.T) {
 
 		validator := newMockValidate()
 		app := &api.Apps{
-			AccessKey: "tesFFFFFFFFSSt",
+			Key: "tesFFFFFFFFSSt",
 			Secret:    "132e423dfwfwefrwefw",
 			Appid:     "123456",
 			Name:      "test",
@@ -425,7 +425,7 @@ func TestStreamGrpcAppValidate(t *testing.T) {
 			return app.Secret, nil
 		})
 		defer patch2.Reset()
-		signer := signature.NewAppAuthSigner(app.AccessKey, app.Secret)
+		signer := signature.NewAppAuthSigner(app.Key, app.Secret)
 		md := metadata.New(map[string]string{
 			strings.ToLower(":authority"): "127.0.0.1:9090",
 		})

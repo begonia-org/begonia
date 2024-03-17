@@ -53,6 +53,7 @@
   gateway:
     cors:
       - "localhost"
+      - "127.0.0.1:8081"
   common:
     rdb_key_prefix: "begonia"
     filter_key_prefix: "begonia:filter"

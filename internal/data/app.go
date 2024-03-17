@@ -8,6 +8,7 @@ import (
 	api "github.com/begonia-org/begonia/api/v1"
 	"github.com/begonia-org/begonia/internal/biz"
 	"github.com/redis/go-redis/v9"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"gorm.io/gorm"
 )
 
@@ -21,13 +22,18 @@ func NewAppRepoImpl(data *Data, local *LayeredCache) biz.AppRepo {
 }
 
 func (r *appRepoImpl) AddApps(ctx context.Context, apps []*api.Apps) (*gorm.DB, error) {
-	sources := NewSourceTypeArray(apps)
-	return r.data.CreateInBatchesByTx(sources)
+
+	for _, app := range apps {
+		app.CreatedAt = timestamppb.New(time.Now())
+		app.UpdatedAt = timestamppb.New(time.Now())
+	}
+	// sources := NewSourceTypeArray(apps)
+	return r.data.CreateInBatchesByTx(apps)
 }
 func (r *appRepoImpl) GetApps(ctx context.Context, keys []string) ([]*api.Apps, error) {
 	apps := make([]*api.Apps, 0)
 
-	sql:="appid in (?) or access_key in (?)"
+	sql := "appid in (?) or access_key in (?)"
 	if len(keys) == 0 {
 		return apps, nil
 	}
@@ -41,7 +47,7 @@ func (r *appRepoImpl) GetApps(ctx context.Context, keys []string) ([]*api.Apps, 
 func (r *appRepoImpl) CacheApps(ctx context.Context, prefix string, models []*api.Apps, exp time.Duration) redis.Pipeliner {
 	kv := make([]interface{}, 0)
 	for _, model := range models {
-		key := fmt.Sprintf("%s:%s", prefix, model.AccessKey)
+		key := fmt.Sprintf("%s:%s", prefix, model.Key)
 		err := r.local.Set(ctx, key, []byte(model.Secret), 0)
 		if err != nil {
 			return nil
@@ -53,11 +59,11 @@ func (r *appRepoImpl) CacheApps(ctx context.Context, prefix string, models []*ap
 func (r *appRepoImpl) DelAppsCache(ctx context.Context, prefix string, models []*api.Apps) error {
 	keys := make([]string, 0)
 	for _, model := range models {
-		err := r.local.Del(ctx, fmt.Sprintf("%s:%s", prefix, model.AccessKey))
+		err := r.local.Del(ctx, fmt.Sprintf("%s:%s", prefix, model.Key))
 		if err != nil {
 			return err
 		}
-		keys = append(keys, fmt.Sprintf("%s:%s", prefix, model.AccessKey))
+		keys = append(keys, fmt.Sprintf("%s:%s", prefix, model.Key))
 	}
 	pipe := r.data.DelCacheByTx(ctx, keys...)
 	if _, err := pipe.Exec(ctx); err != nil {

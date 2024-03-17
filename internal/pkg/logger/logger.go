@@ -18,7 +18,7 @@ var onceLog sync.Once
 
 func (f *loggerFormatter) getFormatterFields(data logrus.Fields) string {
 	fields := make([]string, 0)
-	entryKeys := []string{"name", "x-uid", "x-request-id", "uri", "method", "remote_addr", "status","elapsed"}
+	entryKeys := []string{"name", "x-uid", "x-request-id", "uri", "method", "remote_addr", "status", "elapsed", "file", "line", "fn"}
 	for _, v := range entryKeys {
 		if data[v] == nil {
 			continue

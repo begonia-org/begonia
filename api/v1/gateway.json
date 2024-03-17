@@ -12,6 +12,47 @@
                     2,
                     2,
                     2,
+                    3,
+                    2,
+                    4
+                ],
+                "Pool": [
+                    "api",
+                    "v1",
+                    "app",
+                    "create",
+                    "batch"
+                ],
+                "Verb": "",
+                "Fields": null,
+                "Template": "/api/v1/app/create/batch"
+            },
+            "HttpMethod": "POST",
+            "FullMethodName": "/begonia.org.begonia.AppsService/AddApps",
+            "HttpUri": "/api/v1/app/create/batch",
+            "PathParams": [],
+            "InName": "AddAppsRequest",
+            "OutName": "APIResponse",
+            "IsClientStream": false,
+            "IsServerStream": false,
+            "Pkg": "begonia.org.begonia",
+            "InPkg": "begonia.org.begonia",
+            "OutPkg": "begonia.org.begonia.common.api.v1"
+        }
+    ],
+    "/begonia.org.begonia.AppsService/CreateApp": [
+        {
+            "Pattern": {},
+            "Template": {
+                "Version": 1,
+                "OpCodes": [
+                    2,
+                    0,
+                    2,
+                    1,
+                    2,
+                    2,
+                    2,
                     3
                 ],
                 "Pool": [
@@ -25,16 +66,16 @@
                 "Template": "/api/v1/app/create"
             },
             "HttpMethod": "POST",
-            "FullMethodName": "/begonia.org.begonia.AppsService/AddApps",
+            "FullMethodName": "/begonia.org.begonia.AppsService/CreateApp",
             "HttpUri": "/api/v1/app/create",
             "PathParams": [],
-            "InName": "AddAppsRequest",
-            "OutName": "APIResponse",
+            "InName": "CreateAppRequest",
+            "OutName": "CreateAppResponse",
             "IsClientStream": false,
             "IsServerStream": false,
             "Pkg": "begonia.org.begonia",
             "InPkg": "begonia.org.begonia",
-            "OutPkg": "begonia.org.begonia.common.api.v1"
+            "OutPkg": "begonia.org.begonia"
         }
     ],
     "/begonia.org.begonia.AppsService/GetApps": [
@@ -415,6 +456,41 @@
             "Pkg": "begonia.org.begonia",
             "InPkg": "begonia.org.begonia",
             "OutPkg": "begonia.org.begonia.common.api.v1"
+        }
+    ],
+    "/begonia.org.begonia.SystemService/GetInfo": [
+        {
+            "Pattern": {},
+            "Template": {
+                "Version": 1,
+                "OpCodes": [
+                    2,
+                    0,
+                    2,
+                    1,
+                    2,
+                    2
+                ],
+                "Pool": [
+                    "v1",
+                    "gateway",
+                    "info"
+                ],
+                "Verb": "",
+                "Fields": null,
+                "Template": "/v1/gateway/info"
+            },
+            "HttpMethod": "GET",
+            "FullMethodName": "/begonia.org.begonia.SystemService/GetInfo",
+            "HttpUri": "/v1/gateway/info",
+            "PathParams": [],
+            "InName": "InfoRequest",
+            "OutName": "InfoResponse",
+            "IsClientStream": false,
+            "IsServerStream": false,
+            "Pkg": "begonia.org.begonia",
+            "InPkg": "begonia.org.begonia",
+            "OutPkg": "begonia.org.begonia"
         }
     ]
 }

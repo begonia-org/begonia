@@ -1,0 +1,28 @@
+syntax = "proto3";
+package begonia.org.begonia;
+option go_package = "github.com/begonia-org/begonia/api/v1";
+import "google/protobuf/descriptor.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/field_mask.proto";
+
+import "google/api/annotations.proto";
+import "common/web.proto";
+import "common/options.proto";
+
+message InfoRequest {
+}
+
+message InfoResponse {
+    string version = 1;
+    string commit = 2;
+    string buildTime = 3;
+}
+
+service SystemService {
+    option (.begonia.org.begonia.common.api.v1.auth_reqiured)=true;
+    rpc GetInfo(InfoRequest) returns (InfoResponse) {
+        option (google.api.http) = {
+            get: "/v1/gateway/info"
+        };
+    }
+}

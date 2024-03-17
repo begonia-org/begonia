@@ -52,7 +52,7 @@ func (log *LoggerMiddleware) logger(ctx context.Context, fullMethod string, err 
 		"elapsed":      elapsed.String(),
 	})
 	if err != nil {
-		logger.Error(err)
+		logger.Info(err)
 	} else {
 		logger.Info("success")
 	}

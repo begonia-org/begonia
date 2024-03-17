@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -72,23 +73,35 @@ func (h *RequestHeader) ToMetadata() metadata.MD {
 	md := metadata.New(h.headers)
 	return md
 }
+func NewRequestHeader() *RequestHeader {
+	return &RequestHeader{headers: make(map[string]string)}
+}
 func NewGatewayRequestFromGrpc(ctx context.Context, req interface{}, fullMethod string) (*GatewayRequest, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	headers := &RequestHeader{headers: make(map[string]string)}
 	host := ""
+	uri := fullMethod
+	method := fullMethod
 	if ok {
 		for k, v := range md {
-			if strings.EqualFold(k, ":authority") {
+			if strings.EqualFold(k, "x-forwarded-host") {
 				host = v[0]
-
+			}
+			if strings.EqualFold(k, "uri") {
+				uri = v[0]
+			}
+			if strings.EqualFold(k, "method") {
+				method = v[0]
 			}
 			headers.Set(k, strings.Join(v, ","))
 		}
 	}
-	u, _ := url.Parse(fmt.Sprintf("http://%s%s", host, fullMethod))
-	payload, _ := proto.Marshal(req.(proto.Message))
+	u, _ := url.Parse(fmt.Sprintf("http://%s%s", host, uri))
+	// 兼容 application/json
+	payload, _ := protojson.Marshal(req.(proto.Message))
+	// // log.Printf("request payloadxxxx:%v", payload)
 	return &GatewayRequest{Headers: headers,
-		Method:  fullMethod,
+		Method:  method,
 		Host:    host,
 		URL:     u,
 		Payload: io.NopCloser(bytes.NewBuffer(payload)),
@@ -139,12 +152,13 @@ func (app *AppAuthSignerImpl) CanonicalURI(request *GatewayRequest) string {
 	pattens := strings.Split(request.URL.Path, "/")
 	var uriSlice []string
 	for _, v := range pattens {
-		uriSlice = append(uriSlice, escape(v))
+		uriSlice = append(uriSlice, url.PathEscape(v))
 	}
 	urlpath := strings.Join(uriSlice, "/")
 	if len(urlpath) == 0 || urlpath[len(urlpath)-1] != '/' {
 		urlpath = urlpath + "/"
 	}
+	// // log.Printf("canonicalURI:%s", urlpath)
 	return urlpath
 }
 
@@ -167,6 +181,7 @@ func (app *AppAuthSignerImpl) CanonicalQueryString(request *GatewayRequest) stri
 	}
 	queryStr := strings.Join(query, "&")
 	request.URL.RawQuery = queryStr
+	// // log.Printf("canonicalQueryString:%s", queryStr)
 	return queryStr
 }
 
@@ -187,7 +202,7 @@ func (app *AppAuthSignerImpl) CanonicalHeaders(request *GatewayRequest, signerHe
 			canonicalHeaders = append(canonicalHeaders, key+":"+strings.TrimSpace(v))
 		}
 	}
-	return fmt.Sprintf("%s\n", strings.Join(canonicalHeaders, "\n"))
+	return strings.Join(canonicalHeaders, "\n")
 }
 
 // SignedHeaders
@@ -195,7 +210,7 @@ func (app *AppAuthSignerImpl) SignedHeaders(r *GatewayRequest) []string {
 	var signedHeaders []string
 	for key := range r.Headers.headers {
 		if strings.EqualFold(key, HeaderXAuthorization) {
-			continue
+			return app.getSignaturehHeader(r.Headers.Get(HeaderXAuthorization))
 		}
 		signedHeaders = append(signedHeaders, strings.ToLower(key))
 	}
@@ -265,23 +280,37 @@ func (app *AppAuthSignerImpl) Sign(request *GatewayRequest) (string, error) {
 	}
 	request.Headers.Set(HeaderXAccessKey, app.Key)
 	signedHeaders := app.SignedHeaders(request)
-	canonicalRequest, err := app.CanonicalRequest(request, signedHeaders)
+	// // log.Printf("signedHeaders:%v", signedHeaders)
 
+	canonicalRequest, err := app.CanonicalRequest(request, signedHeaders)
+	// // log.Printf("canonicalRequest:%s*********", canonicalRequest)
 	if err != nil {
 		return "", fmt.Errorf("Failed to create canonical request: %w", err)
 	}
 	stringToSignStr, err := app.StringToSign(canonicalRequest, t)
+	// // log.Printf("stringToSign:%s", stringToSignStr)
 	if err != nil {
 		return "", fmt.Errorf("Failed to create string to sign: %w", err)
 	}
 	signatureStr, err := app.SignStringToSign(stringToSignStr, []byte(app.Secret))
+	// // log.Printf("signature:%s", signatureStr)
 	if err != nil {
 		return "", fmt.Errorf("Failed to create signature: %w", err)
 	}
 
 	return signatureStr, nil
 }
-
+func (app *AppAuthSignerImpl) getSignaturehHeader(auth string) []string {
+	strArr := strings.Split(auth, ",")
+	for _, v := range strArr {
+		if strings.Contains(strings.ToLower(v), "signedheaders") {
+			// // // log.Printf("origin signedHeaders:%s", v)
+			signature := strings.Split(v, "=")
+			return strings.Split(signature[1], ";")
+		}
+	}
+	return nil
+}
 func (app *AppAuthSignerImpl) SignRequest(request *GatewayRequest) error {
 	signature, err := app.Sign(request)
 	if err != nil {

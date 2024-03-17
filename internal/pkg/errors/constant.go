@@ -1,11 +1,86 @@
 package errors
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+	"runtime"
+
+	common "github.com/begonia-org/begonia/common/api/v1"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/anypb"
+)
+
+type SrvError struct {
+	Err      error
+	ErrCode  int32
+	GrpcCode codes.Code
+	Action   string
+}
+
+func Is(err error, target error) bool {
+	return errors.Is(err, target)
+}
+func As(err error, target interface{}) bool {
+	return errors.As(err, target)
+
+}
+func New(err error, code int32, grpcCode codes.Code, action string) error {
+	pc, file, line, ok := runtime.Caller(1)
+	if !ok {
+		file = "unknown"
+		line = 0
+	}
+	fn := runtime.FuncForPC(pc)
+	funcName := "unknown"
+	if fn != nil {
+		funcName = fn.Name()
+	}
+
+	// 可选：获取更完整的调用栈信息
+	// stackTrace := make([]string, 0)
+	// for i := 1; true; i++ {
+	// 	pc, file, line, ok := runtime.Caller(i)
+	// 	if !ok {
+	// 		break
+	// 	}
+	// 	fn := runtime.FuncForPC(pc)
+	// 	stackTrace = append(stackTrace, fmt.Sprintf("%s:%d %s", file, line, fn.Name()))
+	// }
+	srvErr := &common.Errors{
+		Code:    code,
+		Message: err.Error(),
+		Action:  action,
+		File:    file,
+		Line:    int32(line),
+		Fn:      funcName,
+	}
+	st := status.New(grpcCode, err.Error())
+	detailProto, err := anypb.New(srvErr)
+	if err != nil {
+		return status.Errorf(codes.Internal, "failed to marshal error details: %v", err)
+	}
+	st, err = st.WithDetails(detailProto)
+	if err != nil {
+		return status.Errorf(codes.Internal, "failed to marshal error details: %v", err)
+
+	}
+	return st.Err()
+	// srvErr:=status.New(0,err.Error())
+	// srvErr.WithDetails()
+	// return nil
+}
+func (s *SrvError) Error() string {
+	return fmt.Sprintf("%s|%d", s.Err.Error(), s.ErrCode)
+}
+func (s *SrvError) Code() int32 {
+	return s.ErrCode
+}
 
 var (
 	ErrUserNotFound        = errors.New("用户不存在")
 	ErrTokenInvalid        = errors.New("token无效")
-	ErrTokenExpired        = errors.New("token过期")
+	ErrTokenExpired        = fmt.Errorf("token过期")
 	ErrTokenMissing        = errors.New("authorization缺失")
 	ErrTokenBlackList      = errors.New("token在黑名单中")
 	ErrNoMetadata          = errors.New("获取metadata失败")

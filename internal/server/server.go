@@ -47,12 +47,13 @@ func NewGateway(cfg *dp.GatewayConfig, conf *config.Config, services []service.S
 	opts.PoolOptions = append(opts.PoolOptions, pool.WithMaxActiveConns(100))
 	opts.PoolOptions = append(opts.PoolOptions, pool.WithPoolSize(128))
 	// 中间件配置
-	opts.Options = append(opts.Options, grpc.ChainUnaryInterceptor(logM.LoggerUnaryInterceptor, validate.ValidateUnaryInterceptor))
+	opts.Options = append(opts.Options, grpc.ChainUnaryInterceptor(middleware.UnaryServerErrInterceptor(logger.Logger), logM.LoggerUnaryInterceptor, validate.ValidateUnaryInterceptor))
 	opts.Options = append(opts.Options, grpc.ChainStreamInterceptor(logM.LoggerStreamInterceptor, validate.ValidateStreamInterceptor))
 
 	cors := &middleware.CorsMiddleware{
 		Cors: conf.GetCorsConfig(),
 	}
+	fmt.Println(cors.Cors)
 	opts.HttpHandlers = append(opts.HttpHandlers, cors.Handle)
 	runtime.WithMetadata(middleware.IncomingHeadersToMetadata)
 	gw := gateway.New(cfg, opts)
@@ -61,7 +62,6 @@ func NewGateway(cfg *dp.GatewayConfig, conf *config.Config, services []service.S
 	if err != nil {
 		panic(err)
 	}
-	// api.RegisterFileServiceServer()
 	routersList := routers.Get()
 	for _, srv := range services {
 		err := gw.RegisterLocalService(context.Background(), pd, srv.Desc(), srv)
@@ -69,17 +69,7 @@ func NewGateway(cfg *dp.GatewayConfig, conf *config.Config, services []service.S
 			panic(err)
 		}
 	}
-	// gw.RegisterService(context.Background(), pd, )
 	routersList.LoadAllRouters(pd)
-	// // 构建负载均衡器
-	// endpoints := make([]loadbalance.Endpoint, 0)
-	// pool := dp.NewGrpcConnPool("0.0.0:12139")
-	// endpoint := dp.NewGrpcEndpoint("0.0.0.0:12139", pool)
-	// endpoints = append(endpoints, endpoint)
-	// rr := loadbalance.NewRoundRobinBalance(endpoints)
-	// err = gw.RegisterService(context.Background(), pd, rr)
-	// if err != nil {
-	// 	panic(err)
-	// }
+
 	return gw
 }

@@ -1,0 +1,40 @@
+{
+    "/begonia.org.begonia.common.api.v1.FileService/UploadFile": [
+        {
+            "Pattern": {},
+            "Template": {
+                "Version": 1,
+                "OpCodes": [
+                    2,
+                    0,
+                    2,
+                    1,
+                    2,
+                    2,
+                    2,
+                    3
+                ],
+                "Pool": [
+                    "api",
+                    "v1",
+                    "file",
+                    "upload"
+                ],
+                "Verb": "",
+                "Fields": null,
+                "Template": "/api/v1/file/upload"
+            },
+            "HttpMethod": "POST",
+            "FullMethodName": "/begonia.org.begonia.common.api.v1.FileService/UploadFile",
+            "HttpUri": "/api/v1/file/upload",
+            "PathParams": [],
+            "InName": "HttpBody",
+            "OutName": "UploadAPIResponse",
+            "IsClientStream": true,
+            "IsServerStream": false,
+            "Pkg": "begonia.org.begonia.common.api.v1",
+            "InPkg": "google.api",
+            "OutPkg": "begonia.org.begonia.common.api.v1"
+        }
+    ]
+}

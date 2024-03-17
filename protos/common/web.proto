@@ -34,18 +34,27 @@ message EventStreamResponse {
     int32 retry=4;
 }
 
+// message Errors {
+//       // 给前端的状态码
+//       int32 code = 1;
+//       // 这个对应着`google.rpc.Status.message`。
+//       // 提供给用户的错误信息
+//       string message = 2;
+//       // 这个对应着`google.rpc.Status.details`
+//       repeated google.protobuf.Any details = 4;
+//       int32 grpc_status = 3;
+
+// }
 message Errors {
-      // 给前端的状态码
-      int32 code = 1;
-      // 这个对应着`google.rpc.Status.message`。
-      // 提供给用户的错误信息
-      string message = 2;
-      // 这个对应着`google.rpc.Status.details`
-      repeated google.protobuf.Any details = 4;
-      int32 grpc_status = 3;
+  int32 code = 1;
+  string message = 2;
+  string action = 3;
+  string file = 4;
+  int32 line = 5;
+  string fn=6;
+  string stack = 7;  
 
 }
-
 message Headers {
     string Uid=1;
     string authentication=2;

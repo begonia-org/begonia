@@ -2,15 +2,19 @@ package data
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
+	common "github.com/begonia-org/begonia/common/api/v1"
+	"github.com/begonia-org/begonia/internal/pkg/logger"
 	"github.com/bsm/redislock"
 	"github.com/cockroachdb/errors"
 	"github.com/google/wire"
 	"github.com/redis/go-redis/v9"
 	"github.com/spark-lence/tiga"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"gorm.io/gorm"
 )
 
@@ -38,7 +42,7 @@ func NewMySQL(config *tiga.Configuration) *tiga.MySQLDao {
 
 }
 
-var ProviderSet = wire.NewSet(NewMySQL, NewRDB, GetRDBClient, NewData, NewLayeredCache, NewUserRepo, NewFileRepoImpl, NewEndpointRepoImpl)
+var ProviderSet = wire.NewSet(NewMySQL, NewRDB, GetRDBClient, NewData, NewLayeredCache, NewUserRepo, NewFileRepoImpl, NewEndpointRepoImpl, NewAppRepoImpl)
 
 type Data struct {
 	// mysql
@@ -71,33 +75,54 @@ func (d *Data) List(model interface{}, data interface{}, conds ...interface{}) e
 		return nil
 	}
 }
-// func (d *Data) Get(model interface{}, data interface{}, conds ...interface{}) error {
-// 	return d.db.GetModel(model).First(data, conds...).Error
-// }
+
+//	func (d *Data) Get(model interface{}, data interface{}, conds ...interface{}) error {
+//		return d.db.GetModel(model).First(data, conds...).Error
+//	}
 func (d *Data) Create(model interface{}) error {
 	return d.db.Create(model)
 }
 func (d *Data) CreateInBatches(models []SourceType) error {
-	// db := d.db.Begin()
 
-	// err := db.CreateInBatches(models, len(models)).Error
-	// if err != nil {
-	// 	db.Rollback()
-	// 	return errors.Wrap(err, "批量插入失败")
-	// }
 	db, err := d.CreateInBatchesByTx(models)
 	if err != nil {
 		return err
 	}
 	return db.Commit().Error
 }
-func (d *Data) CreateInBatchesByTx(models []SourceType) (*gorm.DB, error) {
+func (d *Data) CreateInBatchesByTx(models interface{}) (*gorm.DB, error) {
 	db := d.db.Begin()
+	size, _ := tiga.GetElementCount(models)
+	if size == 0 {
+		return nil, fmt.Errorf("数据为空")
+	}
+	err := db.CreateInBatches(models, size).Error
 
-	err := db.CreateInBatches(models, len(models)).Error
 	if err != nil {
 		db.Rollback()
-		return nil, errors.Wrap(err, "批量插入失败")
+		return nil, fmt.Errorf("批量插入数据失败: %w", err)
+	}
+	resources := make([]*common.Resource, 0)
+	sources := NewSourceTypeArray(models)
+	for _, item := range sources {
+		name, err := d.db.TableName(item)
+		if err != nil {
+			db.Rollback()
+			return nil, fmt.Errorf("获取表名失败: %w", err)
+		}
+		resources = append(resources, &common.Resource{
+			ResourceKey:  item.GetKey(),
+			ResourceName: name,
+			Uid:          item.GetOwner(),
+			CreatedAt:    timestamppb.New(time.Now()),
+			UpdatedAt:    timestamppb.New(time.Now()),
+		})
+	}
+	logger.Logger.Infoln("resources", resources)
+	err = db.CreateInBatches(resources, len(resources)).Error
+	if err != nil {
+		db.Rollback()
+		return nil, fmt.Errorf("批量插入资源失败: %w", err)
 	}
 	return db, nil
 

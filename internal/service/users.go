@@ -4,11 +4,14 @@ import (
 	"context"
 
 	api "github.com/begonia-org/begonia/api/v1"
+	common "github.com/begonia-org/begonia/common/api/v1"
 	"github.com/begonia-org/begonia/internal/biz"
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/crypto"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 type UsersService struct {
@@ -38,7 +41,15 @@ func (u *UsersService) AuthSeed(ctx context.Context, in *api.AuthLogAPIRequest) 
 func (u *UsersService) Login(ctx context.Context, in *api.LoginAPIRequest) (*api.LoginAPIResponse, error) {
 	rsp, err := u.biz.Login(ctx, in)
 	if err != nil {
-		return nil, err
+		sterr, _ := status.FromError(err)
+		detailProto, _ := anypb.New(&common.Errors{Code: 4108, Message: err.Error()})
+
+		st, err := sterr.WithDetails(detailProto)
+		if err != nil {
+			u.log.Error("grpc status with details error:", err)
+			return nil, err
+		}
+		return nil, st.Err()
 	}
 	return rsp, nil
 }
@@ -61,7 +72,7 @@ func (u *UsersService) Account(ctx context.Context, req *api.AccountAPIRequest) 
 		Users: rsp,
 	}, nil
 }
-func (u *UsersService) Regsiter(context.Context, *api.RegsiterAPIRequest) (*api.RegsiterAPIResponse, error) {
+func (u *UsersService) Register(context.Context, *api.RegsiterAPIRequest) (*api.RegsiterAPIResponse, error) {
 	return nil, nil
 }
 

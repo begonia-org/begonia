@@ -2,6 +2,7 @@ syntax = "proto3";
 package begonia.org.begonia;
 option go_package = "github.com/begonia-org/begonia/api/v1";
 import "google/protobuf/timestamp.proto";
+import "common/options.proto";
 
 enum Role {
 
@@ -18,15 +19,16 @@ enum USER_STATUS {
 
 enum UserSvrCode{
     USER_UNKONW = 0;
-    USER_LOGIN_ERR=4107;
-    USER_TOKEN_EXPIRE_ERR=4108;
+    USER_LOGIN_ERR=4107[(.begonia.org.begonia.common.api.v1.msg) = "login fail"];
+    USER_TOKEN_EXPIRE_ERR=4108[(.begonia.org.begonia.common.api.v1.msg) = "token expire"];
     // 非法的token
-    USER_TOKEN_INVALIDATE_ERR=4109;
-    USER_TOKEN_NOT_ACTIVTE_ERR=4114;
-    USER_AUTH_DECRYPT_ERR=4110;
-    USER_ACCOUNT_ERR=4111;
-    USER_PASSWORD_ERR=4112;
-    USER_NOT_FOUND_ERR=4113;
+    USER_TOKEN_INVALIDATE_ERR=4109[(.begonia.org.begonia.common.api.v1.msg) = "invalidate token"];
+    USER_TOKEN_NOT_ACTIVTE_ERR=4114[(.begonia.org.begonia.common.api.v1.msg) = "invaildate token"];
+    USER_AUTH_DECRYPT_ERR=4110[(.begonia.org.begonia.common.api.v1.msg) = "invaildate token"];
+    USER_ACCOUNT_ERR=4111[(.begonia.org.begonia.common.api.v1.msg) = "username or password error"];
+    USER_PASSWORD_ERR=4112[(.begonia.org.begonia.common.api.v1.msg) = "username or password error"];
+    USER_NOT_FOUND_ERR=4113[(.begonia.org.begonia.common.api.v1.msg) = "username or password error"];
+    USER_AUTH_MISSING_ERR=4115[(.begonia.org.begonia.common.api.v1.msg) = "authorization header missing"];
 
 }
 message Users {

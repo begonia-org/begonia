@@ -14,7 +14,20 @@ enum APPStatus{
     APP_ENABLED = 0;
     APP_DISABLED = 1;
 }
+enum APPPremission{
+	APP_READ = 0;
+	APP_WRITE = 1;
+	APP_DELETE = 2;
+	APP_ALL = 3;
+}
+enum APPSvrCode{
+    APP_UNKONW = 0;
+    APP_CREATE_ERR=5101[(.begonia.org.begonia.common.api.v1.msg) = "create app error"];
+	APP_DUPLICATE_ERR=5102[(.begonia.org.begonia.common.api.v1.msg) = "duplicate app name"];
+	APP_SIGNATURE_ERR=5103[(.begonia.org.begonia.common.api.v1.msg) = "app signature error"];
+	APP_REQUEST_EXPIRED_ERR=5104[(.begonia.org.begonia.common.api.v1.msg) = "request expired"];
 
+}
 message Apps{
 	// @gotags: doc:"历史ID" gorm:"primaryKey;autoIncrement;comment:自增id"
 	int64 id = 1;
@@ -26,15 +39,17 @@ message Apps{
 	APPStatus status = 4;
 	// @gotags: json:"appid" gorm:"column:appid;type:varchar(64);unique;comment:app服务id"
 	string appid = 5;
-	// @gotags: json:"access_key" gorm:"column:access_key;type:varchar(64);unique;comment:app服务access_key"
-	string access_key = 6 [json_name="access_key"];
+	// @gotags: json:"access_key" gorm:"column:key;type:varchar(64);unique;comment:app服务key"
+	string key = 6 [json_name="access_key"];
 	// @gotags json:"secret" gorm:"column:secret;type:varchar(64);unique;comment:app服务secret"
 	string secret = 7;
 	// @gotags: json:"owner" gorm:"column:owner;type:varchar(64);comment:app服务拥有者"
 	string owner = 8;
+	// @gotags: json:"permission" gorm:"column:permission;type:int;comment:app服务权限"
+	int32 permission = 11;
     // @gotags: json:"is_deleted" gorm:"column:is_deleted;type:tinyint;comment:proto服务是否删除"
     bool is_deleted=9 [json_name="is_deleted"];
-	// @gotags: json:"tags" gorm:"column:tags;type:json;comment:app服务标签"
+	// @gotags: json:"tags" gorm:"column:tags;type:json;serializer:json;comment:app服务标签"
 	repeated string tags = 10;
 
 	// @gotags: doc:"完成时间" gorm:"column:completed_at;type:datetime;serializer:timepb;comment:定时任务的最近一次完成时间"
@@ -44,7 +59,21 @@ message Apps{
 	// @gotags: gorm:"-" json:"update_mask"
 	google.protobuf.FieldMask update_mask = 18;
 }
+message CreateAppRequest{
+	// @gotags: json:"name" gorm:"column:name;type:varchar(128);unique;comment:app名称"
+	string name = 1;
+	// @gotags: json:"description" gorm:"column:description;type:varchar(256);comment:app描述"
+	string description = 2;
+	// @gotags: json:"owner" gorm:"column:owner;type:varchar(64);comment:app服务拥有者"
+	string owner = 7;
+	// @gotags: json:"tags" gorm:"column:tags;type:json;comment:app服务标签"
+	repeated string tags = 8;
 
+}
+message CreateAppResponse{
+	// @gotags: json:"app"
+	Apps app = 1;
+}
 message AddAppsRequest {
 	// @gotags: json:"apps"
 	repeated Apps apps = 1;
@@ -74,9 +103,15 @@ service AppsService {
 	// @gotags: doc:"添加app服务"
 	rpc AddApps(AddAppsRequest) returns (.begonia.org.begonia.common.api.v1.APIResponse){
 		option (google.api.http) = {
-            post: "/api/v1/app/create"
+            post: "/api/v1/app/create/batch"
             body: "*"
           };
+	};
+	rpc CreateApp(CreateAppRequest) returns (CreateAppResponse){
+		option (google.api.http) = {
+			post: "/api/v1/app/create"
+			body: "*"
+		  };
 	};
 	// @gotags: doc:"获取app服务"
 	rpc GetApps(AppsListRequest) returns (.begonia.org.begonia.common.api.v1.APIResponse){

@@ -54,7 +54,7 @@ func (r *HttpURIRouteToSrvMethod) GetRoute(uri string) *APIMethodDetails {
 	return r.routers[uri]
 }
 func (r *HttpURIRouteToSrvMethod) GetRouteByGrpcMethod(method string) *APIMethodDetails {
-	return r.grpcRouter[method]
+	return r.grpcRouter[strings.ToUpper(method)]
 }
 func (r *HttpURIRouteToSrvMethod) GetAllRoutes() map[string]*APIMethodDetails {
 	return r.routers

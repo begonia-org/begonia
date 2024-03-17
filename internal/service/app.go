@@ -9,6 +9,7 @@ import (
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/web"
 	"github.com/sirupsen/logrus"
+	"google.golang.org/grpc"
 )
 
 type AppService struct {
@@ -18,6 +19,14 @@ type AppService struct {
 	config *config.Config
 }
 
+func (app *AppService) CreateApp(ctx context.Context, in *api.CreateAppRequest) (*api.CreateAppResponse, error) {
+	appInstance, err := app.biz.CreateApp(ctx, in)
+	if err != nil {
+		// app.log.Errorf("CreateApp failed: %v", err)
+		return nil, err
+	}
+	return &api.CreateAppResponse{App: appInstance}, nil
+}
 func (app *AppService) AddApps(ctx context.Context, in *api.AddAppsRequest) (*common.APIResponse, error) {
 	err := app.biz.AddApps(ctx, in.Apps)
 	if err != nil {
@@ -39,4 +48,12 @@ func (app *AppService) GetApps(ctx context.Context, in *api.AppsListRequest) (*c
 		}, nil)
 	}
 	return web.MakeResponse(&api.AppsListResponse{Apps: apps}, nil)
+}
+
+func (app *AppService) Desc() *grpc.ServiceDesc {
+	return &api.AppsService_ServiceDesc
+}
+
+func NewAppService(biz *biz.AppUsecase, log *logrus.Logger, config *config.Config) *AppService {
+	return &AppService{biz: biz, log: log, config: config}
 }

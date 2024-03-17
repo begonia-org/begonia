@@ -14,14 +14,14 @@ type Service interface {
 	Desc() *grpc.ServiceDesc
 }
 
-var ProviderSet = wire.NewSet(NewUserService, NewFileService, NewServices, NewEndpointsService)
+var ProviderSet = wire.NewSet(NewUserService, NewFileService, NewServices, NewEndpointsService, NewAppService, NewSysService)
 var ServiceOptionsSet = wire.NewSet(WithFileService, WithUserService)
 
 type ServiceOptions func(*grpc.Server, *runtime.ServeMux, string) error
 
-func NewServices(file *FileService, user *UsersService, ep *EndpointsService) []Service {
+func NewServices(file *FileService, user *UsersService, ep *EndpointsService, app *AppService, sys *SysService) []Service {
 	services := make([]Service, 0)
-	services = append(services, file, user, ep)
+	services = append(services, file, user, ep, app, sys)
 	return services
 }
 func WithFileService(file *FileService, opts []grpc.DialOption) ServiceOptions {
