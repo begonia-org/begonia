@@ -8,7 +8,6 @@ package v1
 
 import (
 	context "context"
-	httpbody "google.golang.org/genproto/googleapis/api/httpbody"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -48,7 +47,7 @@ func (c *fileServiceClient) UploadFile(ctx context.Context, opts ...grpc.CallOpt
 }
 
 type FileService_UploadFileClient interface {
-	Send(*httpbody.HttpBody) error
+	Send(*UploadFileAPIRequest) error
 	CloseAndRecv() (*UploadAPIResponse, error)
 	grpc.ClientStream
 }
@@ -57,7 +56,7 @@ type fileServiceUploadFileClient struct {
 	grpc.ClientStream
 }
 
-func (x *fileServiceUploadFileClient) Send(m *httpbody.HttpBody) error {
+func (x *fileServiceUploadFileClient) Send(m *UploadFileAPIRequest) error {
 	return x.ClientStream.SendMsg(m)
 }
 
@@ -106,7 +105,7 @@ func _FileService_UploadFile_Handler(srv interface{}, stream grpc.ServerStream) 
 
 type FileService_UploadFileServer interface {
 	SendAndClose(*UploadAPIResponse) error
-	Recv() (*httpbody.HttpBody, error)
+	Recv() (*UploadFileAPIRequest, error)
 	grpc.ServerStream
 }
 
@@ -118,8 +117,8 @@ func (x *fileServiceUploadFileServer) SendAndClose(m *UploadAPIResponse) error {
 	return x.ServerStream.SendMsg(m)
 }
 
-func (x *fileServiceUploadFileServer) Recv() (*httpbody.HttpBody, error) {
-	m := new(httpbody.HttpBody)
+func (x *fileServiceUploadFileServer) Recv() (*UploadFileAPIRequest, error) {
+	m := new(UploadFileAPIRequest)
 	if err := x.ServerStream.RecvMsg(m); err != nil {
 		return nil, err
 	}

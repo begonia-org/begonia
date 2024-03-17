@@ -28,12 +28,12 @@
             "FullMethodName": "/begonia.org.begonia.common.api.v1.FileService/UploadFile",
             "HttpUri": "/api/v1/file/upload",
             "PathParams": [],
-            "InName": "HttpBody",
+            "InName": "UploadFileAPIRequest",
             "OutName": "UploadAPIResponse",
             "IsClientStream": true,
             "IsServerStream": false,
             "Pkg": "begonia.org.begonia.common.api.v1",
-            "InPkg": "google.api",
+            "InPkg": "begonia.org.begonia.common.api.v1",
             "OutPkg": "begonia.org.begonia.common.api.v1"
         }
     ]

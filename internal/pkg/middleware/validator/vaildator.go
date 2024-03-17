@@ -420,7 +420,7 @@ func (a *APIValidator) AppValidator(ctx context.Context, req *signature.GatewayR
 		return errors.New(errors.ErrRequestExpired, int32(api.APPSvrCode_APP_REQUEST_EXPIRED_ERR), codes.DeadlineExceeded, "app_timestamp")
 	}
 	secret, err := a.getSecret(ctx, accessKey)
-	a.log.Info("secret:", secret)
+	// a.log.Info("secret:", secret)
 	if err != nil {
 		return status.Errorf(codes.Unauthenticated, "get secret error,%v", err)
 	}
@@ -430,8 +430,6 @@ func (a *APIValidator) AppValidator(ctx context.Context, req *signature.GatewayR
 	if err != nil {
 		return status.Errorf(codes.Unauthenticated, "sign error,%v", err)
 	}
-	a.log.Infof("sign:%s", sign)
-	a.log.Infof("auth:%s", a.getSignature(auth))
 	if sign != a.getSignature(auth) {
 		return errors.New(errors.ErrAppSignatureInvalid, int32(api.APPSvrCode_APP_SIGNATURE_ERR), codes.Unauthenticated, "app签名校验")
 	}

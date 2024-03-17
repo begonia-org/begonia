@@ -15,7 +15,6 @@ import (
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/utilities"
-	"google.golang.org/genproto/googleapis/api/httpbody"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/grpclog"
@@ -41,7 +40,7 @@ func request_FileService_UploadFile_0(ctx context.Context, marshaler runtime.Mar
 	}
 	dec := marshaler.NewDecoder(req.Body)
 	for {
-		var protoReq httpbody.HttpBody
+		var protoReq UploadFileAPIRequest
 		err = dec.Decode(&protoReq)
 		if err == io.EOF {
 			break

@@ -10,7 +10,9 @@ import (
 
 	common "github.com/begonia-org/begonia/common/api/v1"
 	"github.com/begonia-org/begonia/internal/pkg/config"
+	"github.com/begonia-org/begonia/internal/pkg/errors"
 	"github.com/begonia-org/begonia/internal/pkg/logger"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -48,7 +50,8 @@ func (f *FileUsecase) Upload(uploadDir string, filename string, stream common.Fi
 	// 确保目录存在
 	if err = os.MkdirAll(uploadDir, 0755); err != nil {
 		logger.Logger.Errorf("Failed to create directory: %v", err)
-		err = fmt.Errorf("Failed to create directory: %w", err)
+		err = errors.New(err,int32(common.Code_INTERNAL_ERROR),codes.Internal,"create_upload_dir")
+		return nil, err
 	}
 
 	// 创建文件
@@ -57,7 +60,7 @@ func (f *FileUsecase) Upload(uploadDir string, filename string, stream common.Fi
 	file, err = os.Create(filename)
 	if err != nil {
 		logger.Logger.Errorf("Failed to create file: %s", err.Error())
-		err = fmt.Errorf("Failed to create file: %w", err)
+		return nil, errors.New(err,int32(common.Code_INTERNAL_ERROR),codes.Internal,"create_file")
 	}
 	for {
 		chunk, err := stream.Recv()
@@ -67,19 +70,19 @@ func (f *FileUsecase) Upload(uploadDir string, filename string, stream common.Fi
 		}
 		if err != nil {
 			logger.Logger.Errorf("Error while receiving chunk: %v", err)
-			return nil, fmt.Errorf("Error while receiving chunk: %w", err)
+			return nil, errors.New(fmt.Errorf("Error while receiving chunk: %w", err),int32(common.Code_INTERNAL_ERROR),codes.Internal,"receive_chunk")
 		}
 
 		if file != nil {
 			// 向文件写入数据
-			if _, err = file.Write(chunk.Data); err != nil {
+			if _, err = file.Write(chunk.Content.Data); err != nil {
 				logger.Logger.Errorf("Failed to write to file: %s", err.Error())
-				return nil, fmt.Errorf("Failed to write to file: %w", err)
+				return nil, errors.New(fmt.Errorf("Failed to write to file: %w", err),int32(common.Code_INTERNAL_ERROR),codes.Internal,"write_file")
 			}
 			// 更新哈希值
-			if _, err = hash.Write(chunk.Data); err != nil {
+			if _, err = hash.Write(chunk.Content.Data); err != nil {
 				logger.Logger.Errorf("Failed to update hash: %v", err)
-				return nil, fmt.Errorf("Failed to update hash: %w", err)
+				return nil, errors.New(fmt.Errorf("Failed to update hash: %w", err),int32(common.Code_INTERNAL_ERROR),codes.Internal,"update_hash")
 			}
 		}
 	}

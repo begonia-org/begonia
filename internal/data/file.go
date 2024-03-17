@@ -21,7 +21,7 @@ func NewFileRepoImpl(data *Data) biz.FileRepo {
 // UpdateFile(ctx context.Context, files []*common.Files) error
 // GetFile(ctx context.Context, uri string) (*common.Files, error)
 // ListFile(ctx context.Context, name []string) ([]*common.Files, error)
-func (r *fileRepoImpl) AddFile(ctx context.Context, files []*common.Files) error {
+func (r *fileRepoImpl) UploadFile(ctx context.Context, files []*common.Files) error {
 	return nil
 }
 
