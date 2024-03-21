@@ -458,6 +458,272 @@
             "OutPkg": "begonia.org.begonia.common.api.v1"
         }
     ],
+    "/begonia.org.begonia.FileService/AbortMultipartUpload": [
+        {
+            "Pattern": {},
+            "Template": {
+                "Version": 1,
+                "OpCodes": [
+                    2,
+                    0,
+                    2,
+                    1,
+                    2,
+                    2,
+                    2,
+                    3,
+                    2,
+                    4
+                ],
+                "Pool": [
+                    "api",
+                    "v1",
+                    "file",
+                    "part",
+                    "abort"
+                ],
+                "Verb": "",
+                "Fields": null,
+                "Template": "/api/v1/file/part/abort"
+            },
+            "HttpMethod": "POST",
+            "FullMethodName": "/begonia.org.begonia.FileService/AbortMultipartUpload",
+            "HttpUri": "/api/v1/file/part/abort",
+            "PathParams": [],
+            "InName": "AbortMultipartUploadRequest",
+            "OutName": "AbortMultipartUploadResponse",
+            "IsClientStream": false,
+            "IsServerStream": false,
+            "Pkg": "begonia.org.begonia",
+            "InPkg": "begonia.org.begonia",
+            "OutPkg": "begonia.org.begonia"
+        }
+    ],
+    "/begonia.org.begonia.FileService/CompleteMultipartUpload": [
+        {
+            "Pattern": {},
+            "Template": {
+                "Version": 1,
+                "OpCodes": [
+                    2,
+                    0,
+                    2,
+                    1,
+                    2,
+                    2,
+                    2,
+                    3,
+                    2,
+                    4
+                ],
+                "Pool": [
+                    "api",
+                    "v1",
+                    "file",
+                    "part",
+                    "complete"
+                ],
+                "Verb": "",
+                "Fields": null,
+                "Template": "/api/v1/file/part/complete"
+            },
+            "HttpMethod": "POST",
+            "FullMethodName": "/begonia.org.begonia.FileService/CompleteMultipartUpload",
+            "HttpUri": "/api/v1/file/part/complete",
+            "PathParams": [],
+            "InName": "CompleteMultipartUploadRequest",
+            "OutName": "CompleteMultipartUploadResponse",
+            "IsClientStream": false,
+            "IsServerStream": false,
+            "Pkg": "begonia.org.begonia",
+            "InPkg": "begonia.org.begonia",
+            "OutPkg": "begonia.org.begonia"
+        }
+    ],
+    "/begonia.org.begonia.FileService/Delete": [
+        {
+            "Pattern": {},
+            "Template": {
+                "Version": 1,
+                "OpCodes": [
+                    2,
+                    0,
+                    2,
+                    1,
+                    2,
+                    2
+                ],
+                "Pool": [
+                    "api",
+                    "v1",
+                    "file"
+                ],
+                "Verb": "",
+                "Fields": null,
+                "Template": "/api/v1/file"
+            },
+            "HttpMethod": "DELETE",
+            "FullMethodName": "/begonia.org.begonia.FileService/Delete",
+            "HttpUri": "/api/v1/file",
+            "PathParams": [],
+            "InName": "DeleteRequest",
+            "OutName": "DeleteResponse",
+            "IsClientStream": false,
+            "IsServerStream": false,
+            "Pkg": "begonia.org.begonia",
+            "InPkg": "begonia.org.begonia",
+            "OutPkg": "begonia.org.begonia"
+        }
+    ],
+    "/begonia.org.begonia.FileService/Download": [
+        {
+            "Pattern": {},
+            "Template": {
+                "Version": 1,
+                "OpCodes": [
+                    2,
+                    0,
+                    2,
+                    1,
+                    2,
+                    2
+                ],
+                "Pool": [
+                    "api",
+                    "v1",
+                    "file"
+                ],
+                "Verb": "",
+                "Fields": null,
+                "Template": "/api/v1/file"
+            },
+            "HttpMethod": "GET",
+            "FullMethodName": "/begonia.org.begonia.FileService/Download",
+            "HttpUri": "/api/v1/file",
+            "PathParams": [],
+            "InName": "DownloadRequest",
+            "OutName": "HttpBody",
+            "IsClientStream": false,
+            "IsServerStream": false,
+            "Pkg": "begonia.org.begonia",
+            "InPkg": "begonia.org.begonia",
+            "OutPkg": "google.api"
+        }
+    ],
+    "/begonia.org.begonia.FileService/InitiateMultipartUpload": [
+        {
+            "Pattern": {},
+            "Template": {
+                "Version": 1,
+                "OpCodes": [
+                    2,
+                    0,
+                    2,
+                    1,
+                    2,
+                    2,
+                    2,
+                    3,
+                    2,
+                    4
+                ],
+                "Pool": [
+                    "api",
+                    "v1",
+                    "file",
+                    "part",
+                    "init"
+                ],
+                "Verb": "",
+                "Fields": null,
+                "Template": "/api/v1/file/part/init"
+            },
+            "HttpMethod": "POST",
+            "FullMethodName": "/begonia.org.begonia.FileService/InitiateMultipartUpload",
+            "HttpUri": "/api/v1/file/part/init",
+            "PathParams": [],
+            "InName": "InitiateMultipartUploadRequest",
+            "OutName": "InitiateMultipartUploadResponse",
+            "IsClientStream": false,
+            "IsServerStream": false,
+            "Pkg": "begonia.org.begonia",
+            "InPkg": "begonia.org.begonia",
+            "OutPkg": "begonia.org.begonia"
+        }
+    ],
+    "/begonia.org.begonia.FileService/Upload": [
+        {
+            "Pattern": {},
+            "Template": {
+                "Version": 1,
+                "OpCodes": [
+                    2,
+                    0,
+                    2,
+                    1,
+                    2,
+                    2
+                ],
+                "Pool": [
+                    "api",
+                    "v1",
+                    "file"
+                ],
+                "Verb": "",
+                "Fields": null,
+                "Template": "/api/v1/file"
+            },
+            "HttpMethod": "PUT",
+            "FullMethodName": "/begonia.org.begonia.FileService/Upload",
+            "HttpUri": "/api/v1/file",
+            "PathParams": [],
+            "InName": "UploadFileRequest",
+            "OutName": "UploadFileResponse",
+            "IsClientStream": false,
+            "IsServerStream": false,
+            "Pkg": "begonia.org.begonia",
+            "InPkg": "begonia.org.begonia",
+            "OutPkg": "begonia.org.begonia"
+        }
+    ],
+    "/begonia.org.begonia.FileService/UploadMultipartFile": [
+        {
+            "Pattern": {},
+            "Template": {
+                "Version": 1,
+                "OpCodes": [
+                    2,
+                    0,
+                    2,
+                    1,
+                    2,
+                    2,
+                    2,
+                    3
+                ],
+                "Pool": [
+                    "api",
+                    "v1",
+                    "file",
+                    "part"
+                ],
+                "Verb": "",
+                "Fields": null,
+                "Template": "/api/v1/file/part"
+            },
+            "HttpMethod": "PUT",
+            "FullMethodName": "/begonia.org.begonia.FileService/UploadMultipartFile",
+            "HttpUri": "/api/v1/file/part",
+            "PathParams": [],
+            "InName": "UploadMultipartFileRequest",
+            "OutName": "UploadMultipartFileResponse",
+            "IsClientStream": false,
+            "IsServerStream": false,
+            "Pkg": "begonia.org.begonia",
+            "InPkg": "begonia.org.begonia",
+            "OutPkg": "begonia.org.begonia"
+        }
+    ],
     "/begonia.org.begonia.SystemService/GetInfo": [
         {
             "Pattern": {},

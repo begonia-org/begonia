@@ -17,6 +17,7 @@ import (
 
 var onceRouter sync.Once
 var httpURIRouteToSrvMethod *HttpURIRouteToSrvMethod
+
 type APIMethodDetails struct {
 	// 服务名
 	ServiceName string
@@ -29,6 +30,7 @@ type APIMethodDetails struct {
 type HttpURIRouteToSrvMethod struct {
 	routers    map[string]*APIMethodDetails
 	grpcRouter map[string]*APIMethodDetails
+	localSrv   map[string]bool
 	mux        sync.Mutex
 }
 
@@ -37,6 +39,7 @@ func NewHttpURIRouteToSrvMethod() *HttpURIRouteToSrvMethod {
 		httpURIRouteToSrvMethod = &HttpURIRouteToSrvMethod{
 			routers:    make(map[string]*APIMethodDetails),
 			grpcRouter: make(map[string]*APIMethodDetails),
+			localSrv:   make(map[string]bool),
 			mux:        sync.Mutex{},
 		}
 	})
@@ -97,6 +100,13 @@ func (r *HttpURIRouteToSrvMethod) getHttpRule(method *descriptorpb.MethodDescrip
 		}
 	}
 	return nil
+}
+func (r *HttpURIRouteToSrvMethod)AddLocalSrv(fullMethod string) {
+	r.localSrv[strings.ToUpper(fullMethod)] = true
+}
+func (r *HttpURIRouteToSrvMethod)IsLocalSrv(fullMethod string) bool {
+	ret:= r.localSrv[strings.ToUpper(fullMethod)]
+	return ret
 }
 func (r *HttpURIRouteToSrvMethod) addRouterDetails(serviceName string, authRequired bool, methodName *descriptorpb.MethodDescriptorProto) {
 	// 获取并打印 google.api.http 注解

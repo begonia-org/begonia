@@ -68,6 +68,8 @@ func IncomingHeadersToMetadata(ctx context.Context, req *http.Request) metadata.
 	md.Set("uri", req.RequestURI)
 	md.Set("method", req.Method)
 	md.Set("remote_addr", req.RemoteAddr)
+	md.Set("protocol", req.Proto)
+	md.Set("response-type", "application/json")
 	_ = grpc.SetHeader(ctx, metadata.Pairs("x-request-id", md.Get("x-request-id")[0]))
 	if val := md.Get("x-uid"); len(val) > 0 {
 		_ = grpc.SetHeader(ctx, metadata.Pairs("x-uid", val[0]))

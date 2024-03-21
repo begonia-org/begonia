@@ -7,8 +7,6 @@ github.com/allegro/bigcache/v3 v3.1.0 h1:H2Vp8VOvxcrB91o86fUSVJFqeuz8kpyyB02eH3b
 github.com/allegro/bigcache/v3 v3.1.0/go.mod h1:aPyh7jEvrog9zAwx5N7+JUQX5dZTSGpxF1LAR4dr35I=
 github.com/apapsch/go-jsonmerge/v2 v2.0.0 h1:axGnT1gRIfimI7gJifB699GoE/oq+F2MU7Dml6nw9rQ=
 github.com/apapsch/go-jsonmerge/v2 v2.0.0/go.mod h1:lvDnEdqiQrp0O42VQGgmlKpxL1AP2+08jFMw88y4klk=
-github.com/begonia-org/begonia/common v0.0.0-20240220080319-965ae95c8876 h1:lg0qV1M/CxHmDA5jNLzUtWvsO8G1O12aemfQ9E3MKIM=
-github.com/begonia-org/begonia/common v0.0.0-20240220080319-965ae95c8876/go.mod h1:fwX+ulZL7fZEpIx6vZQt0x4Yqtrqf/TgLsQNJLVcWgs=
 github.com/begonia-org/begonia/endpoint v0.0.0-20240220080319-965ae95c8876 h1:KtssiJy3z9uIdmuQp/mzXCR6ZmZ1UGgmZv+uQFavo/c=
 github.com/begonia-org/begonia/endpoint v0.0.0-20240220080319-965ae95c8876/go.mod h1:DKQTBOoB9kjRsGyyFJzKYHUrC8UWVJszUJSf8P6Nbj4=
 github.com/bmatcuk/doublestar v1.1.1/go.mod h1:UD6OnuiIn0yFxxA2le/rnRU1G4RaI4UvFv1sNto9p6w=

@@ -37,16 +37,7 @@ func New(err error, code int32, grpcCode codes.Code, action string) error {
 		funcName = fn.Name()
 	}
 
-	// 可选：获取更完整的调用栈信息
-	// stackTrace := make([]string, 0)
-	// for i := 1; true; i++ {
-	// 	pc, file, line, ok := runtime.Caller(i)
-	// 	if !ok {
-	// 		break
-	// 	}
-	// 	fn := runtime.FuncForPC(pc)
-	// 	stackTrace = append(stackTrace, fmt.Sprintf("%s:%d %s", file, line, fn.Name()))
-	// }
+
 	srvErr := &common.Errors{
 		Code:    code,
 		Message: err.Error(),
@@ -96,5 +87,16 @@ var (
 	ErrHeaderTokenFormat   = errors.New("header中token格式错误")
 	ErrAppSignatureMissing = errors.New("app签名缺失")
 	ErrAppSignatureInvalid = errors.New("app签名无效")
+	ErrAppAccessKeyMissing = errors.New("app access key缺失")
+	ErrAppXDateMissing     = errors.New("app x-date缺失")
 	ErrRequestExpired      = errors.New("请求已过期")
+
+	ErrUploadNotInitiate = errors.New("上传未初始化")
+	ErrSHA256NotMatch    = errors.New("sha256不匹配")
+	ErrUploadIdMissing   = errors.New("uploadId缺失")
+	ErrUploadIdNotFound  = errors.New("uploadId未找到")
+	ErrPartNumberMissing = errors.New("partNumber缺失")
+	ErrInvalidFileKey    = errors.New("无效的文件路径")
+	ErrFileKeyMissing    = errors.New("file key 缺失")
+
 )

@@ -62,7 +62,9 @@ type SourceType interface {
 func NewData(mysql *tiga.MySQLDao, rdb *tiga.RedisDao) *Data {
 	return &Data{db: mysql, rdb: rdb}
 }
-
+func (d *Data) Get(model interface{}, data interface{}, conds ...interface{}) error {
+	return d.db.GetModel(model).First(data, conds...).Error
+}
 func (d *Data) List(model interface{}, data interface{}, conds ...interface{}) error {
 	queryTag := tiga.QueryTags{}
 	query := queryTag.BuildConditions(d.db.GetModel(model), conds)

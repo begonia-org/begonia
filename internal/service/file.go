@@ -1,15 +1,12 @@
 package service
 
 import (
-	"fmt"
-	"os"
-	"path/filepath"
-	"time"
+	"context"
 
-	"github.com/begonia-org/begonia/common"
-	api "github.com/begonia-org/begonia/common/api/v1"
+	api "github.com/begonia-org/begonia/api/v1"
 	"github.com/begonia-org/begonia/internal/biz"
 	"github.com/begonia-org/begonia/internal/pkg/config"
+	"google.golang.org/genproto/googleapis/api/httpbody"
 	"google.golang.org/grpc"
 )
 
@@ -23,40 +20,28 @@ func NewFileService(biz *biz.FileUsecase, config *config.Config) *FileService {
 	return &FileService{biz: biz, config: config}
 }
 
-func (f *FileService) UploadFile(stream api.FileService_UploadFileServer) error {
-	uploadDir := f.config.GetUploadDir()
-	t := time.Now().UnixMilli()
-
-	header, err := common.NewHeadersFromContext(stream.Context())
-	if err != nil {
-		return err
-	}
-
-	filename := header.GetHeader("x-filename")
-	if filename == "" {
-		return fmt.Errorf("filename is empty")
-	}
-	uid := header.GetHeader("x-uid")
-	dir := filepath.Join(uploadDir, uid, fmt.Sprintf("%d", t))
-	err = os.MkdirAll(dir, 0755)
-	if err != nil {
-		return err
-	}
-	file, err := f.biz.Upload(dir, filename, stream)
-	if err != nil {
-		return err
-	}
-	files := []*api.Files{file}
-	err = f.biz.AddFile(stream.Context(), files)
-	if err != nil {
-		return err
-	}
-	return stream.SendAndClose(&api.UploadAPIResponse{
-		Uri:    file.Uri,
-		Sha256: file.Sha,
-	})
+func (f *FileService) Upload(ctx context.Context, in *api.UploadFileRequest) (*api.UploadFileResponse, error) {
+	return f.biz.Upload(ctx, in)
 }
 
+func (f *FileService) InitiateMultipartUpload(ctx context.Context, in *api.InitiateMultipartUploadRequest) (*api.InitiateMultipartUploadResponse, error) {
+	return f.biz.InitiateUploadFile(ctx, in)
+}
+func (f *FileService) UploadMultipartFile(ctx context.Context, in *api.UploadMultipartFileRequest) (*api.UploadMultipartFileResponse, error) {
+	return f.biz.UploadMultipartFileFile(ctx, in)
+}
+func (f *FileService) CompleteMultipartUpload(ctx context.Context, in *api.CompleteMultipartUploadRequest) (*api.CompleteMultipartUploadResponse, error) {
+	return f.biz.CompleteMultipartUploadFile(ctx, in)
+}
+func (f *FileService) AbortMultipartUpload(ctx context.Context, in *api.AbortMultipartUploadRequest) (*api.AbortMultipartUploadResponse, error) {
+	return f.biz.AbortMultipartUpload(ctx, in)
+}
+func (f *FileService) Download(ctx context.Context, in *api.DownloadRequest) (*httpbody.HttpBody, error) {
+	return f.biz.Download(ctx, in)
+}
+func (f *FileService) Delete(ctx context.Context, in *api.DeleteRequest) (*api.DeleteResponse, error) {
+	return f.biz.Delete(ctx, in)
+}
 func (f *FileService) Desc() *grpc.ServiceDesc {
 	return &api.FileService_ServiceDesc
 }

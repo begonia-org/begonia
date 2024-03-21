@@ -25,6 +25,7 @@ type UsersRepo interface {
 	CreateUsers(ctx context.Context, Users []*api.Users) error
 	UpdateUsers(ctx context.Context, models []*api.Users) error
 	DeleteUsers(ctx context.Context, models []*api.Users) error
+	GetUser(ctx context.Context, conds ...interface{}) (*api.Users, error)
 
 	// redis
 
@@ -139,29 +140,24 @@ func (u *UsersUsecase) Login(ctx context.Context, in *api.LoginAPIRequest) (*api
 	key, iv := u.config.GetAesConfig()
 	account, err := tiga.EncryptAES([]byte(key), userAuth.Account, iv)
 	if err != nil {
-		err := srvErr.New(errors.ErrEncrypt, "账号加密", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_ACCOUNT_ERR), "账号或密码错误"))
+		err := errors.New(errors.ErrEncrypt, int32(api.UserSvrCode_USER_ACCOUNT_ERR), codes.InvalidArgument, "accout_encrypt")
 		return nil, err
 	}
 	passwd, err := tiga.EncryptAES([]byte(key), userAuth.Password, iv)
 	if err != nil {
-		err := srvErr.New(errors.ErrEncrypt, "密码加密", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_PASSWORD_ERR), "账号或密码错误"))
+		err := errors.New(errors.ErrEncrypt, int32(api.UserSvrCode_USER_PASSWORD_ERR), codes.InvalidArgument, "password_encrypt")
 		return nil, err
 	}
-	user := &api.Users{}
-	users, err := u.repo.ListUsers(ctx, "(name = ? OR email = ? OR phone = ?) and password=(?)", account, account, account, passwd)
+
+	user, err := u.repo.GetUser(ctx, "(name = ? OR email = ? OR phone = ?) and password=(?)", account, account, account, passwd)
 	if err != nil {
-		err := srvErr.New(err, "查询用户", srvErr.WithMessage("账号或密码错误"))
+		err := errors.New(err, int32(api.UserSvrCode_USER_NOT_FOUND_ERR), codes.NotFound, "user_query")
 		return nil, err
 	}
-	if len(users) == 0 {
-		err := srvErr.New(errors.ErrUserNotFound, "查询用户", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_NOT_FOUND_ERR), "账号或密码错误"))
-		return nil, err
-	}
-	user = users[0]
 	user.Password = ""
 	err = tiga.DecryptStructAES([]byte(key), user, iv)
 	if err != nil {
-		err := srvErr.New(err, "用户信息解密")
+		err := errors.New(err, int32(api.UserSvrCode_USER_AUTH_DECRYPT_ERR), codes.NotFound, "user_decrypt")
 		return nil, err
 	}
 	// 生成jwt

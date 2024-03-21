@@ -4,19 +4,36 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/begonia-org/begonia/config"
 	"github.com/begonia-org/begonia/internal/pkg/logger"
+	dp "github.com/begonia-org/dynamic-proto"
 	c "github.com/smartystreets/goconvey/convey"
 )
 
+var serverForTest *dp.GatewayServer
+var onceServer sync.Once
+
+func RunTestServer() {
+	onceServer.Do(func() {
+		config := config.ReadConfig("dev")
+		serverForTest = New(config, logger.Logger, "0.0.0.0:12140")
+		go func() {
+			err := serverForTest.Start()
+			if err != nil {
+				panic(err)
+			}
+		}()
+	})
+}
 func TestServer(t *testing.T) {
 	c.Convey("test server init", t, func() {
 
 		config := config.ReadConfig("dev")
-		server := New(config, logger.Logger, "0.0.0.0:12140")
+		server := New(config, logger.Logger, "0.0.0.0:12141")
 		go func() {
 			err := server.Start()
 			t.Error(err)

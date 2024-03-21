@@ -403,13 +403,13 @@ func (a *APIValidator) AppValidator(ctx context.Context, req *signature.GatewayR
 		}
 	}
 	if xDate == "" {
-		return status.Errorf(codes.Unauthenticated, "missing %s", signature.HeaderXDateTime)
+		return errors.New(errors.ErrAppXDateMissing, int32(api.APPSvrCode_APP_XDATE_MISSING_ERR), codes.Unauthenticated, "app_timestamp")
 	}
 	if auth == "" {
-		return status.Errorf(codes.Unauthenticated, "missing %s", signature.HeaderXAuthorization)
+		return errors.New(errors.ErrAppSignatureMissing, int32(api.APPSvrCode_APP_AUTH_MISSING_ERR), codes.Unauthenticated, "app_signature")
 	}
 	if accessKey == "" {
-		return status.Errorf(codes.Unauthenticated, "missing %s", signature.HeaderXAccessKey)
+		return errors.New(errors.ErrAppAccessKeyMissing, int32(api.APPSvrCode_APP_ACCESS_KEY_MISSING_ERR), codes.Unauthenticated, "app_access_key")
 	}
 	t, err := time.Parse(signature.DateFormat, xDate)
 	if err != nil {

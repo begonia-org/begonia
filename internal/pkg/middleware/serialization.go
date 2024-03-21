@@ -2,6 +2,8 @@ package middleware
 
 import (
 	"encoding/json"
+	"log"
+
 	"fmt"
 	"io"
 	"reflect"
@@ -11,6 +13,8 @@ import (
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/genproto/googleapis/api/httpbody"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/dynamicpb"
@@ -88,8 +92,25 @@ func NewRawBinaryUnmarshaler() *RawBinaryUnmarshaler {
 		},
 	}
 }
-func (m *RawBinaryUnmarshaler) NewDecoder(r io.Reader) runtime.Decoder {
-	return &BinaryDecoder{"Data", r}
+
+//	func (m *RawBinaryUnmarshaler) NewDecoder(r io.Reader) runtime.Decoder {
+//		return &BinaryDecoder{"Data", r}
+//	}
+func (m *RawBinaryUnmarshaler) ContentType(v interface{}) string {
+	if dpb, ok := v.(*dynamicpb.Message); ok {
+		if httpBody, err := convertDynamicMessageToHttpBody(dpb); err == nil && httpBody != nil {
+			return httpBody.GetContentType()
+		}
+	}
+	return "application/octet-stream"
+}
+func (m *RawBinaryUnmarshaler) Marshal(v interface{}) ([]byte, error) {
+	if dpb, ok := v.(*dynamicpb.Message); ok {
+		if httpBody, err := convertDynamicMessageToHttpBody(dpb); err == nil && httpBody != nil {
+			return httpBody.GetData(), nil
+		}
+	}
+	return m.Marshaler.Marshal(v)
 }
 func (m *EventSourceMarshaler) ContentType(v interface{}) string {
 	return "text/event-stream"
@@ -181,18 +202,15 @@ func (m *ResponseJSONMarshaler) Marshal(v interface{}) ([]byte, error) {
 		}
 
 	}
+
 	// 在这里定义你的自定义序列化逻辑
 	if response, ok := v.(*dynamicpb.Message); ok {
-		newRsp := make(map[string]interface{})
-		newRsp["code"] = common.Code_OK
-		data, err := m.dynamicpbToMap(response)
+		log.Println("实际类型,", response.Type().Descriptor().Name())
+		byteData, err := m.JSONPb.Marshal(response)
 		if err != nil {
-			return nil, fmt.Errorf("marshal response error: %w", err)
+			return nil, status.Errorf(codes.Internal, "marshal_response: %v", err)
 		}
-		newRsp["message"] = "OK"
-
-		newRsp["data"] = data
-		return m.JSONPb.Marshal(newRsp)
+		return byteData, nil
 
 	}
 	return m.JSONPb.Marshal(v)

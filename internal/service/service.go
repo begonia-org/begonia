@@ -4,7 +4,6 @@ import (
 	"context"
 
 	api "github.com/begonia-org/begonia/api/v1"
-	common "github.com/begonia-org/begonia/common/api/v1"
 	"github.com/google/wire"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
@@ -26,8 +25,8 @@ func NewServices(file *FileService, user *UsersService, ep *EndpointsService, ap
 }
 func WithFileService(file *FileService, opts []grpc.DialOption) ServiceOptions {
 	return func(server *grpc.Server, mux *runtime.ServeMux, endpoint string) error {
-		common.RegisterFileServiceServer(server, file)
-		return common.RegisterFileServiceHandlerFromEndpoint(context.Background(), mux, endpoint, opts)
+		api.RegisterFileServiceServer(server, file)
+		return api.RegisterFileServiceHandlerFromEndpoint(context.Background(), mux, endpoint, opts)
 	}
 }
 func WithUserService(user *UsersService, opts []grpc.DialOption) ServiceOptions {

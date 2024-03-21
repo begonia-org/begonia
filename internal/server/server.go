@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 
+	common "github.com/begonia-org/begonia/common/api/v1"
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/gateway"
 	"github.com/begonia-org/begonia/internal/pkg/logger"
@@ -41,25 +42,29 @@ func NewGateway(cfg *dp.GatewayConfig, conf *config.Config, services []service.S
 		HttpHandlers:    make([]func(http.Handler) http.Handler, 0),
 	}
 	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithMarshalerOption("application/json", middleware.NewResponseJSONMarshaler()))
-	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithErrorHandler(middleware.HandleErrorWithLogger(logger.Logger)))
+	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithMarshalerOption(runtime.MIMEWildcard, middleware.NewRawBinaryUnmarshaler()))
 	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithMetadata(middleware.IncomingHeadersToMetadata))
-	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithForwardResponseOption(middleware.HttpResponseModifier))
+	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithErrorHandler(middleware.HandleErrorWithLogger(logger.Logger)))
+	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithForwardResponseOption(middleware.HttpResponseBodyModify))
 	// 连接池配置
 	opts.PoolOptions = append(opts.PoolOptions, pool.WithMaxActiveConns(100))
 	opts.PoolOptions = append(opts.PoolOptions, pool.WithPoolSize(128))
 	// 中间件配置
-	opts.Options = append(opts.Options, grpc.ChainUnaryInterceptor(middleware.UnaryServerErrInterceptor(logger.Logger), logM.LoggerUnaryInterceptor, validate.ValidateUnaryInterceptor))
-	opts.Options = append(opts.Options, grpc.ChainStreamInterceptor(logM.LoggerStreamInterceptor, validate.ValidateStreamInterceptor))
+	opts.Options = append(opts.Options, grpc.ChainUnaryInterceptor(logM.LoggerUnaryInterceptor, middleware.UnaryServerErrInterceptor(logger.Logger), middleware.HttpUnaryInterceptor, validate.ValidateUnaryInterceptor))
+	opts.Options = append(opts.Options, grpc.ChainStreamInterceptor(logM.LoggerStreamInterceptor, middleware.UnaryStreamServerErrInterceptor(logger.Logger), validate.ValidateStreamInterceptor))
 
 	cors := &middleware.CorsMiddleware{
 		Cors: conf.GetCorsConfig(),
 	}
-	fmt.Println(cors.Cors)
 	opts.HttpHandlers = append(opts.HttpHandlers, cors.Handle)
 	runtime.WithMetadata(middleware.IncomingHeadersToMetadata)
 	gw := gateway.New(cfg, opts)
 	protos := conf.GetProtosDir()
 	pd, err := dp.NewDescription(protos)
+	if err != nil {
+		panic(err)
+	}
+	err = pd.SetHttpResponse(common.E_HttpResponse)
 	if err != nil {
 		panic(err)
 	}
@@ -69,6 +74,10 @@ func NewGateway(cfg *dp.GatewayConfig, conf *config.Config, services []service.S
 		if err != nil {
 			panic(err)
 		}
+		for _, method := range srv.Desc().Methods {
+			routersList.AddLocalSrv(fmt.Sprintf("/%s/%s", srv.Desc().ServiceName, method.MethodName))
+		}
+
 	}
 	routersList.LoadAllRouters(pd)
 

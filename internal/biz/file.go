@@ -5,20 +5,26 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
+	"strconv"
+	"strings"
 
+	api "github.com/begonia-org/begonia/api/v1"
 	common "github.com/begonia-org/begonia/common/api/v1"
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/errors"
-	"github.com/begonia-org/begonia/internal/pkg/logger"
+	"github.com/spark-lence/tiga"
+	"google.golang.org/genproto/googleapis/api/httpbody"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/protobuf/types/known/timestamppb"
+	"google.golang.org/grpc/metadata"
 )
 
 type FileRepo interface {
 	// mysql
-	AddFile(ctx context.Context, files []*common.Files) error
+	UploadFile(ctx context.Context, files []*common.Files) error
 	DeleteFile(ctx context.Context, files []*common.Files) error
 	UpdateFile(ctx context.Context, files []*common.Files) error
 	GetFile(ctx context.Context, uri string) (*common.Files, error)
@@ -26,89 +32,414 @@ type FileRepo interface {
 }
 
 type FileUsecase struct {
-	repo   FileRepo
-	config *config.Config
+	repo      FileRepo
+	config    *config.Config
+	snowflake *tiga.Snowflake
 }
 
 func NewFileUsecase(repo FileRepo, config *config.Config) *FileUsecase {
-	return &FileUsecase{repo: repo, config: config}
+	snk, _ := tiga.NewSnowflake(1)
+	return &FileUsecase{repo: repo, config: config, snowflake: snk}
+}
+func (f *FileUsecase) getPartsDir(key string) string {
+	return filepath.Join(f.config.GetUploadDir(), key, "parts")
+}
+func (f *FileUsecase) spiltKey(key string) (string, string, error) {
+	if strings.HasPrefix(key, "/") {
+		return "", "", errors.New(errors.ErrInvalidFileKey, int32(api.FileSvrStatus_FILE_INVAILDATE_KEY_ERR), codes.InvalidArgument, "invalid_key")
+	}
+	if strings.Contains(key, "/") {
+		name := filepath.Base(key)
+		filename := getFilenameWithoutExt(name)
+		return filepath.Dir(key) + "/" + filename, name, nil
+	}
+	return "./", key, nil
+}
+func (f *FileUsecase) InitiateUploadFile(ctx context.Context, in *api.InitiateMultipartUploadRequest) (*api.InitiateMultipartUploadResponse, error) {
+	uploadId := f.snowflake.GenerateIDString()
+	_, _, err := f.spiltKey(in.Key)
+	if err != nil {
+		return nil, err
+	}
+	saveDir := f.getPartsDir(uploadId)
+	if err := os.MkdirAll(saveDir, 0755); err != nil {
+		err = errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "create_upload_dir")
+		return nil, err
+	}
+	return &api.InitiateMultipartUploadResponse{
+		UploadId: uploadId,
+	}, nil
 }
 
-func (f *FileUsecase) Upload(uploadDir string, filename string, stream common.FileService_UploadFileServer) (*common.Files, error) {
-	// var once sync.Once
-	var file *os.File
-	var err error
-	hash := sha256.New()
+// 文件是否存在
+func pathExists(path string) bool {
+	_, err := os.Stat(path)
+	return !os.IsNotExist(err)
+}
+func getFilenameWithoutExt(filename string) string {
+	return filename[:len(filename)-len(filepath.Ext(filename))]
+}
+func getSHA256(data []byte) string {
+	hash := sha256.Sum256([]byte(data))
 
-	var filePath string
+	// 将哈希值格式化为十六进制字符串
+	hashHex := fmt.Sprintf("%x", hash)
+	return hashHex
+}
+func (f *FileUsecase) Upload(ctx context.Context, in *api.UploadFileRequest) (*api.UploadFileResponse, error) {
+	if in.Key == "" {
+		return nil, errors.New(errors.ErrInvalidFileKey, int32(api.FileSvrStatus_FILE_INVAILDATE_KEY_ERR), codes.InvalidArgument, "invalid_key")
+	}
 
-	defer func() {
-		if file != nil {
-			file.Close()
-		}
-	}()
-	// 确保目录存在
-	if err = os.MkdirAll(uploadDir, 0755); err != nil {
-		logger.Logger.Errorf("Failed to create directory: %v", err)
-		err = errors.New(err,int32(common.Code_INTERNAL_ERROR),codes.Internal,"create_upload_dir")
+	subDir, filename, err := f.spiltKey(in.Key)
+	if err != nil {
 		return nil, err
 	}
+	saveDir := filepath.Join(f.config.GetUploadDir(), subDir)
+	if err := os.MkdirAll(saveDir, 0755); err != nil {
+		return nil, errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "create_upload_dir")
+	}
+	filePath := filepath.Join(saveDir, filename)
+	file, err := os.Create(filePath)
+	if err != nil {
+		return nil, errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "create_file")
+	}
+	defer file.Close()
+	_, err = file.Write(in.Content)
+	if err != nil {
+		return nil, errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "write_file")
+	}
+	uri, err := f.getUri(filePath)
+	if err != nil {
+		return nil, err
+	}
+	sha256Hash := getSHA256(in.Content)
+	if sha256Hash != in.Sha256 {
+		os.Remove(filePath)
+		err := errors.New(errors.ErrSHA256NotMatch, int32(api.FileSvrStatus_FILE_SHA256_NOT_MATCH_ERR), codes.InvalidArgument, "sha256_not_match")
+		return nil, err
+
+	}
+	return &api.UploadFileResponse{
+		Uri: uri,
+	}, nil
+
+}
+func (f *FileUsecase) UploadMultipartFileFile(ctx context.Context, in *api.UploadMultipartFileRequest) (*api.UploadMultipartFileResponse, error) {
+
+	if in.UploadId == "" {
+		return nil, errors.New(errors.ErrUploadIdMissing, int32(api.FileSvrStatus_FILE_UPLOADID_MISSING_ERR), codes.InvalidArgument, "upload_id_not_found")
+	}
+	if in.PartNumber == 0 {
+		return nil, errors.New(errors.ErrPartNumberMissing, int32(api.FileSvrStatus_FILE_PARTNUMBER_MISSING_ERR), codes.InvalidArgument, "part_number_not_found")
+
+	}
+	// 分片上传处理
+	uploadId := in.UploadId
+
+	saveDir := f.getPartsDir(uploadId)
+	if !pathExists(saveDir) {
+		err := errors.New(errors.ErrUploadNotInitiate, int32(api.FileSvrStatus_FILE_UPLOAD_NOT_INITIATE_ERR), codes.NotFound, "upload_dir_not_found")
+		return nil, err
+	}
+
+	filePath := filepath.Join(saveDir, fmt.Sprintf("%08d.part", in.PartNumber))
 
 	// 创建文件
-	filePath = filepath.Join(uploadDir, filename)
-	filename = filePath
-	file, err = os.Create(filename)
+	file, err := os.Create(filePath)
 	if err != nil {
-		logger.Logger.Errorf("Failed to create file: %s", err.Error())
-		return nil, errors.New(err,int32(common.Code_INTERNAL_ERROR),codes.Internal,"create_file")
+		return nil, errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "create_file")
 	}
-	for {
-		chunk, err := stream.Recv()
-		if err == io.EOF {
-			// 文件接收完毕
-			break
-		}
-		if err != nil {
-			logger.Logger.Errorf("Error while receiving chunk: %v", err)
-			return nil, errors.New(fmt.Errorf("Error while receiving chunk: %w", err),int32(common.Code_INTERNAL_ERROR),codes.Internal,"receive_chunk")
-		}
+	defer file.Close()
+	// 写入文件
+	_, err = file.Write(in.Content)
+	if err != nil {
+		return nil, errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "write_file")
 
-		if file != nil {
-			// 向文件写入数据
-			if _, err = file.Write(chunk.Content.Data); err != nil {
-				logger.Logger.Errorf("Failed to write to file: %s", err.Error())
-				return nil, errors.New(fmt.Errorf("Failed to write to file: %w", err),int32(common.Code_INTERNAL_ERROR),codes.Internal,"write_file")
-			}
-			// 更新哈希值
-			if _, err = hash.Write(chunk.Content.Data); err != nil {
-				logger.Logger.Errorf("Failed to update hash: %v", err)
-				return nil, errors.New(fmt.Errorf("Failed to update hash: %w", err),int32(common.Code_INTERNAL_ERROR),codes.Internal,"update_hash")
-			}
-		}
 	}
-	if err != nil {
+	// 计算哈希值
+	sha256Hash := getSHA256(in.Content)
+	if sha256Hash != in.Sha256 {
+		os.Remove(filePath)
+		err := errors.New(errors.ErrSHA256NotMatch, int32(api.FileSvrStatus_FILE_SHA256_NOT_MATCH_ERR), codes.InvalidArgument, "sha256_not_match")
 		return nil, err
 
 	}
+	return nil, nil
+}
+func (f *FileUsecase) getSortedFiles(dirPath string) ([]string, error) {
+	var files []string
+
+	err := filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() && strings.HasSuffix(info.Name(), ".part") { // 假设文件是.txt格式
+			files = append(files, path)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// 按文件名排序
+	sort.Strings(files)
+
+	return files, nil
+}
+func (f FileUsecase) mergeFiles(files []string, outputFile string) error {
+	out, err := os.Create(outputFile)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	for _, file := range files {
+		in, err := os.Open(file)
+		if err != nil {
+			return err
+		}
+		_, err = io.Copy(out, in)
+		in.Close()
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+func (f *FileUsecase) mvDir(src, dst string) error {
+	newPath := filepath.Join(dst, filepath.Base(src))
+
+	return os.Rename(src, newPath)
+}
+func (f *FileUsecase) getPersistenceKeyParts(key string) string {
+	if strings.Contains(key, ".") {
+		key = key[:strings.LastIndex(key, ".")]
+
+	}
+	return filepath.Join(f.config.GetUploadDir(), "parts", key)
+}
+func (f *FileUsecase) getUri(filePath string) (string, error) {
 	uploadRootDir := f.config.GetUploadDir()
 	uri, err := filepath.Rel(uploadRootDir, filePath)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get file uri: %w", err)
+		return "", errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_file_uri")
+	}
+	return uri, nil
+
+}
+func (f *FileUsecase) AbortMultipartUpload(ctx context.Context, in *api.AbortMultipartUploadRequest) (*api.AbortMultipartUploadResponse, error) {
+	partsDir := f.getPartsDir(in.UploadId)
+	if !pathExists(partsDir) {
+		err := errors.New(errors.ErrUploadIdNotFound, int32(api.FileSvrStatus_FILE_NOT_FOUND_UPLOADID_ERR), codes.NotFound, "upload_id_not_found")
+		return nil, err
 
 	}
-	// 计算最终的哈希值
-	hashInBytes := hash.Sum(nil)
-	sha256Hash := fmt.Sprintf("%x", hashInBytes)
-	return &common.Files{
-		Uri:       uri,
-		Name:      filepath.Ext(filepath.Base(filePath)),
-		Sha:       sha256Hash,
-		CreatedAt: timestamppb.Now(),
-		UpdatedAt: timestamppb.Now(),
-	}, err
+	err := os.RemoveAll(partsDir)
+	if err != nil {
+		return nil, errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "remove_parts_dir")
+	}
+	return &api.AbortMultipartUploadResponse{}, nil
+}
+func (f *FileUsecase) CompleteMultipartUploadFile(ctx context.Context, in *api.CompleteMultipartUploadRequest) (*api.CompleteMultipartUploadResponse, error) {
+
+	if in.UploadId == "" {
+		err := errors.New(errors.ErrUploadIdMissing, int32(api.FileSvrStatus_FILE_UPLOADID_MISSING_ERR), codes.InvalidArgument, "upload_id_not_found")
+		return nil, err
+	}
+	partsDir := f.getPartsDir(in.UploadId)
+	if !pathExists(partsDir) {
+		err := errors.New(errors.ErrUploadIdNotFound, int32(api.FileSvrStatus_FILE_NOT_FOUND_UPLOADID_ERR), codes.NotFound, "upload_id_not_found")
+		return nil, err
+
+	}
+	files, err := f.getSortedFiles(partsDir)
+	if err != nil {
+		return nil, errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_sorted_files")
+
+	}
+	subDir, filename, err := f.spiltKey(in.Key)
+	if err != nil {
+		return nil, err
+	}
+	saveDir := filepath.Join(f.config.GetUploadDir(), subDir)
+	filePath := filepath.Join(saveDir, filename)
+	// merge files to uploadDir/key
+	err = f.mergeFiles(files, filePath)
+	if err != nil {
+		return nil, errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "merge_files")
+	}
+	// the parts file has been merged, remove the parts dir to uploadDir/parts/key
+	keyParts := f.getPersistenceKeyParts(in.Key)
+	if err = os.MkdirAll(keyParts, 0755); err != nil {
+		return nil, errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "create_parts_dir")
+	}
+	err = f.mvDir(partsDir, keyParts)
+	if err != nil {
+		return nil, errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "mv_dir")
+
+	}
+	uri, err := f.getUri(filePath)
+	if err != nil {
+		return nil, err
+
+	}
+	return &api.CompleteMultipartUploadResponse{
+		Uri: uri,
+	}, nil
+}
+func parseRangeHeader(rangeHeader string) (start, end int64, err error) {
+	// 确保头部以"bytes="开头
+	if !strings.HasPrefix(rangeHeader, "bytes=") {
+		return 0, 0, fmt.Errorf("invalid range header: %s", rangeHeader)
+	}
+
+	// 去除"bytes="前缀
+	rangeSpec := strings.TrimPrefix(rangeHeader, "bytes=")
+	parts := strings.Split(rangeSpec, "-")
+	if strings.HasPrefix(rangeSpec, "-") {
+		start = 0
+		end, err = strconv.ParseInt(strings.TrimPrefix(rangeSpec, "-"), 10, 64)
+		if err != nil {
+			return 0, 0, fmt.Errorf("invalid start value: %s", parts[0])
+		}
+		return start, end, nil
+	}
+	if strings.HasSuffix(rangeSpec, "-") {
+		end = 0
+		start, err = strconv.ParseInt(strings.TrimSuffix(rangeSpec, "-"), 10, 64)
+		if err != nil {
+			return 0, 0, fmt.Errorf("invalid end value: %s", parts[1])
+
+		}
+		return start, end, nil
+	}
+
+	if len(parts) != 2 {
+		return 0, 0, fmt.Errorf("invalid range specification: %s", rangeSpec)
+	}
+
+	// 解析 start 值
+	start, err = strconv.ParseInt(parts[0], 10, 64)
+	if err != nil {
+		return 0, 0, fmt.Errorf("invalid start value: %s", parts[0])
+	}
+
+	// 解析 end 值
+	end, err = strconv.ParseInt(parts[1], 10, 64)
+	if err != nil {
+		return 0, 0, fmt.Errorf("invalid end value: %s", parts[1])
+	}
+
+	return start, end, nil
+}
+func (f *FileUsecase) DownloadForRange(ctx context.Context, in *api.DownloadRequest) (*httpbody.HttpBody, error) {
+	md, ok := metadata.FromIncomingContext(ctx)
+	var rangeStr string
+	var start, end int64
+	var err error
+	if ok {
+		rangeStr = md.Get("range")[0]
+		start, end, err = parseRangeHeader(rangeStr)
+		if err != nil {
+			return nil, errors.New(err, int32(common.Code_UNKNOWN), codes.InvalidArgument, "parse_range_header")
+		}
+	}
+	fileDir := filepath.Join(f.config.GetUploadDir(), in.Key)
+	file, err := os.Open(fileDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			err = errors.New(err, int32(common.Code_NOT_FOUND), codes.NotFound, "file_not_found")
+			return nil, err
+		}
+		err = errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "open_file")
+		return nil, err
+
+	}
+	defer file.Close()
+	fileInfo, err := file.Stat()
+	if err != nil {
+		err = errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "file_info")
+		return nil, err
+
+	}
+	var buf []byte
+	if end > 0 {
+		buf = make([]byte, end-start)
+	} else {
+		buf = make([]byte, fileInfo.Size()-start)
+
+	}
+	_, err = file.ReadAt(buf, start)
+	if err != nil && err != io.EOF {
+		err = errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "read_file")
+		return nil, err
+	}
+	return &httpbody.HttpBody{
+		ContentType: "application/octet-stream",
+		Data:        buf,
+	}, nil
+
+}
+func (f *FileUsecase) Download(ctx context.Context, in *api.DownloadRequest) (*httpbody.HttpBody, error) {
+	if in.Key == "" {
+		return nil, errors.New(errors.ErrInvalidFileKey, int32(api.FileSvrStatus_FILE_INVAILDATE_KEY_ERR), codes.InvalidArgument, "invalid_key")
+
+	}
+	fileDir := filepath.Join(f.config.GetUploadDir(), in.Key)
+
+	file, err := os.Open(fileDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			err = errors.New(err, int32(common.Code_NOT_FOUND), codes.NotFound, "file_not_found")
+			return nil, err
+		}
+		err = errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "open_file")
+		return nil, err
+
+	}
+	defer file.Close()
+	fileInfo, err := file.Stat()
+	if err != nil {
+		err = errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "file_info")
+		return nil, err
+
+	}
+	buf := make([]byte, fileInfo.Size())
+	_, err = file.Read(buf)
+	if err != nil && err != io.EOF {
+		err = errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "read_file")
+		return nil, err
+	}
+	rsp:= &httpbody.HttpBody{
+		ContentType: http.DetectContentType(buf),
+		Data:        buf,
+	}
+	return rsp,nil
 
 }
 
+func (f *FileUsecase) Delete(ctx context.Context, in *api.DeleteRequest) (*api.DeleteResponse, error) {
+	subDir, filename, err := f.spiltKey(in.Key)
+	if err != nil {
+		return nil, err
+	}
+	saveDir := filepath.Join(f.config.GetUploadDir(), subDir)
+	filePath := filepath.Join(saveDir, filename)
+	err = os.Remove(filePath)
+	if err != nil {
+		return nil, errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "remove_file")
+
+	}
+	keyParts := f.getPersistenceKeyParts(in.Key)
+	err = os.RemoveAll(keyParts)
+	if err != nil {
+		return nil, errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "remove_parts_dir")
+	}
+	return &api.DeleteResponse{}, nil
+}
 func (f *FileUsecase) AddFile(ctx context.Context, files []*common.Files) error {
-	return f.repo.AddFile(ctx, files)
+	return f.repo.UpdateFile(ctx, files)
 }

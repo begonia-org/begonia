@@ -29,6 +29,14 @@ func (r *userRepo) ListUsers(ctx context.Context, conds ...interface{}) ([]*api.
 	return users, nil
 
 }
+func (r *userRepo)GetUser(ctx context.Context,conds ...interface{}) (*api.Users, error) {
+	user := &api.Users{}
+	err := r.data.Get(user,user, conds...)
+	if err != nil {
+		return nil, err
+	}
+	return user, nil
+}
 func (r *userRepo) CreateUsers(ctx context.Context, users []*api.Users) error {
 	sources := NewSourceTypeArray(users)
 	return r.data.CreateInBatches(sources)
