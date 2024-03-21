@@ -3,8 +3,10 @@ package middleware
 import (
 	"context"
 	"fmt"
+	"mime"
 	"net/http"
 	sysRuntime "runtime"
+	"strings"
 
 	_ "github.com/begonia-org/begonia/api/v1"
 	common "github.com/begonia-org/begonia/common/api/v1"
@@ -18,11 +20,13 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/types/dynamicpb"
 	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 // func HttpResponseModifier(ctx context.Context, w http.ResponseWriter, p proto.Message) error {
@@ -41,8 +45,8 @@ func (s *HttpStream) SendMsg(m interface{}) error {
 	if !ok {
 		return s.ServerStream.SendMsg(m)
 	}
-	if rspType, ok := md["response-type"]; ok {
-		if rspType[0] != "application/json" {
+	if protocol, ok := md["grpcgateway-content-type"]; ok {
+		if !strings.EqualFold(protocol[0], "application/json") {
 			return s.ServerStream.SendMsg(m)
 		}
 		routersList := routers.Get()
@@ -71,7 +75,10 @@ func getClientMessageMap() map[int32]string {
 	return codes
 
 }
-
+func isValidContentType(ct string) bool {
+	mimeType, _, err := mime.ParseMediaType(ct)
+	return err == nil && mimeType != ""
+}
 func convertDynamicMessageToHttpBody(dynamicMessage *dynamicpb.Message) (*httpbody.HttpBody, error) {
 	// 序列化dynamicpb.Message为字节流
 	serialized, err := proto.Marshal(dynamicMessage)
@@ -84,7 +91,14 @@ func convertDynamicMessageToHttpBody(dynamicMessage *dynamicpb.Message) (*httpbo
 	if err := proto.Unmarshal(serialized, &httpBody); err != nil {
 		return nil, err
 	}
-
+	// 这里做检查是因为httpbody的字段定义和Any类型的字段定义存在冲突
+	// 防止anypb.Any被序列化为httpbody.HttpBody
+	// if !isValidContentType(httpBody.ContentType) {
+	// 	return nil, fmt.Errorf("invalid content type: %s", httpBody.ContentType)
+	// }
+	if len(httpBody.Data) == 0 {
+		return nil, nil
+	}
 	return &httpBody, nil
 }
 
@@ -94,13 +108,10 @@ func HttpResponseBodyModify(ctx context.Context, w http.ResponseWriter, msg prot
 		if httpBody, err := convertDynamicMessageToHttpBody(dynamicMessage); err == nil && httpBody != nil {
 			w.Header().Set("Content-Type", httpBody.ContentType)
 			_, err := w.Write(httpBody.Data)
-			// 直接写入响应数据
-			// dynamicMessage.Reset()
-			// dynamicMessage = nil
 			return err
 		}
 	}
-
+	// w.Header().Add("Content-Type", "charset=utf-8")
 	return nil
 }
 func HandleErrorWithLogger(logger *logrus.Logger) runtime.ErrorHandlerFunc {
@@ -153,15 +164,9 @@ func HandleErrorWithLogger(logger *logrus.Logger) runtime.ErrorHandlerFunc {
 
 			}
 			code = runtime.HTTPStatusFromCode(st.Code())
-			// rsp := &common.APIResponse{
-			// 	Code:    rspCode,
-			// 	Message: codes[int32(rspCode)],
-			// 	Data:    nil,
-			// }
-			log.Errorf("request fail:%s", msg)
 
-			// data, _ := marshaler.Marshal(rsp)
-			// w.Header().Set("Content-Type", "application/json")
+			log.Errorf(msg)
+
 			w.WriteHeader(code)
 
 			// _, _ = w.Write(data)
@@ -218,6 +223,20 @@ func UnaryStreamServerErrInterceptor(logger *logrus.Logger) grpc.StreamServerInt
 		return err
 	}
 }
+func toStructMessage(msg protoreflect.ProtoMessage) (*structpb.Struct, error) {
+	jsonBytes, err := protojson.Marshal(msg)
+
+	if err != nil {
+		return nil, fmt.Errorf("Failed to serialize message to JSON: %w", err)
+	}
+
+	// 将 JSON 字符串解析为 structpb.Struct
+	structMsg := &structpb.Struct{}
+	if err := protojson.Unmarshal(jsonBytes, structMsg); err != nil {
+		return nil, fmt.Errorf("Failed to parse JSON into structpb.Struct: %w", err)
+	}
+	return structMsg, nil
+}
 func grpcToHttpResponse(rsp interface{}, err error) (*common.HttpResponse, error) {
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
@@ -261,8 +280,11 @@ func grpcToHttpResponse(rsp interface{}, err error) (*common.HttpResponse, error
 
 	}
 	data := rsp.(protoreflect.ProtoMessage)
-
-	anyData, _ := anypb.New(data)
+	anyData, err := toStructMessage(data)
+	if err != nil {
+		return nil, errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "internal_error")
+	}
+	// anyData, _ := anypb.New(data)
 	// anyData.TypeUrl = ""
 	return &common.HttpResponse{
 		Code:    int32(common.Code_OK),
@@ -275,9 +297,8 @@ func HttpUnaryInterceptor(ctx context.Context, req interface{}, info *grpc.Unary
 	if !ok {
 		return handler(ctx, req)
 	}
-	// TODO:修改用于判断来自http1.1的标识
-	if rspType, ok := md["response-type"]; ok {
-		if rspType[0] != "application/json" {
+	if protocol, ok := md["grpcgateway-content-type"]; ok {
+		if !strings.EqualFold(protocol[0], "application/json") {
 			return handler(ctx, req)
 		}
 		routersList := routers.Get()
