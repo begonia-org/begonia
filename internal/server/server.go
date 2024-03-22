@@ -51,7 +51,7 @@ func NewGateway(cfg *dp.GatewayConfig, conf *config.Config, services []service.S
 	opts.PoolOptions = append(opts.PoolOptions, pool.WithPoolSize(128))
 	// 中间件配置
 	opts.Options = append(opts.Options, grpc.ChainUnaryInterceptor(logM.LoggerUnaryInterceptor, middleware.UnaryServerErrInterceptor(logger.Logger), middleware.HttpUnaryInterceptor, validate.ValidateUnaryInterceptor))
-	opts.Options = append(opts.Options, grpc.ChainStreamInterceptor(logM.LoggerStreamInterceptor, middleware.UnaryStreamServerErrInterceptor(logger.Logger), validate.ValidateStreamInterceptor))
+	opts.Options = append(opts.Options, grpc.ChainStreamInterceptor(logM.LoggerStreamInterceptor, middleware.UnaryStreamServerErrInterceptor(logger.Logger), middleware.HttpStreamInterceptor, validate.ValidateStreamInterceptor))
 
 	cors := &middleware.CorsMiddleware{
 		Cors: conf.GetCorsConfig(),

@@ -106,40 +106,67 @@ func convertDynamicMessageToHttpBody(dynamicMessage *dynamicpb.Message) (*httpbo
 
 	return &httpBody, nil
 }
+func writeHttpHeaders(w http.ResponseWriter, key string, value []string) {
+	if httpKey := sdk.GetHttpHeaderKey(key); httpKey != "" {
+		for _, v := range value {
+			w.Header().Del(key)
+			if v != "" {
+				if strings.EqualFold(httpKey, "Content-Type") {
+					w.Header().Set(httpKey, v)
+				} else {
+					w.Header().Add(httpKey, v)
 
+				}
+
+				headers := w.Header().Values("Access-Control-Expose-Headers")
+				for _, h := range headers {
+					if strings.EqualFold(h, httpKey) {
+						return
+					}
+				}
+				headers = append(headers, http.CanonicalHeaderKey(httpKey))
+				w.Header().Set("Access-Control-Expose-Headers", strings.Join(headers, ","))
+
+			}
+		}
+
+	}
+	// if strings.EqualFold(key, "x-request-id") {
+	// 	w.Header().Set("x-request-id", value[0])
+	// 	headers := w.Header().Values("Access-Control-Expose-Headers")
+	// 	headers = append(headers, "X-Request-Id")
+	// 	w.Header().Set("Access-Control-Expose-Headers", strings.Join(headers, ","))
+
+	// }
+}
 func HttpResponseBodyModify(ctx context.Context, w http.ResponseWriter, msg proto.Message) error {
-	md, ok := metadata.FromIncomingContext(ctx)
+	httpCode := http.StatusOK
 	for key, value := range w.Header() {
 		if strings.HasPrefix(key, "Grpc-Metadata-") {
 			w.Header().Del(key)
 		}
-		// log.Printf("key:%s,value:%v", key, value)
-		if httpKey := sdk.GetHttpHeaderKey(key); httpKey != "" {
-			// log.Printf("grpcKey:%s,key:%s,value:%v", key, httpKey, value)
-			for _, v := range value {
-				// log.Printf("grpcKey:%s,key:%s,value:%v", key, httpKey, v)
-				w.Header().Del(key)
-				if v != "" {
-					if strings.EqualFold(httpKey, "Content-Type") {
-						w.Header().Set(httpKey, v)
-					} else {
-						w.Header().Add(httpKey, v)
-
-					}
-				}
-			}
-		}
-	}
-	if ok {
-		if httpCode, ok := md["x-http-code"]; ok {
-			code, err := strconv.Atoi(httpCode[0])
+		writeHttpHeaders(w, key, value)
+		if strings.HasSuffix(http.CanonicalHeaderKey(key), "X-Http-Code") {
+			codeStr := value[0]
+			code, err := strconv.ParseInt(codeStr, 10, 32)
 			if err != nil {
-				return err
+				return errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "internal_error")
 			}
-			w.WriteHeader(code)
+			httpCode = int(code)
+
 		}
+
 	}
 
+	out, ok := metadata.FromOutgoingContext(ctx)
+	if ok {
+		for k, v := range out {
+			writeHttpHeaders(w, k, v)
+		}
+	}
+	if httpCode != http.StatusOK {
+		w.WriteHeader(httpCode)
+	}
 	return nil
 }
 func HandleErrorWithLogger(logger *logrus.Logger) runtime.ErrorHandlerFunc {
@@ -241,6 +268,19 @@ func UnaryServerErrInterceptor(logger *logrus.Logger) grpc.UnaryServerIntercepto
 		}
 		return nil, err
 	}
+}
+func OutgoingMetaInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if ok {
+		if reqIds, ok := md["x-request-id"]; ok {
+			ctx = metadata.AppendToOutgoingContext(ctx, sdk.GetMetadataKey("x-request-id"), reqIds[0])
+		}
+	}
+	resp, err = handler(ctx, req)
+	if err == nil {
+		return resp, err
+	}
+	return nil, err
 }
 
 func UnaryStreamServerErrInterceptor(logger *logrus.Logger) grpc.StreamServerInterceptor {

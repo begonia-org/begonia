@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/begonia-org/begonia/sdk"
 	"github.com/google/uuid"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -78,22 +78,25 @@ func IncomingHeadersToMetadata(ctx context.Context, req *http.Request) metadata.
 
 		md.Set(strings.ToLower(k), v...)
 	}
-	md.Set("x-request-id", uuid.New().String())
+	// 设置一些默认的元数据
+	reqID := uuid.New().String()
+	md.Set("x-request-id", reqID)
 	md.Set("uri", req.RequestURI)
 	md.Set("x-http-method", req.Method)
 	md.Set("remote_addr", req.RemoteAddr)
 	md.Set("protocol", req.Proto)
+	md.Set(sdk.GetMetadataKey("x-request-id"), reqID)
 	// md.Set("response-type", "application/json")
-	_ = grpc.SetHeader(ctx, metadata.Pairs("x-request-id", md.Get("x-request-id")[0]))
-	if val := md.Get("x-uid"); len(val) > 0 {
-		_ = grpc.SetHeader(ctx, metadata.Pairs("x-uid", val[0]))
-	}
-	uri := req.RequestURI
-	method := req.Method
-	remoteAddr := req.RemoteAddr
-	_ = grpc.SetHeader(ctx, metadata.Pairs("uri", uri))
-	_ = grpc.SetHeader(ctx, metadata.Pairs("x-http-method", method))
-	_ = grpc.SetHeader(ctx, metadata.Pairs("remote_addr", remoteAddr))
+	// _ = grpc.SetHeader(ctx, metadata.Pairs("x-request-id", md.Get("x-request-id")[0]))
+	// if val := md.Get("x-uid"); len(val) > 0 {
+	// 	_ = grpc.SetHeader(ctx, metadata.Pairs("x-uid", val[0]))
+	// }
+	// uri := req.RequestURI
+	// method := req.Method
+	// remoteAddr := req.RemoteAddr
+	// _ = grpc.SetHeader(ctx, metadata.Pairs("uri", uri))
+	// _ = grpc.SetHeader(ctx, metadata.Pairs("x-http-method", method))
+	// _ = grpc.SetHeader(ctx, metadata.Pairs("remote_addr", remoteAddr))
 	// _ = grpc.SendHeader(ctx, md)
 	return md
 }

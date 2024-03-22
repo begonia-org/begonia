@@ -124,20 +124,14 @@ func (f *FileService) DownloadForRange(ctx context.Context, in *api.DownloadRequ
 	if end <= 0 {
 		end = fileSize
 	}
-	// 	HTTP/1.1 206 Partial Content
-	// Content-Type: application/octet-stream
-	// Content-Length: 100
-	// Content-Range: bytes 0-99/1000
-	// Accept-Ranges: bytes
-	// ETag: "file_version_identifier"
-	// Last-Modified: Wed, 21 Oct 2015 07:28:00 GMT
+
 	rspMd := metadata.Pairs(
 		sdk.GetMetadataKey("Content-Length"), fmt.Sprintf("%d", end-start+1),
 		sdk.GetMetadataKey("Content-Range"), fmt.Sprintf("bytes %d-%d/%d", start, end-1, fileSize),
 		sdk.GetMetadataKey("Accept-Ranges"), "bytes",
-		sdk.GetMetadataKey("http-status"), "206",
+		"X-Http-Code", fmt.Sprintf("%d", http.StatusPartialContent),
 	)
-	err = grpc.SetHeader(ctx, rspMd)
+	err = grpc.SendHeader(ctx, rspMd)
 	if err != nil {
 		return nil, errors.New(err, int32(common.Code_UNKNOWN), codes.Internal, "send_header")
 	}
@@ -168,7 +162,7 @@ func (f *FileService) Metadata(ctx context.Context, in *api.FileMetadataRequest)
 			sdk.GetMetadataKey("Aceept-Ranges"), "bytes",
 			sdk.GetMetadataKey("Content-Length"), fmt.Sprintf("%d", rsp.Size+1),
 			sdk.GetMetadataKey("X-File-Sha256"), rsp.Sha256,
-			sdk.GetMetadataKey("Access-Control-Expose-Headers"), "Content-Length, Content-Range, Accept-Ranges, Last-Modified, ETag, Content-Type, F-File-name, X-File-Sha256",
+			sdk.GetMetadataKey("Access-Control-Expose-Headers"), "Content-Length, Content-Range, Accept-Ranges, Last-Modified, ETag, Content-Type, X-File-name, X-File-Sha256",
 		)
 		// rspMd.Append(sdk.GetMetadataKey(), "Content-Length", "Content-Range", "Accept-Ranges", "Last-Modified", "ETag", "Content-Type", "x-file-name", "x-file-sha256")
 		err = grpc.SetHeader(ctx, rspMd)
