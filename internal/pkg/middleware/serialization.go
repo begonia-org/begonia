@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"encoding/json"
-	"log"
 
 	"fmt"
 	"io"
@@ -205,7 +204,7 @@ func (m *ResponseJSONMarshaler) Marshal(v interface{}) ([]byte, error) {
 
 	// 在这里定义你的自定义序列化逻辑
 	if response, ok := v.(*dynamicpb.Message); ok {
-		log.Println("实际类型,", response.Type().Descriptor().Name())
+		// log.Println("实际类型,", response.Type().Descriptor().Name())
 		byteData, err := m.JSONPb.Marshal(response)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "marshal_response: %v", err)

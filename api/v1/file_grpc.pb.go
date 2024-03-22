@@ -27,6 +27,8 @@ const (
 	FileService_AbortMultipartUpload_FullMethodName    = "/begonia.org.begonia.FileService/AbortMultipartUpload"
 	FileService_Download_FullMethodName                = "/begonia.org.begonia.FileService/Download"
 	FileService_Delete_FullMethodName                  = "/begonia.org.begonia.FileService/Delete"
+	FileService_DownloadForRange_FullMethodName        = "/begonia.org.begonia.FileService/DownloadForRange"
+	FileService_Metadata_FullMethodName                = "/begonia.org.begonia.FileService/Metadata"
 )
 
 // FileServiceClient is the client API for FileService service.
@@ -40,6 +42,8 @@ type FileServiceClient interface {
 	AbortMultipartUpload(ctx context.Context, in *AbortMultipartUploadRequest, opts ...grpc.CallOption) (*AbortMultipartUploadResponse, error)
 	Download(ctx context.Context, in *DownloadRequest, opts ...grpc.CallOption) (*httpbody.HttpBody, error)
 	Delete(ctx context.Context, in *DeleteRequest, opts ...grpc.CallOption) (*DeleteResponse, error)
+	DownloadForRange(ctx context.Context, in *DownloadRequest, opts ...grpc.CallOption) (*httpbody.HttpBody, error)
+	Metadata(ctx context.Context, in *FileMetadataRequest, opts ...grpc.CallOption) (*FileMetadataResponse, error)
 }
 
 type fileServiceClient struct {
@@ -113,6 +117,24 @@ func (c *fileServiceClient) Delete(ctx context.Context, in *DeleteRequest, opts 
 	return out, nil
 }
 
+func (c *fileServiceClient) DownloadForRange(ctx context.Context, in *DownloadRequest, opts ...grpc.CallOption) (*httpbody.HttpBody, error) {
+	out := new(httpbody.HttpBody)
+	err := c.cc.Invoke(ctx, FileService_DownloadForRange_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *fileServiceClient) Metadata(ctx context.Context, in *FileMetadataRequest, opts ...grpc.CallOption) (*FileMetadataResponse, error) {
+	out := new(FileMetadataResponse)
+	err := c.cc.Invoke(ctx, FileService_Metadata_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // FileServiceServer is the server API for FileService service.
 // All implementations must embed UnimplementedFileServiceServer
 // for forward compatibility
@@ -124,6 +146,8 @@ type FileServiceServer interface {
 	AbortMultipartUpload(context.Context, *AbortMultipartUploadRequest) (*AbortMultipartUploadResponse, error)
 	Download(context.Context, *DownloadRequest) (*httpbody.HttpBody, error)
 	Delete(context.Context, *DeleteRequest) (*DeleteResponse, error)
+	DownloadForRange(context.Context, *DownloadRequest) (*httpbody.HttpBody, error)
+	Metadata(context.Context, *FileMetadataRequest) (*FileMetadataResponse, error)
 	mustEmbedUnimplementedFileServiceServer()
 }
 
@@ -151,6 +175,12 @@ func (UnimplementedFileServiceServer) Download(context.Context, *DownloadRequest
 }
 func (UnimplementedFileServiceServer) Delete(context.Context, *DeleteRequest) (*DeleteResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Delete not implemented")
+}
+func (UnimplementedFileServiceServer) DownloadForRange(context.Context, *DownloadRequest) (*httpbody.HttpBody, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DownloadForRange not implemented")
+}
+func (UnimplementedFileServiceServer) Metadata(context.Context, *FileMetadataRequest) (*FileMetadataResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Metadata not implemented")
 }
 func (UnimplementedFileServiceServer) mustEmbedUnimplementedFileServiceServer() {}
 
@@ -291,6 +321,42 @@ func _FileService_Delete_Handler(srv interface{}, ctx context.Context, dec func(
 	return interceptor(ctx, in, info, handler)
 }
 
+func _FileService_DownloadForRange_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DownloadRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FileServiceServer).DownloadForRange(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FileService_DownloadForRange_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FileServiceServer).DownloadForRange(ctx, req.(*DownloadRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _FileService_Metadata_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(FileMetadataRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FileServiceServer).Metadata(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FileService_Metadata_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FileServiceServer).Metadata(ctx, req.(*FileMetadataRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // FileService_ServiceDesc is the grpc.ServiceDesc for FileService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -325,6 +391,14 @@ var FileService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Delete",
 			Handler:    _FileService_Delete_Handler,
+		},
+		{
+			MethodName: "DownloadForRange",
+			Handler:    _FileService_DownloadForRange_Handler,
+		},
+		{
+			MethodName: "Metadata",
+			Handler:    _FileService_Metadata_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

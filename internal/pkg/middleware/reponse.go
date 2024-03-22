@@ -6,12 +6,14 @@ import (
 	"mime"
 	"net/http"
 	sysRuntime "runtime"
+	"strconv"
 	"strings"
 
 	_ "github.com/begonia-org/begonia/api/v1"
 	common "github.com/begonia-org/begonia/common/api/v1"
 	"github.com/begonia-org/begonia/internal/pkg/errors"
 	"github.com/begonia-org/begonia/internal/pkg/routers"
+	"github.com/begonia-org/begonia/sdk"
 	"github.com/google/uuid"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/sirupsen/logrus"
@@ -75,6 +77,16 @@ func getClientMessageMap() map[int32]string {
 	return codes
 
 }
+
+func clientMessageFromCode(code codes.Code) string {
+	switch code {
+	case codes.ResourceExhausted:
+		return "The requested resource size exceeds the server limit."
+	default:
+		return "Unknown error"
+
+	}
+}
 func isValidContentType(ct string) bool {
 	mimeType, _, err := mime.ParseMediaType(ct)
 	return err == nil && mimeType != ""
@@ -91,31 +103,47 @@ func convertDynamicMessageToHttpBody(dynamicMessage *dynamicpb.Message) (*httpbo
 	if err := proto.Unmarshal(serialized, &httpBody); err != nil {
 		return nil, err
 	}
-	// 这里做检查是因为httpbody的字段定义和Any类型的字段定义存在冲突
-	// 防止anypb.Any被序列化为httpbody.HttpBody
-	// if !isValidContentType(httpBody.ContentType) {
-	// 	return nil, fmt.Errorf("invalid content type: %s", httpBody.ContentType)
-	// }
-	if len(httpBody.Data) == 0 {
-		return nil, nil
-	}
+
 	return &httpBody, nil
 }
 
 func HttpResponseBodyModify(ctx context.Context, w http.ResponseWriter, msg proto.Message) error {
-	// 如果消息是dynamicpb.Message类型，那么我们需要将其转换为httpbody.HttpBody类型
-	if dynamicMessage, ok := msg.(*dynamicpb.Message); ok {
-		if httpBody, err := convertDynamicMessageToHttpBody(dynamicMessage); err == nil && httpBody != nil {
-			w.Header().Set("Content-Type", httpBody.ContentType)
-			_, err := w.Write(httpBody.Data)
-			return err
+	md, ok := metadata.FromIncomingContext(ctx)
+	for key, value := range w.Header() {
+		if strings.HasPrefix(key, "Grpc-Metadata-") {
+			w.Header().Del(key)
+		}
+		// log.Printf("key:%s,value:%v", key, value)
+		if httpKey := sdk.GetHttpHeaderKey(key); httpKey != "" {
+			// log.Printf("grpcKey:%s,key:%s,value:%v", key, httpKey, value)
+			for _, v := range value {
+				// log.Printf("grpcKey:%s,key:%s,value:%v", key, httpKey, v)
+				w.Header().Del(key)
+				if v != "" {
+					if strings.EqualFold(httpKey, "Content-Type") {
+						w.Header().Set(httpKey, v)
+					} else {
+						w.Header().Add(httpKey, v)
+
+					}
+				}
+			}
 		}
 	}
-	// w.Header().Add("Content-Type", "charset=utf-8")
+	if ok {
+		if httpCode, ok := md["x-http-code"]; ok {
+			code, err := strconv.Atoi(httpCode[0])
+			if err != nil {
+				return err
+			}
+			w.WriteHeader(code)
+		}
+	}
+
 	return nil
 }
 func HandleErrorWithLogger(logger *logrus.Logger) runtime.ErrorHandlerFunc {
-	// codes := getClientMessageMap()
+	codes := getClientMessageMap()
 	return func(ctx context.Context, mux *runtime.ServeMux, marshaler runtime.Marshaler, w http.ResponseWriter, req *http.Request, err error) {
 		md, ok := runtime.ServerMetadataFromContext(ctx)
 		reqId := ""
@@ -142,11 +170,16 @@ func HandleErrorWithLogger(logger *logrus.Logger) runtime.ErrorHandlerFunc {
 		},
 		)
 		code := http.StatusOK
-
+		data := &common.HttpResponse{}
+		data.Code = int32(common.Code_INTERNAL_ERROR)
+		data.Message = "internal error"
 		if st, ok := status.FromError(err); ok {
 			// rspCode := float64(common.Code_INTERNAL_ERROR)
 			msg := st.Message()
 			details := st.Details()
+			data.Message = clientMessageFromCode(st.Code())
+
+			// code = runtime.HTTPStatusFromCode(st.Code())
 			for _, detail := range details {
 				if anyType, ok := detail.(*anypb.Any); ok {
 					var errDetail common.Errors
@@ -158,20 +191,30 @@ func HandleErrorWithLogger(logger *logrus.Logger) runtime.ErrorHandlerFunc {
 							"line":   errDetail.Line,
 							"fn":     errDetail.Fn,
 						})
+						data.Code = errDetail.Code
+						data.Message = codes[int32(errDetail.Code)]
+						data.Data = &structpb.Struct{}
 						break
 					}
+				} else {
+					log.Errorf("error type:%T, error:%v", err, err)
+
 				}
 
 			}
 			code = runtime.HTTPStatusFromCode(st.Code())
 
 			log.Errorf(msg)
-
+			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(code)
-
-			// _, _ = w.Write(data)
+			bData, _ := protojson.Marshal(data)
+			_, _ = w.Write(bData)
 			return
 
+		} else {
+			if err != nil {
+				log.Errorf("error type:%T, error:%v", err, err)
+			}
 		}
 		w.WriteHeader(code)
 	}
@@ -284,8 +327,6 @@ func grpcToHttpResponse(rsp interface{}, err error) (*common.HttpResponse, error
 	if err != nil {
 		return nil, errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "internal_error")
 	}
-	// anyData, _ := anypb.New(data)
-	// anyData.TypeUrl = ""
 	return &common.HttpResponse{
 		Code:    int32(common.Code_OK),
 		Message: "success",

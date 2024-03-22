@@ -610,6 +610,44 @@
             "OutPkg": "google.api"
         }
     ],
+    "/begonia.org.begonia.FileService/DownloadForRange": [
+        {
+            "Pattern": {},
+            "Template": {
+                "Version": 1,
+                "OpCodes": [
+                    2,
+                    0,
+                    2,
+                    1,
+                    2,
+                    2,
+                    2,
+                    3
+                ],
+                "Pool": [
+                    "api",
+                    "v1",
+                    "file",
+                    "part"
+                ],
+                "Verb": "",
+                "Fields": null,
+                "Template": "/api/v1/file/part"
+            },
+            "HttpMethod": "GET",
+            "FullMethodName": "/begonia.org.begonia.FileService/DownloadForRange",
+            "HttpUri": "/api/v1/file/part",
+            "PathParams": [],
+            "InName": "DownloadRequest",
+            "OutName": "HttpBody",
+            "IsClientStream": false,
+            "IsServerStream": false,
+            "Pkg": "begonia.org.begonia",
+            "InPkg": "begonia.org.begonia",
+            "OutPkg": "google.api"
+        }
+    ],
     "/begonia.org.begonia.FileService/InitiateMultipartUpload": [
         {
             "Pattern": {},
@@ -644,6 +682,44 @@
             "PathParams": [],
             "InName": "InitiateMultipartUploadRequest",
             "OutName": "InitiateMultipartUploadResponse",
+            "IsClientStream": false,
+            "IsServerStream": false,
+            "Pkg": "begonia.org.begonia",
+            "InPkg": "begonia.org.begonia",
+            "OutPkg": "begonia.org.begonia"
+        }
+    ],
+    "/begonia.org.begonia.FileService/Metadata": [
+        {
+            "Pattern": {},
+            "Template": {
+                "Version": 1,
+                "OpCodes": [
+                    2,
+                    0,
+                    2,
+                    1,
+                    2,
+                    2,
+                    2,
+                    3
+                ],
+                "Pool": [
+                    "api",
+                    "v1",
+                    "file",
+                    "metadata"
+                ],
+                "Verb": "",
+                "Fields": null,
+                "Template": "/api/v1/file/metadata"
+            },
+            "HttpMethod": "HEAD",
+            "FullMethodName": "/begonia.org.begonia.FileService/Metadata",
+            "HttpUri": "/api/v1/file/metadata",
+            "PathParams": [],
+            "InName": "FileMetadataRequest",
+            "OutName": "FileMetadataResponse",
             "IsClientStream": false,
             "IsServerStream": false,
             "Pkg": "begonia.org.begonia",

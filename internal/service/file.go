@@ -2,12 +2,22 @@ package service
 
 import (
 	"context"
+	"fmt"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
 
 	api "github.com/begonia-org/begonia/api/v1"
+	common "github.com/begonia-org/begonia/common/api/v1"
 	"github.com/begonia-org/begonia/internal/biz"
 	"github.com/begonia-org/begonia/internal/pkg/config"
+	"github.com/begonia-org/begonia/internal/pkg/errors"
+	"github.com/begonia-org/begonia/sdk"
 	"google.golang.org/genproto/googleapis/api/httpbody"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 )
 
 type FileService struct {
@@ -37,10 +47,143 @@ func (f *FileService) AbortMultipartUpload(ctx context.Context, in *api.AbortMul
 	return f.biz.AbortMultipartUpload(ctx, in)
 }
 func (f *FileService) Download(ctx context.Context, in *api.DownloadRequest) (*httpbody.HttpBody, error) {
-	return f.biz.Download(ctx, in)
+	buf, err := f.biz.Download(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	rsp := &httpbody.HttpBody{
+		ContentType: http.DetectContentType(buf),
+		Data:        buf,
+	}
+	return rsp, err
+}
+func parseRangeHeader(rangeHeader string) (start, end int64, err error) {
+	// 确保头部以"bytes="开头
+	if !strings.HasPrefix(rangeHeader, "bytes=") {
+		return 0, 0, fmt.Errorf("invalid range header: %s", rangeHeader)
+	}
+
+	// 去除"bytes="前缀
+	rangeSpec := strings.TrimPrefix(rangeHeader, "bytes=")
+	parts := strings.Split(rangeSpec, "-")
+	if strings.HasPrefix(rangeSpec, "-") {
+		start = 0
+		end, err = strconv.ParseInt(strings.TrimPrefix(rangeSpec, "-"), 10, 64)
+		if err != nil {
+			return 0, 0, fmt.Errorf("invalid start value: %s", parts[0])
+		}
+		return start, end, nil
+	}
+	if strings.HasSuffix(rangeSpec, "-") {
+		end = 0
+		start, err = strconv.ParseInt(strings.TrimSuffix(rangeSpec, "-"), 10, 64)
+		if err != nil {
+			return 0, 0, fmt.Errorf("invalid end value: %s", parts[1])
+
+		}
+		return start, end, nil
+	}
+
+	if len(parts) != 2 {
+		return 0, 0, fmt.Errorf("invalid range specification: %s", rangeSpec)
+	}
+
+	// 解析 start 值
+	start, err = strconv.ParseInt(parts[0], 10, 64)
+	if err != nil {
+		return 0, 0, fmt.Errorf("invalid start value: %s", parts[0])
+	}
+
+	// 解析 end 值
+	end, err = strconv.ParseInt(parts[1], 10, 64)
+	if err != nil {
+		return 0, 0, fmt.Errorf("invalid end value: %s", parts[1])
+	}
+
+	return start, end, nil
+}
+func (f *FileService) DownloadForRange(ctx context.Context, in *api.DownloadRequest) (*httpbody.HttpBody, error) {
+	md, ok := metadata.FromIncomingContext(ctx)
+	var rangeStr string
+	var start, end int64
+	var err error
+	if ok {
+		if _, ok := md["range"]; !ok {
+			return nil, errors.New(fmt.Errorf("range header not found"), int32(common.Code_PARAMS_ERROR), codes.InvalidArgument, "range_header_not_found")
+		}
+		rangeStr = md.Get("range")[0]
+		start, end, err = parseRangeHeader(rangeStr)
+		if err != nil {
+			return nil, errors.New(err, int32(common.Code_UNKNOWN), codes.InvalidArgument, "parse_range_header")
+		}
+	}
+	data, fileSize, err := f.biz.DownloadForRange(ctx, in, start, end)
+	if err != nil {
+		return nil, err
+	}
+	if end <= 0 {
+		end = fileSize
+	}
+	// 	HTTP/1.1 206 Partial Content
+	// Content-Type: application/octet-stream
+	// Content-Length: 100
+	// Content-Range: bytes 0-99/1000
+	// Accept-Ranges: bytes
+	// ETag: "file_version_identifier"
+	// Last-Modified: Wed, 21 Oct 2015 07:28:00 GMT
+	rspMd := metadata.Pairs(
+		sdk.GetMetadataKey("Content-Length"), fmt.Sprintf("%d", end-start+1),
+		sdk.GetMetadataKey("Content-Range"), fmt.Sprintf("bytes %d-%d/%d", start, end-1, fileSize),
+		sdk.GetMetadataKey("Accept-Ranges"), "bytes",
+		sdk.GetMetadataKey("http-status"), "206",
+	)
+	err = grpc.SetHeader(ctx, rspMd)
+	if err != nil {
+		return nil, errors.New(err, int32(common.Code_UNKNOWN), codes.Internal, "send_header")
+	}
+	return &httpbody.HttpBody{
+		ContentType: "application/octet-stream",
+		Data:        data,
+	}, nil
 }
 func (f *FileService) Delete(ctx context.Context, in *api.DeleteRequest) (*api.DeleteResponse, error) {
 	return f.biz.Delete(ctx, in)
+}
+func (f *FileService) Metadata(ctx context.Context, in *api.FileMetadataRequest) (*api.FileMetadataResponse, error) {
+	rsp, err := f.biz.Metadata(ctx, in)
+	if err != nil {
+		return nil, err
+
+	}
+	md, ok := metadata.FromIncomingContext(ctx)
+	if ok {
+		timestamp := time.UnixMilli(rsp.ModifyTime)
+		lastModified := timestamp.UTC().Format(time.RFC1123)
+
+		rspMd := metadata.Pairs(
+			sdk.GetMetadataKey("X-File-Name"), rsp.Name,
+			sdk.GetMetadataKey("content-type"), rsp.ContentType,
+			sdk.GetMetadataKey("Etag"), rsp.Etag,
+			sdk.GetMetadataKey("Last-Modified"), lastModified,
+			sdk.GetMetadataKey("Aceept-Ranges"), "bytes",
+			sdk.GetMetadataKey("Content-Length"), fmt.Sprintf("%d", rsp.Size+1),
+			sdk.GetMetadataKey("X-File-Sha256"), rsp.Sha256,
+			sdk.GetMetadataKey("Access-Control-Expose-Headers"), "Content-Length, Content-Range, Accept-Ranges, Last-Modified, ETag, Content-Type, F-File-name, X-File-Sha256",
+		)
+		// rspMd.Append(sdk.GetMetadataKey(), "Content-Length", "Content-Range", "Accept-Ranges", "Last-Modified", "ETag", "Content-Type", "x-file-name", "x-file-sha256")
+		err = grpc.SetHeader(ctx, rspMd)
+		if err != nil {
+
+			return nil, errors.New(fmt.Errorf("非法的响应头,%w", err), int32(common.Code_UNKNOWN), codes.Internal, "send_header")
+
+		}
+	}
+	if httpMethod, ok := md["x-http-method"]; ok {
+		if strings.EqualFold(httpMethod[0], "HEAD") {
+			return nil, nil
+		}
+	}
+	return rsp, err
 }
 func (f *FileService) Desc() *grpc.ServiceDesc {
 	return &api.FileService_ServiceDesc

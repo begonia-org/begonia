@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 
 	api "github.com/begonia-org/begonia/api/v1"
@@ -17,9 +16,7 @@ import (
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/errors"
 	"github.com/spark-lence/tiga"
-	"google.golang.org/genproto/googleapis/api/httpbody"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/metadata"
 )
 
 type FileRepo interface {
@@ -50,8 +47,8 @@ func (f *FileUsecase) spiltKey(key string) (string, string, error) {
 	}
 	if strings.Contains(key, "/") {
 		name := filepath.Base(key)
-		filename := getFilenameWithoutExt(name)
-		return filepath.Dir(key) + "/" + filename, name, nil
+		// filename := getFilenameWithoutExt(name)
+		return filepath.Dir(key), name, nil
 	}
 	return "./", key, nil
 }
@@ -165,7 +162,13 @@ func (f *FileUsecase) UploadMultipartFileFile(ctx context.Context, in *api.Uploa
 		return nil, err
 
 	}
-	return nil, nil
+	uri, err := f.getUri(filePath)
+	if err != nil {
+		return nil, err
+	}
+	return &api.UploadMultipartFileResponse{
+		Uri: uri,
+	}, nil
 }
 func (f *FileUsecase) getSortedFiles(dirPath string) ([]string, error) {
 	var files []string
@@ -189,6 +192,10 @@ func (f *FileUsecase) getSortedFiles(dirPath string) ([]string, error) {
 	return files, nil
 }
 func (f FileUsecase) mergeFiles(files []string, outputFile string) error {
+	baseDir := filepath.Dir(outputFile)
+	if err := os.MkdirAll(baseDir, 0755); err != nil {
+		return err
+	}
 	out, err := os.Create(outputFile)
 	if err != nil {
 		return err
@@ -211,6 +218,12 @@ func (f FileUsecase) mergeFiles(files []string, outputFile string) error {
 }
 func (f *FileUsecase) mvDir(src, dst string) error {
 	newPath := filepath.Join(dst, filepath.Base(src))
+	if _, err := os.Stat(newPath); err == nil {
+		// 目标路径存在，尝试删除
+		if err := os.RemoveAll(newPath); err != nil {
+			return err
+		}
+	}
 
 	return os.Rename(src, newPath)
 }
@@ -269,7 +282,7 @@ func (f *FileUsecase) CompleteMultipartUploadFile(ctx context.Context, in *api.C
 	// merge files to uploadDir/key
 	err = f.mergeFiles(files, filePath)
 	if err != nil {
-		return nil, errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "merge_files")
+		return nil, errors.New(fmt.Errorf("merge file error"), int32(common.Code_INTERNAL_ERROR), codes.Internal, "merge_files")
 	}
 	// the parts file has been merged, remove the parts dir to uploadDir/parts/key
 	keyParts := f.getPersistenceKeyParts(in.Key)
@@ -290,65 +303,54 @@ func (f *FileUsecase) CompleteMultipartUploadFile(ctx context.Context, in *api.C
 		Uri: uri,
 	}, nil
 }
-func parseRangeHeader(rangeHeader string) (start, end int64, err error) {
-	// 确保头部以"bytes="开头
-	if !strings.HasPrefix(rangeHeader, "bytes=") {
-		return 0, 0, fmt.Errorf("invalid range header: %s", rangeHeader)
-	}
 
-	// 去除"bytes="前缀
-	rangeSpec := strings.TrimPrefix(rangeHeader, "bytes=")
-	parts := strings.Split(rangeSpec, "-")
-	if strings.HasPrefix(rangeSpec, "-") {
-		start = 0
-		end, err = strconv.ParseInt(strings.TrimPrefix(rangeSpec, "-"), 10, 64)
-		if err != nil {
-			return 0, 0, fmt.Errorf("invalid start value: %s", parts[0])
-		}
-		return start, end, nil
-	}
-	if strings.HasSuffix(rangeSpec, "-") {
-		end = 0
-		start, err = strconv.ParseInt(strings.TrimSuffix(rangeSpec, "-"), 10, 64)
-		if err != nil {
-			return 0, 0, fmt.Errorf("invalid end value: %s", parts[1])
+func (f *FileUsecase) DownloadForRange(ctx context.Context, in *api.DownloadRequest, start int64, end int64) ([]byte, int64, error) {
+	if start > end {
+		err := errors.New(errors.ErrInvalidRange, int32(api.FileSvrStatus_FILE_INVAILDATE_RANGE_ERR), codes.InvalidArgument, "invalid_range")
+		return nil, 0, err
 
-		}
-		return start, end, nil
-	}
-
-	if len(parts) != 2 {
-		return 0, 0, fmt.Errorf("invalid range specification: %s", rangeSpec)
-	}
-
-	// 解析 start 值
-	start, err = strconv.ParseInt(parts[0], 10, 64)
-	if err != nil {
-		return 0, 0, fmt.Errorf("invalid start value: %s", parts[0])
-	}
-
-	// 解析 end 值
-	end, err = strconv.ParseInt(parts[1], 10, 64)
-	if err != nil {
-		return 0, 0, fmt.Errorf("invalid end value: %s", parts[1])
-	}
-
-	return start, end, nil
-}
-func (f *FileUsecase) DownloadForRange(ctx context.Context, in *api.DownloadRequest) (*httpbody.HttpBody, error) {
-	md, ok := metadata.FromIncomingContext(ctx)
-	var rangeStr string
-	var start, end int64
-	var err error
-	if ok {
-		rangeStr = md.Get("range")[0]
-		start, end, err = parseRangeHeader(rangeStr)
-		if err != nil {
-			return nil, errors.New(err, int32(common.Code_UNKNOWN), codes.InvalidArgument, "parse_range_header")
-		}
 	}
 	fileDir := filepath.Join(f.config.GetUploadDir(), in.Key)
 	file, err := os.Open(fileDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			err = errors.New(err, int32(common.Code_NOT_FOUND), codes.NotFound, "file_not_found")
+			return nil, 0, err
+		}
+		err = errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "open_file")
+		return nil, 0, err
+
+	}
+	defer file.Close()
+	fileInfo, err := file.Stat()
+	if err != nil {
+		err = errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "file_info")
+		return nil, 0, err
+
+	}
+	var buf []byte
+	if end > 0 {
+		buf = make([]byte, end-start+1)
+	} else {
+		buf = make([]byte, fileInfo.Size()-start+1)
+
+	}
+	_, err = file.ReadAt(buf, start)
+	if err != nil && err != io.EOF {
+		err = errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "read_file")
+		return nil, 0, err
+	}
+	return buf, fileInfo.Size(), nil
+
+}
+func (f *FileUsecase) Metadata(ctx context.Context, in *api.FileMetadataRequest) (*api.FileMetadataResponse, error) {
+	subDir, filename, err := f.spiltKey(in.Key)
+	if err != nil {
+		return nil, err
+	}
+	saveDir := filepath.Join(f.config.GetUploadDir(), subDir)
+	filePath := filepath.Join(saveDir, filename)
+	file, err := os.Open(filePath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			err = errors.New(err, int32(common.Code_NOT_FOUND), codes.NotFound, "file_not_found")
@@ -365,25 +367,32 @@ func (f *FileUsecase) DownloadForRange(ctx context.Context, in *api.DownloadRequ
 		return nil, err
 
 	}
-	var buf []byte
-	if end > 0 {
-		buf = make([]byte, end-start)
-	} else {
-		buf = make([]byte, fileInfo.Size()-start)
+	hasher := sha256.New()
 
+	// 以流式传输的方式将文件内容写入哈希对象
+	if _, err := io.Copy(hasher, file); err != nil {
+		panic(err)
 	}
-	_, err = file.ReadAt(buf, start)
-	if err != nil && err != io.EOF {
-		err = errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "read_file")
-		return nil, err
+
+	// 计算最终的哈希值
+	sha256Sum := hasher.Sum(nil)
+	buf := make([]byte, 512)
+	_, _ = file.Read(buf)
+	sha256 := fmt.Sprintf("%x", sha256Sum)
+	contentType := "application/octet-stream"
+	if val := http.DetectContentType(buf); val != "" {
+		contentType = val
 	}
-	return &httpbody.HttpBody{
-		ContentType: "application/octet-stream",
-		Data:        buf,
+	return &api.FileMetadataResponse{
+		Size:        fileInfo.Size(),
+		ModifyTime:  fileInfo.ModTime().UnixMilli(),
+		ContentType: contentType,
+		Sha256:      sha256,
+		Name:        filename,
+		Etag:        fmt.Sprintf("%d-%s", fileInfo.Size(), sha256),
 	}, nil
-
 }
-func (f *FileUsecase) Download(ctx context.Context, in *api.DownloadRequest) (*httpbody.HttpBody, error) {
+func (f *FileUsecase) Download(ctx context.Context, in *api.DownloadRequest) ([]byte, error) {
 	if in.Key == "" {
 		return nil, errors.New(errors.ErrInvalidFileKey, int32(api.FileSvrStatus_FILE_INVAILDATE_KEY_ERR), codes.InvalidArgument, "invalid_key")
 
@@ -413,11 +422,8 @@ func (f *FileUsecase) Download(ctx context.Context, in *api.DownloadRequest) (*h
 		err = errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "read_file")
 		return nil, err
 	}
-	rsp:= &httpbody.HttpBody{
-		ContentType: http.DetectContentType(buf),
-		Data:        buf,
-	}
-	return rsp,nil
+
+	return buf, nil
 
 }
 

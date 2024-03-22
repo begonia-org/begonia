@@ -98,5 +98,5 @@ var (
 	ErrPartNumberMissing = errors.New("partNumber缺失")
 	ErrInvalidFileKey    = errors.New("无效的文件路径")
 	ErrFileKeyMissing    = errors.New("file key 缺失")
-
+	ErrInvalidRange	  = errors.New("无效的range")
 )
