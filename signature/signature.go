@@ -90,10 +90,18 @@ func NewGatewayRequestFromGrpc(ctx context.Context, req interface{}, fullMethod 
 			if strings.EqualFold(k, "uri") {
 				uri = v[0]
 			}
-			if strings.EqualFold(k, "method") {
+			if strings.EqualFold(k, "x-http-method") {
 				method = v[0]
 			}
-			headers.Set(k, strings.Join(v, ","))
+			values := []string{}
+			for _, val := range v {
+				hs := strings.Split(val, ",")
+				for index, val := range hs {
+					hs[index] = strings.TrimSpace(val)
+				}
+				values = append(values, hs...)
+			}
+			headers.Set(k, strings.Join(values, ","))
 		}
 	}
 	u, _ := url.Parse(fmt.Sprintf("http://%s%s", host, uri))
@@ -144,7 +152,7 @@ func (app *AppAuthSignerImpl) CanonicalRequest(request *GatewayRequest, signedHe
 			return "", err
 		}
 	}
-	return fmt.Sprintf("%s\n%s\n%s\n%s\n%s\n%s", request.Method, app.CanonicalURI(request), app.CanonicalQueryString(request), app.CanonicalHeaders(request, signedHeaders), strings.Join(signedHeaders, ";"), hexencode), err
+	return fmt.Sprintf("%s\n%s\n%s\n%s\n%s\n%s", strings.ToUpper(request.Method), app.CanonicalURI(request), app.CanonicalQueryString(request), app.CanonicalHeaders(request, signedHeaders), strings.Join(signedHeaders, ";"), hexencode), err
 }
 
 // CanonicalURI returns request uri
@@ -190,17 +198,19 @@ func (app *AppAuthSignerImpl) CanonicalHeaders(request *GatewayRequest, signerHe
 	var canonicalHeaders []string
 	header := make(map[string][]string)
 	for k, v := range request.Headers.headers {
-		header[strings.ToLower(k)] = strings.Split(v, ",")
+		val := strings.Split(v, ",")
+		header[strings.ToLower(k)] = val
 	}
 	for _, key := range signerHeaders {
-		value := header[key]
+		value := header[strings.ToLower(key)]
 		if strings.EqualFold(key, HeaderXHost) {
 			value = []string{request.Host}
 		}
+
 		sort.Strings(value)
-		for _, v := range value {
-			canonicalHeaders = append(canonicalHeaders, key+":"+strings.TrimSpace(v))
-		}
+		// log.Println("sort value:", value)
+		canonicalHeaders = append(canonicalHeaders, key+":"+strings.TrimSpace(strings.Join(value, ",")))
+
 	}
 	return strings.Join(canonicalHeaders, "\n")
 }
@@ -211,6 +221,9 @@ func (app *AppAuthSignerImpl) SignedHeaders(r *GatewayRequest) []string {
 	for key := range r.Headers.headers {
 		if strings.EqualFold(key, HeaderXAuthorization) {
 			return app.getSignaturehHeader(r.Headers.Get(HeaderXAuthorization))
+		}
+		if r.Headers.headers[key] == "" {
+			continue
 		}
 		signedHeaders = append(signedHeaders, strings.ToLower(key))
 	}
@@ -234,6 +247,7 @@ func (app *AppAuthSignerImpl) RequestPayload(request *GatewayRequest) ([]byte, e
 // Create a "String to Sign".
 func (app *AppAuthSignerImpl) StringToSign(canonicalRequest string, t time.Time) (string, error) {
 	hashStruct := sha256.New()
+	// log.Println("canonicalRequest to sign:", canonicalRequest)
 	_, err := hashStruct.Write([]byte(canonicalRequest))
 	if err != nil {
 		return "", err
@@ -280,20 +294,20 @@ func (app *AppAuthSignerImpl) Sign(request *GatewayRequest) (string, error) {
 	}
 	request.Headers.Set(HeaderXAccessKey, app.Key)
 	signedHeaders := app.SignedHeaders(request)
-	// // log.Printf("signedHeaders:%v", signedHeaders)
+	// log.Printf("signedHeaders:%v", signedHeaders)
 
 	canonicalRequest, err := app.CanonicalRequest(request, signedHeaders)
-	// // log.Printf("canonicalRequest:%s*********", canonicalRequest)
+	// log.Printf("canonicalRequest:%s*********", canonicalRequest)
 	if err != nil {
 		return "", fmt.Errorf("Failed to create canonical request: %w", err)
 	}
 	stringToSignStr, err := app.StringToSign(canonicalRequest, t)
-	// // log.Printf("stringToSign:%s", stringToSignStr)
+	// log.Printf("stringToSign:%s", stringToSignStr)
 	if err != nil {
 		return "", fmt.Errorf("Failed to create string to sign: %w", err)
 	}
 	signatureStr, err := app.SignStringToSign(stringToSignStr, []byte(app.Secret))
-	// // log.Printf("signature:%s", signatureStr)
+	// log.Printf("signature:%s", signatureStr)
 	if err != nil {
 		return "", fmt.Errorf("Failed to create signature: %w", err)
 	}

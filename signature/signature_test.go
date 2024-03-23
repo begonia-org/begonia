@@ -1,7 +1,9 @@
 package signature
 
 import (
+	"fmt"
 	"net/url"
+	"sort"
 	"testing"
 
 	c "github.com/smartystreets/goconvey/convey"
@@ -25,7 +27,10 @@ func TestSignature(t *testing.T) {
 }
 func TestSignature2(t *testing.T) {
 	c.Convey("Test Signature", t, func() {
-		signer := NewAppAuthSigner("NWkbCslfh9ea2LjVIUsKehJuopPb65fn", "oVPNllSR1DfizdmdSF7wLjgABYbexdt4FZ1HWrI81dD5BeNhsyXpXPDFoDEyiSVe")
-		t.Log(signer.(*AppAuthSignerImpl).HexEncodeSHA256Hash([]byte("{}")))
+		// signer := NewAppAuthSigner("NWkbCslfh9ea2LjVIUsKehJuopPb65fn", "oVPNllSR1DfizdmdSF7wLjgABYbexdt4FZ1HWrI81dD5BeNhsyXpXPDFoDEyiSVe")
+		// t.Log(signer.(*AppAuthSignerImpl).HexEncodeSHA256Hash([]byte("{}")))
+		mimeTypes := []string{"application/json", "text/plain", "*/*"}
+		sort.Strings(mimeTypes)
+		fmt.Println(mimeTypes)
 	})
 }

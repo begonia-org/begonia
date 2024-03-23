@@ -299,6 +299,7 @@ func (f *FileUsecase) CompleteMultipartUploadFile(ctx context.Context, in *api.C
 		return nil, err
 
 	}
+	os.RemoveAll(filepath.Join(f.config.GetUploadDir(), in.UploadId))
 	return &api.CompleteMultipartUploadResponse{
 		Uri: uri,
 	}, nil
