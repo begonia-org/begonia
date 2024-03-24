@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -331,11 +332,11 @@ func (f *FileUsecase) DownloadForRange(ctx context.Context, in *api.DownloadRequ
 	}
 	var buf []byte
 	if end > 0 {
-		buf = make([]byte, end-start+1)
+		buf = make([]byte, end-start)
 	} else {
-		buf = make([]byte, fileInfo.Size()-start+1)
-
+		buf = make([]byte, fileInfo.Size()-start)
 	}
+	log.Printf("start:%d,end:%d,bufsize:%d", start, end, len(buf))
 	_, err = file.ReadAt(buf, start)
 	if err != nil && err != io.EOF {
 		err = errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "read_file")

@@ -126,8 +126,8 @@ func (f *FileService) DownloadForRange(ctx context.Context, in *api.DownloadRequ
 	}
 
 	rspMd := metadata.Pairs(
-		sdk.GetMetadataKey("Content-Length"), fmt.Sprintf("%d", end-start+1),
-		sdk.GetMetadataKey("Content-Range"), fmt.Sprintf("bytes %d-%d/%d", start, end-1, fileSize),
+		sdk.GetMetadataKey("Content-Length"), fmt.Sprintf("%d", len(data)),
+		sdk.GetMetadataKey("Content-Range"), fmt.Sprintf("bytes %d-%d/%d", start, end, fileSize),
 		sdk.GetMetadataKey("Accept-Ranges"), "bytes",
 		"X-Http-Code", fmt.Sprintf("%d", http.StatusPartialContent),
 	)
@@ -160,7 +160,7 @@ func (f *FileService) Metadata(ctx context.Context, in *api.FileMetadataRequest)
 			sdk.GetMetadataKey("Etag"), rsp.Etag,
 			sdk.GetMetadataKey("Last-Modified"), lastModified,
 			sdk.GetMetadataKey("Aceept-Ranges"), "bytes",
-			sdk.GetMetadataKey("Content-Length"), fmt.Sprintf("%d", rsp.Size+1),
+			sdk.GetMetadataKey("Content-Length"), fmt.Sprintf("%d", rsp.Size),
 			sdk.GetMetadataKey("X-File-Sha256"), rsp.Sha256,
 			sdk.GetMetadataKey("Access-Control-Expose-Headers"), "Content-Length, Content-Range, Accept-Ranges, Last-Modified, ETag, Content-Type, X-File-name, X-File-Sha256",
 		)

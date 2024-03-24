@@ -297,7 +297,7 @@ func (app *AppAuthSignerImpl) Sign(request *GatewayRequest) (string, error) {
 	// log.Printf("signedHeaders:%v", signedHeaders)
 
 	canonicalRequest, err := app.CanonicalRequest(request, signedHeaders)
-	// log.Printf("canonicalRequest:%s*********", canonicalRequest)
+	// log.Printf("canonicalRequest:%s", canonicalRequest)
 	if err != nil {
 		return "", fmt.Errorf("Failed to create canonical request: %w", err)
 	}
