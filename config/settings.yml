@@ -54,6 +54,32 @@
     cors:
       - "localhost"
       - "127.0.0.1:8081"
+    plugins:
+      local:
+        logger: 0
+        exception: 1
+        http: 2
+        auth: 3
+      rpc:
+        - server:
+          name: "example-server"
+          endpoint:
+            - addr: "127.0.0.1:9000"
+              weight: 1
+            - addr: "127.0.0.1:9001"
+              weight: 2
+          priority: 10
+          timeout: 30
+          lb: "round_robin"
+          pool:
+            max_open_conns: 100
+            max_idle_conns: 50
+            size: 50
+            timeout: 10
+            min_idle_conns: 25
+            max_active_conns: 20
+
+
   common:
     rdb_key_prefix: "begonia"
     filter_key_prefix: "begonia:filter"
@@ -63,4 +89,3 @@
     multi_cache_strategy: 1
     kv_prefix: "begonia:kv"
     pubsub_key_channel: "begonia:pubsub:channel"
-

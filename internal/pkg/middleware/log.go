@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	common "github.com/begonia-org/begonia/common/api/v1"
+	common "github.com/begonia-org/go-sdk/common/api/v1"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
@@ -15,12 +15,23 @@ import (
 
 type LoggerMiddleware struct {
 	*logrus.Logger
+	priority int
+	name string
 }
 
 func NewLoggerMiddleware(log *logrus.Logger) *LoggerMiddleware {
-	return &LoggerMiddleware{Logger: log}
+	return &LoggerMiddleware{Logger: log, name: "logger"}
 }
+func (log *LoggerMiddleware) Priority() int {
+	return log.priority
+}
+func (log *LoggerMiddleware) SetPriority(priority int) {
+	log.priority = priority
 
+}
+func (log *LoggerMiddleware) Name() string {
+	return log.name
+}
 func (log *LoggerMiddleware) logger(ctx context.Context, fullMethod string, err error, elapsed time.Duration) {
 	md, _ := metadata.FromIncomingContext(ctx)
 	reqId := md.Get("x-request-id")[0]
@@ -80,7 +91,7 @@ func (log *LoggerMiddleware) logger(ctx context.Context, fullMethod string, err 
 	}
 
 }
-func (log *LoggerMiddleware) LoggerUnaryInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (rsp interface{}, err error) {
+func (log *LoggerMiddleware) UnaryInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (rsp interface{}, err error) {
 	now := time.Now()
 	defer func() {
 		if r := recover(); r != nil {
@@ -104,7 +115,7 @@ func (log *LoggerMiddleware) LoggerUnaryInterceptor(ctx context.Context, req int
 	log.logger(ctx, info.FullMethod, err, elapsed)
 	return
 }
-func (log *LoggerMiddleware) LoggerStreamInterceptor(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) (err error) {
+func (log *LoggerMiddleware) StreamInterceptor(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) (err error) {
 	now := time.Now()
 	defer func() {
 		if r := recover(); r != nil {

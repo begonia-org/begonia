@@ -3,11 +3,11 @@ package service
 import (
 	"context"
 
-	api "github.com/begonia-org/begonia/api/v1"
-	common "github.com/begonia-org/begonia/common/api/v1"
 	"github.com/begonia-org/begonia/internal/biz"
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/web"
+	api "github.com/begonia-org/go-sdk/api/v1"
+	common "github.com/begonia-org/go-sdk/common/api/v1"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 )

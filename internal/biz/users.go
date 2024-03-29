@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"time"
 
-	api "github.com/begonia-org/begonia/api/v1"
-	common "github.com/begonia-org/begonia/common/api/v1"
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/crypto"
 	"github.com/begonia-org/begonia/internal/pkg/errors"
+	api "github.com/begonia-org/go-sdk/api/v1"
+	common "github.com/begonia-org/go-sdk/common/api/v1"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 	"github.com/spark-lence/tiga"

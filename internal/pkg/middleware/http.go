@@ -3,17 +3,15 @@ package middleware
 import (
 	"context"
 	"fmt"
-	"mime"
 	"net/http"
-	sysRuntime "runtime"
 	"strconv"
 	"strings"
 
-	_ "github.com/begonia-org/begonia/api/v1"
-	common "github.com/begonia-org/begonia/common/api/v1"
 	"github.com/begonia-org/begonia/internal/pkg/errors"
 	"github.com/begonia-org/begonia/internal/pkg/routers"
-	"github.com/begonia-org/begonia/sdk"
+	gosdk "github.com/begonia-org/go-sdk"
+	_ "github.com/begonia-org/go-sdk/api/v1"
+	common "github.com/begonia-org/go-sdk/common/api/v1"
 	"github.com/google/uuid"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/sirupsen/logrus"
@@ -40,6 +38,10 @@ type HttpStream struct {
 	grpc.ServerStream
 	FullMethod string
 }
+type Http struct {
+	priority int
+	name string
+}
 
 func (s *HttpStream) SendMsg(m interface{}) error {
 	ctx := s.ServerStream.Context()
@@ -59,7 +61,7 @@ func (s *HttpStream) SendMsg(m interface{}) error {
 			return s.ServerStream.SendMsg(rsp)
 		}
 	}
-	return s.SendMsg(m)
+	return s.ServerStream.SendMsg(m)
 }
 func getClientMessageMap() map[int32]string {
 	codes := make(map[int32]string)
@@ -87,10 +89,11 @@ func clientMessageFromCode(code codes.Code) string {
 
 	}
 }
-func isValidContentType(ct string) bool {
-	mimeType, _, err := mime.ParseMediaType(ct)
-	return err == nil && mimeType != ""
-}
+
+//	func isValidContentType(ct string) bool {
+//		mimeType, _, err := mime.ParseMediaType(ct)
+//		return err == nil && mimeType != ""
+//	}
 func convertDynamicMessageToHttpBody(dynamicMessage *dynamicpb.Message) (*httpbody.HttpBody, error) {
 	// 序列化dynamicpb.Message为字节流
 	serialized, err := proto.Marshal(dynamicMessage)
@@ -107,7 +110,7 @@ func convertDynamicMessageToHttpBody(dynamicMessage *dynamicpb.Message) (*httpbo
 	return &httpBody, nil
 }
 func writeHttpHeaders(w http.ResponseWriter, key string, value []string) {
-	if httpKey := sdk.GetHttpHeaderKey(key); httpKey != "" {
+	if httpKey := gosdk.GetHttpHeaderKey(key); httpKey != "" {
 		for _, v := range value {
 			w.Header().Del(key)
 			if v != "" {
@@ -131,13 +134,7 @@ func writeHttpHeaders(w http.ResponseWriter, key string, value []string) {
 		}
 
 	}
-	// if strings.EqualFold(key, "x-request-id") {
-	// 	w.Header().Set("x-request-id", value[0])
-	// 	headers := w.Header().Values("Access-Control-Expose-Headers")
-	// 	headers = append(headers, "X-Request-Id")
-	// 	w.Header().Set("Access-Control-Expose-Headers", strings.Join(headers, ","))
 
-	// }
 }
 func HttpResponseBodyModify(ctx context.Context, w http.ResponseWriter, msg proto.Message) error {
 	httpCode := http.StatusOK
@@ -247,33 +244,11 @@ func HandleErrorWithLogger(logger *logrus.Logger) runtime.ErrorHandlerFunc {
 	}
 }
 
-func UnaryServerErrInterceptor(logger *logrus.Logger) grpc.UnaryServerInterceptor {
-	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
-		defer func() {
-			if p := recover(); p != nil {
-				buf := make([]byte, 1024)
-				n := sysRuntime.Stack(buf, false) // false 表示不需要所有goroutine的调用栈
-				stackTrace := string(buf[:n])
-
-				// 封装错误信息，包括 panic 的信息和调用栈
-				// 注意：这里使用 fmt.Errorf 创建了一个基本的 error 实例。
-				// 如果你使用的是自定义的错误类型或函数，需要相应地调整
-				err = fmt.Errorf("panic: %v\nStack trace: %s", p, stackTrace)
-				err = errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "panic")
-			}
-		}()
-		resp, err = handler(ctx, req)
-		if err == nil {
-			return resp, err
-		}
-		return nil, err
-	}
-}
 func OutgoingMetaInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if ok {
 		if reqIds, ok := md["x-request-id"]; ok {
-			ctx = metadata.AppendToOutgoingContext(ctx, sdk.GetMetadataKey("x-request-id"), reqIds[0])
+			ctx = metadata.AppendToOutgoingContext(ctx, gosdk.GetMetadataKey("x-request-id"), reqIds[0])
 		}
 	}
 	resp, err = handler(ctx, req)
@@ -283,29 +258,6 @@ func OutgoingMetaInterceptor(ctx context.Context, req interface{}, info *grpc.Un
 	return nil, err
 }
 
-func UnaryStreamServerErrInterceptor(logger *logrus.Logger) grpc.StreamServerInterceptor {
-	return func(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) (err error) {
-		defer func() {
-			if p := recover(); p != nil {
-				buf := make([]byte, 1024)
-				n := sysRuntime.Stack(buf, false) // false 表示不需要所有goroutine的调用栈
-				stackTrace := string(buf[:n])
-
-				// 封装错误信息，包括 panic 的信息和调用栈
-				// 注意：这里使用 fmt.Errorf 创建了一个基本的 error 实例。
-				// 如果你使用的是自定义的错误类型或函数，需要相应地调整
-				err = fmt.Errorf("panic: %v\nStack trace: %s", p, stackTrace)
-				err = errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "panic")
-				_ = handler(srv, ss)
-			}
-		}()
-		err = handler(srv, ss)
-		if err == nil {
-			return err
-		}
-		return err
-	}
-}
 func toStructMessage(msg protoreflect.ProtoMessage) (*structpb.Struct, error) {
 	jsonBytes, err := protojson.Marshal(msg)
 
@@ -373,7 +325,7 @@ func grpcToHttpResponse(rsp interface{}, err error) (*common.HttpResponse, error
 		Data:    anyData,
 	}, err
 }
-func HttpUnaryInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+func (h *Http) UnaryInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
 		return handler(ctx, req)
@@ -396,8 +348,22 @@ func HttpUnaryInterceptor(ctx context.Context, req interface{}, info *grpc.Unary
 	return handler(ctx, req)
 }
 
-func HttpStreamInterceptor(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+func (h *Http) StreamInterceptor(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 	stream := &HttpStream{ServerStream: ss, FullMethod: info.FullMethod}
 	return handler(srv, stream)
 
+}
+
+func NewHttp() *Http {
+	return &Http{name: "http"}
+}
+
+func (h *Http) Priority() int {
+	return h.priority
+}
+func (h *Http) SetPriority(priority int) {
+	h.priority = priority
+}
+func (h *Http) Name() string {
+	return h.name
 }

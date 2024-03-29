@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	api "github.com/begonia-org/begonia/api/v1"
 	"github.com/begonia-org/begonia/internal/biz"
+	api "github.com/begonia-org/go-sdk/api/v1"
 	"github.com/redis/go-redis/v9"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"gorm.io/gorm"

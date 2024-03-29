@@ -5,13 +5,13 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/begonia-org/begonia/sdk"
+	gosdk "github.com/begonia-org/go-sdk"
 	"github.com/google/uuid"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc/metadata"
 )
 
-func preflightHandler(w http.ResponseWriter, r *http.Request) {
+func preflightHandler(w http.ResponseWriter, _ *http.Request) {
 	// headers := []string{"Content-Type", "Accept", "Authorization", "X-Token", "x-date", "x-access-key"}
 	w.Header().Set("Access-Control-Allow-Headers", "*")
 	// methods := []string{"GET", "HEAD", "POST", "PUT", "DELETE"}
@@ -85,18 +85,22 @@ func IncomingHeadersToMetadata(ctx context.Context, req *http.Request) metadata.
 	md.Set("x-http-method", req.Method)
 	md.Set("remote_addr", req.RemoteAddr)
 	md.Set("protocol", req.Proto)
-	md.Set(sdk.GetMetadataKey("x-request-id"), reqID)
-	// md.Set("response-type", "application/json")
-	// _ = grpc.SetHeader(ctx, metadata.Pairs("x-request-id", md.Get("x-request-id")[0]))
-	// if val := md.Get("x-uid"); len(val) > 0 {
-	// 	_ = grpc.SetHeader(ctx, metadata.Pairs("x-uid", val[0]))
-	// }
-	// uri := req.RequestURI
-	// method := req.Method
-	// remoteAddr := req.RemoteAddr
-	// _ = grpc.SetHeader(ctx, metadata.Pairs("uri", uri))
-	// _ = grpc.SetHeader(ctx, metadata.Pairs("x-http-method", method))
-	// _ = grpc.SetHeader(ctx, metadata.Pairs("remote_addr", remoteAddr))
-	// _ = grpc.SendHeader(ctx, md)
+	md.Set(gosdk.GetMetadataKey("x-request-id"), reqID)
+
+	xuid := md.Get("x-uid")
+	accessKey := md.Get("x-access-key")
+	author := ""
+
+	if len(xuid) > 0 {
+		author = xuid[0]
+	}
+	if len(accessKey) > 0 {
+		author = accessKey[0]
+	}
+	if author == "" {
+		return md
+	}
+	md.Set("x-identity", author)
+
 	return md
 }

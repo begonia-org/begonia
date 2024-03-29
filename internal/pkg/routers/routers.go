@@ -5,10 +5,10 @@ import (
 	"strings"
 	"sync"
 
-	_ "github.com/begonia-org/begonia/api/v1"
-	_ "github.com/begonia-org/begonia/common/api/v1"
-	common "github.com/begonia-org/begonia/common/api/v1"
 	dp "github.com/begonia-org/dynamic-proto"
+	_ "github.com/begonia-org/go-sdk/api/v1"
+	_ "github.com/begonia-org/go-sdk/common/api/v1"
+	common "github.com/begonia-org/go-sdk/common/api/v1"
 	"google.golang.org/genproto/googleapis/api/annotations"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -101,11 +101,11 @@ func (r *HttpURIRouteToSrvMethod) getHttpRule(method *descriptorpb.MethodDescrip
 	}
 	return nil
 }
-func (r *HttpURIRouteToSrvMethod)AddLocalSrv(fullMethod string) {
+func (r *HttpURIRouteToSrvMethod) AddLocalSrv(fullMethod string) {
 	r.localSrv[strings.ToUpper(fullMethod)] = true
 }
-func (r *HttpURIRouteToSrvMethod)IsLocalSrv(fullMethod string) bool {
-	ret:= r.localSrv[strings.ToUpper(fullMethod)]
+func (r *HttpURIRouteToSrvMethod) IsLocalSrv(fullMethod string) bool {
+	ret := r.localSrv[strings.ToUpper(fullMethod)]
 	return ret
 }
 func (r *HttpURIRouteToSrvMethod) addRouterDetails(serviceName string, authRequired bool, methodName *descriptorpb.MethodDescriptorProto) {

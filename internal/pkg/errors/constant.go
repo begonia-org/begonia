@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"runtime"
 
-	common "github.com/begonia-org/begonia/common/api/v1"
+	common "github.com/begonia-org/go-sdk/common/api/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -36,7 +36,6 @@ func New(err error, code int32, grpcCode codes.Code, action string) error {
 	if fn != nil {
 		funcName = fn.Name()
 	}
-
 
 	srvErr := &common.Errors{
 		Code:    code,
@@ -98,5 +97,9 @@ var (
 	ErrPartNumberMissing = errors.New("partNumber缺失")
 	ErrInvalidFileKey    = errors.New("无效的文件路径")
 	ErrFileKeyMissing    = errors.New("file key 缺失")
-	ErrInvalidRange	  = errors.New("无效的range")
+	ErrInvalidRange      = errors.New("无效的range")
+
+	ErrIdentityMissing = errors.New("identity缺失")
+
+	ErrUnknownLoadBalancer = errors.New("未知的负载均衡器")
 )

@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	api "github.com/begonia-org/begonia/api/v1"
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/errors"
+	api "github.com/begonia-org/go-sdk/api/v1"
 	"github.com/redis/go-redis/v9"
 	"github.com/spark-lence/tiga"
 	"google.golang.org/grpc/codes"

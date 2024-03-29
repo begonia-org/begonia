@@ -1,15 +1,13 @@
 package middleware
 
 import (
-	"encoding/json"
-
 	"fmt"
 	"io"
 	"reflect"
 
-	_ "github.com/begonia-org/begonia/api/v1"
-	common "github.com/begonia-org/begonia/common/api/v1"
 	"github.com/begonia-org/begonia/internal/pkg/config"
+	_ "github.com/begonia-org/go-sdk/api/v1"
+	common "github.com/begonia-org/go-sdk/common/api/v1"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/genproto/googleapis/api/httpbody"
 	"google.golang.org/grpc/codes"
@@ -180,20 +178,21 @@ func NewEventSourceMarshaler() *EventSourceMarshaler {
 			},
 		}}}
 }
-func (m *ResponseJSONMarshaler) dynamicpbToMap(message *dynamicpb.Message) (map[string]interface{}, error) {
-	// 首先，将dynamicpb.Message转换为JSON
-	jsonBytes, err := protojson.Marshal(message)
-	if err != nil {
-		return nil, fmt.Errorf("Error marshalling to JSON: %w", err)
-	}
 
-	// 然后，将JSON字符串反序列化为map[string]interface{}
-	var result map[string]interface{}
-	if err := json.Unmarshal(jsonBytes, &result); err != nil {
-		return nil, fmt.Errorf("Error unmarshalling JSON to map: %w", err)
-	}
-	return result, nil
-}
+// func (m *ResponseJSONMarshaler) dynamicpbToMap(message *dynamicpb.Message) (map[string]interface{}, error) {
+// 	// 首先，将dynamicpb.Message转换为JSON
+// 	jsonBytes, err := protojson.Marshal(message)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("Error marshalling to JSON: %w", err)
+// 	}
+
+//		// 然后，将JSON字符串反序列化为map[string]interface{}
+//		var result map[string]interface{}
+//		if err := json.Unmarshal(jsonBytes, &result); err != nil {
+//			return nil, fmt.Errorf("Error unmarshalling JSON to map: %w", err)
+//		}
+//		return result, nil
+//	}
 func (m *ResponseJSONMarshaler) Marshal(v interface{}) ([]byte, error) {
 	if response, ok := v.(map[string]interface{}); ok {
 		if _, ok := response["result"]; ok {

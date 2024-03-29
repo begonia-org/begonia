@@ -27,4 +27,5 @@ var ProviderSet = wire.NewSet(
 	migrate.NewInitOperator,
 
 	middleware.NewLoggerMiddleware,
+	middleware.New,
 )

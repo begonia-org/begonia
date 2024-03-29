@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 
+	goloadbalancer "github.com/begonia-org/go-loadbalancer"
 	"github.com/spark-lence/tiga"
 )
 
@@ -12,6 +13,13 @@ const (
 
 type Config struct {
 	*tiga.Configuration
+}
+
+type RPCPlugins struct {
+	Name     string  `mapstructure:"name"`
+	Endpoint string  `mapstructure:"endpoint"`
+	Priority int     `mapstructure:"priority"`
+	Timeout  int `mapstructure:"timeout"`
 }
 
 func NewConfig(config *tiga.Configuration) *Config {
@@ -150,6 +158,18 @@ func (c *Config) GetUploadDir() string {
 }
 func (c *Config) GetProtosDir() string {
 	return c.GetString("file.protos.dir")
+}
+
+func (c *Config) GetPlugins() map[string]interface{} {
+	return c.GetStringMap(fmt.Sprintf("%s.gateway.plugins.local", c.GetEnv()))
+}
+func (c *Config) GetRPCPlugins() ([]*goloadbalancer.Server, error) {
+	plugins := make([]*goloadbalancer.Server, 0)
+	err := c.UnmarshalKey(fmt.Sprintf("%s.gateway.plugins.rpc", c.GetEnv()), &plugins)
+	if err != nil {
+		return nil, err
+	}
+	return plugins, nil
 }
 
 // func (c *Config) GetAppKeyPrefix() string {

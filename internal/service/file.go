@@ -8,12 +8,12 @@ import (
 	"strings"
 	"time"
 
-	api "github.com/begonia-org/begonia/api/v1"
-	common "github.com/begonia-org/begonia/common/api/v1"
-	"github.com/begonia-org/begonia/internal/biz"
+	"github.com/begonia-org/begonia/internal/biz/file"
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/errors"
-	"github.com/begonia-org/begonia/sdk"
+	gosdk "github.com/begonia-org/go-sdk"
+	api "github.com/begonia-org/go-sdk/api/v1"
+	common "github.com/begonia-org/go-sdk/common/api/v1"
 	"google.golang.org/genproto/googleapis/api/httpbody"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -22,16 +22,25 @@ import (
 
 type FileService struct {
 	api.UnimplementedFileServiceServer
-	biz    *biz.FileUsecase
+	biz    *file.FileUsecase
 	config *config.Config
 }
 
-func NewFileService(biz *biz.FileUsecase, config *config.Config) *FileService {
+func NewFileService(biz *file.FileUsecase, config *config.Config) *FileService {
 	return &FileService{biz: biz, config: config}
 }
 
 func (f *FileService) Upload(ctx context.Context, in *api.UploadFileRequest) (*api.UploadFileResponse, error) {
-	return f.biz.Upload(ctx, in)
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return nil, errors.New(fmt.Errorf("not found metadata"), int32(common.Code_PARAMS_ERROR), codes.InvalidArgument, "not_found_metadata")
+	}
+	identity := md.Get("x-identity")
+	if len(identity) == 0 {
+		return nil, errors.New(errors.ErrIdentityMissing, int32(api.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
+	}
+	in.Key = identity[0] + "/" + in.Key
+	return f.biz.Upload(ctx, in, identity[0])
 }
 
 func (f *FileService) InitiateMultipartUpload(ctx context.Context, in *api.InitiateMultipartUploadRequest) (*api.InitiateMultipartUploadResponse, error) {
@@ -41,13 +50,31 @@ func (f *FileService) UploadMultipartFile(ctx context.Context, in *api.UploadMul
 	return f.biz.UploadMultipartFileFile(ctx, in)
 }
 func (f *FileService) CompleteMultipartUpload(ctx context.Context, in *api.CompleteMultipartUploadRequest) (*api.CompleteMultipartUploadResponse, error) {
-	return f.biz.CompleteMultipartUploadFile(ctx, in)
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return nil, errors.New(errors.ErrIdentityMissing, int32(api.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_metadata")
+	}
+	identity := md.Get("x-identity")
+	if len(identity) == 0 {
+		return nil, errors.New(errors.ErrIdentityMissing, int32(api.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
+	}
+	in.Key = identity[0] + "/" + in.Key
+
+	return f.biz.CompleteMultipartUploadFile(ctx, in, identity[0])
 }
 func (f *FileService) AbortMultipartUpload(ctx context.Context, in *api.AbortMultipartUploadRequest) (*api.AbortMultipartUploadResponse, error) {
 	return f.biz.AbortMultipartUpload(ctx, in)
 }
 func (f *FileService) Download(ctx context.Context, in *api.DownloadRequest) (*httpbody.HttpBody, error) {
-	buf, err := f.biz.Download(ctx, in)
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return nil, errors.New(fmt.Errorf("not found metadata"), int32(common.Code_PARAMS_ERROR), codes.InvalidArgument, "not_found_metadata")
+	}
+	identity := md.Get("x-identity")
+	if len(identity) == 0 {
+		return nil, errors.New(errors.ErrIdentityMissing, int32(api.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
+	}
+	buf, err := f.biz.Download(ctx, in, identity[0])
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +144,12 @@ func (f *FileService) DownloadForRange(ctx context.Context, in *api.DownloadRequ
 			return nil, errors.New(err, int32(common.Code_UNKNOWN), codes.InvalidArgument, "parse_range_header")
 		}
 	}
-	data, fileSize, err := f.biz.DownloadForRange(ctx, in, start, end)
+	identity := GetIdentity(ctx)
+	if identity == "" {
+		return nil, errors.New(errors.ErrIdentityMissing, int32(api.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
+
+	}
+	data, fileSize, err := f.biz.DownloadForRange(ctx, in, start, end, identity)
 	if err != nil {
 		return nil, err
 	}
@@ -126,9 +158,9 @@ func (f *FileService) DownloadForRange(ctx context.Context, in *api.DownloadRequ
 	}
 
 	rspMd := metadata.Pairs(
-		sdk.GetMetadataKey("Content-Length"), fmt.Sprintf("%d", len(data)),
-		sdk.GetMetadataKey("Content-Range"), fmt.Sprintf("bytes %d-%d/%d", start, end, fileSize),
-		sdk.GetMetadataKey("Accept-Ranges"), "bytes",
+		gosdk.GetMetadataKey("Content-Length"), fmt.Sprintf("%d", len(data)),
+		gosdk.GetMetadataKey("Content-Range"), fmt.Sprintf("bytes %d-%d/%d", start, end, fileSize),
+		gosdk.GetMetadataKey("Accept-Ranges"), "bytes",
 		"X-Http-Code", fmt.Sprintf("%d", http.StatusPartialContent),
 	)
 	err = grpc.SendHeader(ctx, rspMd)
@@ -141,10 +173,18 @@ func (f *FileService) DownloadForRange(ctx context.Context, in *api.DownloadRequ
 	}, nil
 }
 func (f *FileService) Delete(ctx context.Context, in *api.DeleteRequest) (*api.DeleteResponse, error) {
-	return f.biz.Delete(ctx, in)
+	identity := GetIdentity(ctx)
+	if identity == "" {
+		return nil, errors.New(errors.ErrIdentityMissing, int32(api.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
+	}
+	return f.biz.Delete(ctx, in, identity)
 }
 func (f *FileService) Metadata(ctx context.Context, in *api.FileMetadataRequest) (*api.FileMetadataResponse, error) {
-	rsp, err := f.biz.Metadata(ctx, in)
+	identity := GetIdentity(ctx)
+	if identity == "" {
+		return nil, errors.New(errors.ErrIdentityMissing, int32(api.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
+	}
+	rsp, err := f.biz.Metadata(ctx, in, identity)
 	if err != nil {
 		return nil, err
 
@@ -155,14 +195,14 @@ func (f *FileService) Metadata(ctx context.Context, in *api.FileMetadataRequest)
 		lastModified := timestamp.UTC().Format(time.RFC1123)
 
 		rspMd := metadata.Pairs(
-			sdk.GetMetadataKey("X-File-Name"), rsp.Name,
-			sdk.GetMetadataKey("content-type"), rsp.ContentType,
-			sdk.GetMetadataKey("Etag"), rsp.Etag,
-			sdk.GetMetadataKey("Last-Modified"), lastModified,
-			sdk.GetMetadataKey("Aceept-Ranges"), "bytes",
-			sdk.GetMetadataKey("Content-Length"), fmt.Sprintf("%d", rsp.Size),
-			sdk.GetMetadataKey("X-File-Sha256"), rsp.Sha256,
-			sdk.GetMetadataKey("Access-Control-Expose-Headers"), "Content-Length, Content-Range, Accept-Ranges, Last-Modified, ETag, Content-Type, X-File-name, X-File-Sha256",
+			gosdk.GetMetadataKey("X-File-Name"), rsp.Name,
+			gosdk.GetMetadataKey("content-type"), rsp.ContentType,
+			gosdk.GetMetadataKey("Etag"), rsp.Etag,
+			gosdk.GetMetadataKey("Last-Modified"), lastModified,
+			gosdk.GetMetadataKey("Aceept-Ranges"), "bytes",
+			gosdk.GetMetadataKey("Content-Length"), fmt.Sprintf("%d", rsp.Size),
+			gosdk.GetMetadataKey("X-File-Sha256"), rsp.Sha256,
+			gosdk.GetMetadataKey("Access-Control-Expose-Headers"), "Content-Length, Content-Range, Accept-Ranges, Last-Modified, ETag, Content-Type, X-File-name, X-File-Sha256",
 		)
 		// rspMd.Append(sdk.GetMetadataKey(), "Content-Length", "Content-Range", "Accept-Ranges", "Last-Modified", "ETag", "Content-Type", "x-file-name", "x-file-sha256")
 		err = grpc.SetHeader(ctx, rspMd)

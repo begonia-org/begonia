@@ -3,10 +3,10 @@ package service
 import (
 	"context"
 
-	api "github.com/begonia-org/begonia/api/v1"
 	"github.com/begonia-org/begonia/internal/biz"
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/crypto"
+	api "github.com/begonia-org/go-sdk/api/v1"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 )
@@ -28,7 +28,7 @@ func (u *UsersService) AuthSeed(ctx context.Context, in *api.AuthLogAPIRequest) 
 	if err != nil {
 		return nil, err
 	}
-	rsp:= &api.AuthLogAPIResponse{
+	rsp := &api.AuthLogAPIResponse{
 		Msg:       token,
 		Timestamp: in.Timestamp,
 	}

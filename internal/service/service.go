@@ -3,10 +3,11 @@ package service
 import (
 	"context"
 
-	api "github.com/begonia-org/begonia/api/v1"
+	api "github.com/begonia-org/go-sdk/api/v1"
 	"github.com/google/wire"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 )
 
 type Service interface {
@@ -34,4 +35,16 @@ func WithUserService(user *UsersService, opts []grpc.DialOption) ServiceOptions 
 		api.RegisterAuthServiceServer(server, user)
 		return api.RegisterAuthServiceHandlerFromEndpoint(context.Background(), mux, endpoint, opts)
 	}
+}
+
+func GetIdentity(ctx context.Context) string {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return ""
+	}
+	identity := md.Get("x-identity")
+	if len(identity) > 0 {
+		return identity[0]
+	}
+	return ""
 }

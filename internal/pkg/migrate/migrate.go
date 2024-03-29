@@ -3,7 +3,7 @@ package migrate
 import (
 	"fmt"
 
-	api "github.com/begonia-org/begonia/api/v1"
+	api "github.com/begonia-org/go-sdk/api/v1"
 	"github.com/spark-lence/tiga"
 )
 
@@ -15,7 +15,7 @@ type MySQLMigrate struct {
 
 func NewTableModels() []TableModel {
 	tables := make([]TableModel, 0)
-	tables = append(tables, api.Users{}, api.Endpoints{},api.Apps{})
+	tables = append(tables, api.Users{}, api.Endpoints{}, api.Apps{})
 	return tables
 }
 func NewMySQLMigrate(mysql *tiga.MySQLDao, models ...TableModel) *MySQLMigrate {

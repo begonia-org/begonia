@@ -3,15 +3,15 @@ package data
 import (
 	"context"
 
-	common "github.com/begonia-org/begonia/common/api/v1"
-	"github.com/begonia-org/begonia/internal/biz"
+	"github.com/begonia-org/begonia/internal/biz/file"
+	common "github.com/begonia-org/go-sdk/common/api/v1"
 )
 
 type fileRepoImpl struct {
 	data *Data
 }
 
-func NewFileRepoImpl(data *Data) biz.FileRepo {
+func NewFileRepoImpl(data *Data) file.FileRepo {
 	return &fileRepoImpl{data: data}
 }
 

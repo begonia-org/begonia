@@ -10,31 +10,37 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+type StreamValidator interface {
+	ValidateStream(ctx context.Context, req interface{}, fullName string, headers Header) (context.Context, error) 
+
+}
 type grpcServerStream struct {
 	grpc.ServerStream
 	fullName string
-	validate *APIValidator
+	validate StreamValidator
 	ctx      context.Context
 }
 
 var streamPool = &sync.Pool{
 	New: func() interface{} {
 		return &grpcServerStream{
-			validate: validator,
+			// validate: validator,
 		}
 	},
 }
-func NewGrpcStream(s grpc.ServerStream, fullName string, ctx context.Context) *grpcServerStream {
+func NewGrpcStream(s grpc.ServerStream, fullName string, ctx context.Context,validator StreamValidator) *grpcServerStream {
 	stream := streamPool.Get().(*grpcServerStream)
 	stream.ServerStream = s
 	stream.fullName = fullName
 	stream.ctx = s.Context()
+	stream.validate = validator
 	return stream
 }
 func (g *grpcServerStream) Release() {
 	g.ctx = nil
 	g.fullName = ""
 	g.ServerStream = nil
+	g.validate = nil
 	streamPool.Put(g)
 }
 func (g *grpcServerStream) Context() context.Context {
@@ -56,7 +62,7 @@ func (s *grpcServerStream) RecvMsg(m interface{}) error {
 	}
 
 	header :=NewGrpcStreamHeader(in, s.Context(), out, s.ServerStream)
-	_, err := s.validate.ValidateGrpcRequest(s.Context(), m, s.fullName, header)
+	_, err := s.validate.ValidateStream(s.Context(), m, s.fullName, header)
 	s.ctx = header.ctx
 	header.Release()
 	return err

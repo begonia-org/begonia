@@ -12,10 +12,10 @@ import (
 	"testing"
 	"time"
 
-	api "github.com/begonia-org/begonia/api/v1"
 	cfg "github.com/begonia-org/begonia/config"
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/errors"
+	api "github.com/begonia-org/go-sdk/api/v1"
 	c "github.com/smartystreets/goconvey/convey"
 	"google.golang.org/grpc/metadata"
 )
@@ -265,12 +265,12 @@ func TestMultipartFile(t *testing.T) {
 		rsp, err := useCase.InitiateUploadFile(ctx, &api.InitiateMultipartUploadRequest{
 			Key: "test/upload2.test",
 		})
-		uploadSize :=0
+		uploadSize := 0
 		c.So(err, c.ShouldBeNil)
 		for i := 1; i <= 4; i++ {
 			data := tmp.content[1024*1024*(i-1) : 1024*1024*i]
 			hash := sha256.Sum256(data)
-			uploadSize+=len(data)
+			uploadSize += len(data)
 			// 将哈希值格式化为十六进制字符串
 			hashString := fmt.Sprintf("%x", hash)
 
@@ -297,18 +297,18 @@ func TestMultipartFile(t *testing.T) {
 		}, "tester")
 		c.So(err, c.ShouldBeNil)
 		newFile := make([]byte, 0)
-		downloadSize:=0
+		downloadSize := 0
 		for i := 1; i <= 4; i++ {
 			data, _, err := useCase.DownloadForRange(ctx, &api.DownloadRequest{
 				Key: "test/upload2.test",
 			}, int64(i-1)*1024*1024, int64(i)*1024*1024, "tester")
 			c.So(err, c.ShouldBeNil)
-			downloadSize+=len(data)
+			downloadSize += len(data)
 			newFile = append(newFile, data...)
 		}
-		c.So(uploadSize,c.ShouldEqual,len(tmp.content))
+		c.So(uploadSize, c.ShouldEqual, len(tmp.content))
 		c.So(downloadSize, c.ShouldEqual, uploadSize)
-		
+
 		hasher := sha256.New()
 		hasher.Write(newFile)
 		c.So(fmt.Sprintf("%x", hasher.Sum(nil)), c.ShouldEqual, tmp.sha256)
@@ -317,7 +317,6 @@ func TestMultipartFile(t *testing.T) {
 	})
 
 }
-
 
 func TestMultipartFileWithVersion(t *testing.T) {
 	useCase := initTestCase()
@@ -335,12 +334,12 @@ func TestMultipartFileWithVersion(t *testing.T) {
 		rsp, err := useCase.InitiateUploadFile(ctx, &api.InitiateMultipartUploadRequest{
 			Key: "test/upload2.test",
 		})
-		uploadSize :=0
+		uploadSize := 0
 		c.So(err, c.ShouldBeNil)
 		for i := 1; i <= 4; i++ {
 			data := tmp.content[1024*1024*(i-1) : 1024*1024*i]
 			hash := sha256.Sum256(data)
-			uploadSize+=len(data)
+			uploadSize += len(data)
 			// 将哈希值格式化为十六进制字符串
 			hashString := fmt.Sprintf("%x", hash)
 
@@ -358,7 +357,7 @@ func TestMultipartFileWithVersion(t *testing.T) {
 			Key:         "test/upload2.test",
 			Sha256:      tmp.sha256,
 			ContentType: tmp.contentType,
-			UseVersion: true,
+			UseVersion:  true,
 		}, "tester")
 		c.So(err, c.ShouldBeNil)
 		c.So(cmpRsp.Version, c.ShouldNotBeEmpty)
@@ -369,18 +368,18 @@ func TestMultipartFileWithVersion(t *testing.T) {
 		}, "tester")
 		c.So(err, c.ShouldBeNil)
 		newFile := make([]byte, 0)
-		downloadSize:=0
+		downloadSize := 0
 		for i := 1; i <= 4; i++ {
 			data, _, err := useCase.DownloadForRange(ctx, &api.DownloadRequest{
 				Key: "test/upload2.test",
 			}, int64(i-1)*1024*1024, int64(i)*1024*1024, "tester")
 			c.So(err, c.ShouldBeNil)
-			downloadSize+=len(data)
+			downloadSize += len(data)
 			newFile = append(newFile, data...)
 		}
-		c.So(uploadSize,c.ShouldEqual,len(tmp.content))
+		c.So(uploadSize, c.ShouldEqual, len(tmp.content))
 		c.So(downloadSize, c.ShouldEqual, uploadSize)
-		
+
 		hasher := sha256.New()
 		hasher.Write(newFile)
 		c.So(fmt.Sprintf("%x", hasher.Sum(nil)), c.ShouldEqual, tmp.sha256)

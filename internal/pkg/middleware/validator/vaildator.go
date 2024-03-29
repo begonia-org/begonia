@@ -15,8 +15,8 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
-	api "github.com/begonia-org/begonia/api/v1"
-	"github.com/begonia-org/begonia/signature"
+	gosdk "github.com/begonia-org/go-sdk"
+	api "github.com/begonia-org/go-sdk/api/v1"
 
 	"github.com/begonia-org/begonia/internal/biz"
 	"github.com/begonia-org/begonia/internal/data"
@@ -201,16 +201,16 @@ func (a *APIValidator) getAuthorizationFromMetadata(md metadata.MD) string {
 	}
 	return ""
 }
-func (a *APIValidator) ValidateStreamInterceptor(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-	if !a.IfNeedValidate(ss.Context(), info.FullMethod) {
-		return handler(srv, ss)
-	}
-	grpcStream := NewGrpcStream(ss, info.FullMethod, ss.Context())
-	defer grpcStream.Release()
-	return handler(srv, grpcStream)
-}
+// func (a *APIValidator) ValidateStreamInterceptor(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+// 	if !a.IfNeedValidate(ss.Context(), info.FullMethod) {
+// 		return handler(srv, ss)
+// 	}
+// 	grpcStream := NewGrpcStream(ss, info.FullMethod, ss.Context(),a)
+// 	defer grpcStream.Release()
+// 	return handler(srv, grpcStream)
+// }
 func (a *APIValidator) ValidateGrpcRequest(ctx context.Context, req interface{}, fullName string, headers Header) (context.Context, error) {
-	gwRequest, err := signature.NewGatewayRequestFromGrpc(ctx, req, fullName)
+	gwRequest, err := gosdk.NewGatewayRequestFromGrpc(ctx, req, fullName)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "parse request error,%v", err)
 	}
@@ -326,7 +326,7 @@ func (a *APIValidator) HttpHandler(h http.Handler) http.Handler {
 				})
 				if token, ok := r.Header[http.CanonicalHeaderKey("Authorization")]; ok {
 					if !strings.Contains(token[0], "Bearer") {
-						gwReq, _ := signature.NewGatewayRequestFromHttp(r)
+						gwReq, _ := gosdk.NewGatewayRequestFromHttp(r)
 						err := a.AppValidator(r.Context(), gwReq)
 						if err != nil {
 							logger.Warn("app校验失败")
@@ -385,19 +385,19 @@ func (a *APIValidator) getSignature(auth string) string {
 	}
 	return ""
 }
-func (a *APIValidator) AppValidator(ctx context.Context, req *signature.GatewayRequest) error {
+func (a *APIValidator) AppValidator(ctx context.Context, req *gosdk.GatewayRequest) error {
 	xDate := ""
 	auth := ""
 	accessKey := ""
 	for _, k := range req.Headers.Keys() {
 		v := req.Headers.Get(k)
-		if strings.EqualFold(k, signature.HeaderXDateTime) {
+		if strings.EqualFold(k, gosdk.HeaderXDateTime) {
 			xDate = v
 		}
-		if strings.EqualFold(k, signature.HeaderXAuthorization) {
+		if strings.EqualFold(k, gosdk.HeaderXAuthorization) {
 			auth = v
 		}
-		if strings.EqualFold(k, signature.HeaderXAccessKey) {
+		if strings.EqualFold(k, gosdk.HeaderXAccessKey) {
 			accessKey = v
 
 		}
@@ -411,9 +411,9 @@ func (a *APIValidator) AppValidator(ctx context.Context, req *signature.GatewayR
 	if accessKey == "" {
 		return errors.New(errors.ErrAppAccessKeyMissing, int32(api.APPSvrCode_APP_ACCESS_KEY_MISSING_ERR), codes.Unauthenticated, "app_access_key")
 	}
-	t, err := time.Parse(signature.DateFormat, xDate)
+	t, err := time.Parse(gosdk.DateFormat, xDate)
 	if err != nil {
-		return status.Errorf(codes.Unauthenticated, "parse %s error,%v", signature.HeaderXDateTime, err)
+		return status.Errorf(codes.Unauthenticated, "parse %s error,%v", gosdk.HeaderXDateTime, err)
 	}
 	// check timestamp
 	if time.Since(t) > time.Minute*1 {
@@ -424,7 +424,7 @@ func (a *APIValidator) AppValidator(ctx context.Context, req *signature.GatewayR
 	if err != nil {
 		return status.Errorf(codes.Unauthenticated, "get secret error,%v", err)
 	}
-	signer := signature.NewAppAuthSigner(accessKey, secret)
+	signer := gosdk.NewAppAuthSigner(accessKey, secret)
 	// a.log.Infof("req:%v,%v,%v,%v,%v", req.Headers, req.Host, req.Method, req.Host, req.URL.String())
 	sign, err := signer.Sign(req)
 	if err != nil {

@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	api "github.com/begonia-org/begonia/api/v1"
 	"github.com/begonia-org/begonia/internal/pkg/config"
+	api "github.com/begonia-org/go-sdk/api/v1"
 	"github.com/bsm/redislock"
 	"github.com/sirupsen/logrus"
 )

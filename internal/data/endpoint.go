@@ -3,14 +3,15 @@ package data
 import (
 	"context"
 
-	api "github.com/begonia-org/begonia/api/v1"
-	"github.com/begonia-org/begonia/internal/biz")
+	"github.com/begonia-org/begonia/internal/biz/gateway"
+	api "github.com/begonia-org/go-sdk/api/v1"
+)
 
 type endpointRepoImpl struct {
 	data *Data
 }
 
-func NewEndpointRepoImpl(data *Data) biz.EndpointRepo {
+func NewEndpointRepoImpl(data *Data) gateway.EndpointRepo {
 	return &endpointRepoImpl{data: data}
 }
 

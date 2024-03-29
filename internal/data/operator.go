@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	api "github.com/begonia-org/begonia/api/v1"
 	"github.com/begonia-org/begonia/internal/biz"
+	api "github.com/begonia-org/go-sdk/api/v1"
 	"github.com/spark-lence/tiga"
 )
 

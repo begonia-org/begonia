@@ -6,13 +6,14 @@ import (
 	"sync"
 	"time"
 
-	common "github.com/begonia-org/begonia/common/api/v1"
 	"github.com/begonia-org/begonia/internal/pkg/logger"
+	common "github.com/begonia-org/go-sdk/common/api/v1"
 	"github.com/bsm/redislock"
 	"github.com/cockroachdb/errors"
 	"github.com/google/wire"
 	"github.com/redis/go-redis/v9"
 	"github.com/spark-lence/tiga"
+	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"gorm.io/gorm"
@@ -24,8 +25,10 @@ func GetRDBClient(rdb *tiga.RedisDao) *redis.Client {
 
 var onceRDB sync.Once
 var onceMySQL sync.Once
+var onceEtcd sync.Once
 var rdb *tiga.RedisDao
 var mysql *tiga.MySQLDao
+var etcd *tiga.EtcdDao
 
 func NewRDB(config *tiga.Configuration) *tiga.RedisDao {
 	onceRDB.Do(func() {
@@ -41,16 +44,21 @@ func NewMySQL(config *tiga.Configuration) *tiga.MySQLDao {
 	return mysql
 
 }
+func NewEtcd(config *tiga.Configuration) *tiga.EtcdDao {
+	onceEtcd.Do(func() {
+		etcd = tiga.NewEtcdDao(config)
+	})
+	return etcd
+}
 
-var ProviderSet = wire.NewSet(NewMySQL, NewRDB, GetRDBClient, NewData, NewLayeredCache, NewUserRepo, NewFileRepoImpl, NewEndpointRepoImpl, NewAppRepoImpl)
+var ProviderSet = wire.NewSet(NewMySQL, NewRDB, NewEtcd, GetRDBClient, NewData, NewLayeredCache, NewUserRepo, NewFileRepoImpl, NewEndpointRepoImpl, NewAppRepoImpl)
 
 type Data struct {
 	// mysql
 	db *tiga.MySQLDao
 	// redis
-	rdb *tiga.RedisDao
-	// etcd *tiga.EtcdDao
-
+	rdb  *tiga.RedisDao
+	etcd *tiga.EtcdDao
 }
 type SourceType interface {
 	// 获取数据源类型
@@ -59,8 +67,8 @@ type SourceType interface {
 	GetOwner() string
 }
 
-func NewData(mysql *tiga.MySQLDao, rdb *tiga.RedisDao) *Data {
-	return &Data{db: mysql, rdb: rdb}
+func NewData(mysql *tiga.MySQLDao, rdb *tiga.RedisDao, etcd *tiga.EtcdDao) *Data {
+	return &Data{db: mysql, rdb: rdb, etcd: etcd}
 }
 func (d *Data) Get(model interface{}, data interface{}, conds ...interface{}) error {
 	return d.db.GetModel(model).First(data, conds...).Error
@@ -210,7 +218,9 @@ func (d *Data) BatchDelete(models []SourceType, dataModel interface{}) error {
 	}
 	return d.db.Delete(dataModel, "uid in ?", keys)
 }
-
+func (d *Data) EtcdPut(ctx context.Context, key string, value string, opts ...clientv3.OpOption) error {
+	return d.etcd.Put(ctx, key, value, opts...)
+}
 func NewSourceTypeArray(models interface{}) []SourceType {
 	items := tiga.GetArrayOrSlice(models)
 	sources := make([]SourceType, 0)

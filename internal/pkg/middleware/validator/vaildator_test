@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"github.com/agiledragon/gomonkey/v2"
-	api "github.com/begonia-org/begonia/api/v1"
 	"github.com/begonia-org/begonia/signature"
 	"github.com/begonia-org/go-layered-cache/source"
+	api "github.com/begonia-org/go-sdk/api/v1"
 	"github.com/bsm/redislock"
 
 	cfg "github.com/begonia-org/begonia/config"
@@ -36,8 +36,6 @@ type MockServerStream struct {
 	ctx context.Context
 }
 
-
-
 func NewCommonMock() *gomonkey.Patches {
 	patches := gomonkey.ApplyFunc((*data.LayeredCache).LoadRemoteCache, func(_ *data.LayeredCache, _ context.Context, _ string) {
 	})
@@ -55,17 +53,11 @@ func NewCommonMock() *gomonkey.Patches {
 
 // RecvMsg mock实现
 func (m *MockServerStream) RecvMsg(msg interface{}) error {
-	if pb, ok := msg.(*api.EndpointRequest); ok {
-		pb.Endpoints = []*api.Endpoints{
+	if pb, ok := msg.(*api.AddEndpointRequest); ok {
+		pb.Endpoints = []*api.EndpointMeta{
 			{
-				Name:        "test",
-				Description: "test",
-				Endpoint: []*api.EndpointMeta{
-					{
-						Weight: 1,
-						Addr:   "fffffff",
-					},
-				},
+				Weight: 1,
+				Addr:   "fffffff",
 			},
 		}
 	}
@@ -107,7 +99,8 @@ func newMockValidate() *mockValidate {
 		log := logrus.New()
 		rdb := &tiga.RedisDao{}
 		mysql := &tiga.MySQLDao{}
-		d := data.NewData(mysql, rdb)
+		etcd := &tiga.EtcdDao{}
+		d := data.NewData(mysql, rdb, etcd)
 		// pubsub := lbf.NewBloomPubSub(rdb.GetClient(), "gateway-blacklist", "gateway-01", log)
 		// bf := lbf.NewLayeredBloomFilter(pubsub, "gateway-blacklist", "gateway-01")
 		local := data.NewLayeredCache(context.Background(), d, conf, log)
@@ -159,20 +152,27 @@ func TestMain(m *testing.M) {
 func TestJWTGrpcValidate(t *testing.T) {
 	c.Convey("check grpc jwt token if validate", t, func() {
 
-		ep := []*api.Endpoints{
-			{
-				Name:        "test",
-				Description: "test",
-				Endpoint: []*api.EndpointMeta{
-					{
-						Weight: 1,
-						Addr:   "fffffff",
-					},
+		// ep := []*api.Endpoints{
+		// 	{
+		// 		Name:        "test",
+		// 		Description: "test",
+		// 		Endpoint: []*api.EndpointMeta{
+		// 			{
+		// 				Weight: 1,
+		// 				Addr:   "fffffff",
+		// 			},
+		// 		},
+		// 	},
+		// }
+		req := &api.AddEndpointRequest{
+			Name:        "test",
+			Description: "test",
+			Endpoints: []*api.EndpointMeta{
+				{
+					Weight: 1,
+					Addr:   "fffffff",
 				},
 			},
-		}
-		req := &api.EndpointRequest{
-			Endpoints: ep,
 		}
 		validator := newMockValidate()
 		auth := "Bearer " + validator.jwt
@@ -210,20 +210,27 @@ func TestJWTGrpcValidate(t *testing.T) {
 func TestGrpcJWTExpired(t *testing.T) {
 	c.Convey("check jwt token if expired", t, func() {
 
-		ep := []*api.Endpoints{
-			{
-				Name:        "test",
-				Description: "test",
-				Endpoint: []*api.EndpointMeta{
-					{
-						Weight: 1,
-						Addr:   "fffffff",
-					},
+		// ep := []*api.Endpoints{
+		// 	{
+		// 		Name:        "test",
+		// 		Description: "test",
+		// 		Endpoint: []*api.EndpointMeta{
+		// 			{
+		// 				Weight: 1,
+		// 				Addr:   "fffffff",
+		// 			},
+		// 		},
+		// 	},
+		// }
+		req := &api.AddEndpointRequest{
+			Name:        "test",
+			Description: "test",
+			Endpoints: []*api.EndpointMeta{
+				{
+					Weight: 1,
+					Addr:   "fffffff",
 				},
 			},
-		}
-		req := &api.EndpointRequest{
-			Endpoints: ep,
 		}
 		validator := newMockValidate()
 		auth := "Bearer " + validator.jwt
@@ -291,7 +298,7 @@ func TestStreamGrpcJWTExpired(t *testing.T) {
 			return nil
 		})
 		defer patches.Reset()
-	
+
 		// 等待一段时间，避免刷新token计算出来的时间戳一样
 		time.Sleep(3 * time.Second)
 
@@ -307,7 +314,7 @@ func TestStreamGrpcJWTExpired(t *testing.T) {
 		}
 		handler := func(srv interface{}, stream grpc.ServerStream) error {
 			// 在这里触发RecvMsg
-			err := stream.RecvMsg(&api.EndpointRequest{})
+			err := stream.RecvMsg(&api.AddEndpointRequest{})
 			out, ok := metadata.FromOutgoingContext(stream.Context())
 			c.So(ok, c.ShouldBeTrue)
 			c.So(out.Get("Authorization"), c.ShouldNotBeEmpty)
@@ -338,7 +345,7 @@ func TestJWTStreamGrpcValidate(t *testing.T) {
 		}
 		handler := func(srv interface{}, stream grpc.ServerStream) error {
 			// 在这里触发RecvMsg
-			return stream.RecvMsg(&api.EndpointRequest{})
+			return stream.RecvMsg(&api.AddEndpointRequest{})
 		}
 		err := validator.validate.ValidateStreamInterceptor(nil, ss, info, handler)
 		c.So(err, c.ShouldBeNil)
@@ -360,10 +367,10 @@ func TestGrpcAppValidate(t *testing.T) {
 
 		validator := newMockValidate()
 		app := &api.Apps{
-			Key: "tesFFFFFFFFSSt",
-			Secret:    "132e423dfwfwefrwefw",
-			Appid:     "123456",
-			Name:      "test",
+			Key:    "tesFFFFFFFFSSt",
+			Secret: "132e423dfwfwefrwefw",
+			Appid:  "123456",
+			Name:   "test",
 		}
 		patch2 := gomonkey.ApplyFunc((*APIValidator).getSecret, func(_ *APIValidator, _ context.Context, _ string) (string, error) {
 			return app.Secret, nil
@@ -379,20 +386,27 @@ func TestGrpcAppValidate(t *testing.T) {
 			strings.ToLower(":authority"): "127.0.0.1:9090",
 		})
 
-		ep := []*api.Endpoints{
-			{
-				Name:        "test",
-				Description: "test",
-				Endpoint: []*api.EndpointMeta{
-					{
-						Weight: 1,
-						Addr:   "fffffff",
-					},
+		// ep := []*api.Endpoints{
+		// 	{
+		// 		Name:        "test",
+		// 		Description: "test",
+		// 		Endpoint: []*api.EndpointMeta{
+		// 			{
+		// 				Weight: 1,
+		// 				Addr:   "fffffff",
+		// 			},
+		// 		},
+		// 	},
+		// }
+		req := &api.AddEndpointRequest{
+			Name:        "test",
+			Description: "test",
+			Endpoints: []*api.EndpointMeta{
+				{
+					Weight: 1,
+					Addr:   "fffffff",
 				},
 			},
-		}
-		req := &api.EndpointRequest{
-			Endpoints: ep,
 		}
 		ctx := metadata.NewIncomingContext(validator.ctx, md)
 		gwRequest, err := signature.NewGatewayRequestFromGrpc(ctx, req, info.FullMethod)
@@ -416,10 +430,10 @@ func TestStreamGrpcAppValidate(t *testing.T) {
 
 		validator := newMockValidate()
 		app := &api.Apps{
-			Key: "tesFFFFFFFFSSt",
-			Secret:    "132e423dfwfwefrwefw",
-			Appid:     "123456",
-			Name:      "test",
+			Key:    "tesFFFFFFFFSSt",
+			Secret: "132e423dfwfwefrwefw",
+			Appid:  "123456",
+			Name:   "test",
 		}
 		patch2 := gomonkey.ApplyFunc((*APIValidator).getSecret, func(_ *APIValidator, _ context.Context, _ string) (string, error) {
 			return app.Secret, nil
@@ -438,24 +452,20 @@ func TestStreamGrpcAppValidate(t *testing.T) {
 			IsClientStream: true,
 		}
 
-		req := &api.EndpointRequest{
-			Endpoints: []*api.Endpoints{
+		req := &api.AddEndpointRequest{
+			Name:        "test",
+			Description: "test",
+			Endpoints: []*api.EndpointMeta{
 				{
-					Name:        "test",
-					Description: "test",
-					Endpoint: []*api.EndpointMeta{
-						{
-							Weight: 1,
-							Addr:   "fffffff",
-						},
-					},
+					Weight: 1,
+					Addr:   "fffffff",
 				},
 			},
 		}
 
 		handler := func(srv interface{}, stream grpc.ServerStream) error {
 			// 在这里触发RecvMsg
-			return stream.RecvMsg(&api.EndpointRequest{})
+			return stream.RecvMsg(&api.AddEndpointRequest{})
 		}
 		gwRequest, err := signature.NewGatewayRequestFromGrpc(ctx, req, info.FullMethod)
 		c.So(err, c.ShouldBeNil)

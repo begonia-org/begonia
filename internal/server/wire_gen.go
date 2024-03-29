@@ -9,11 +9,12 @@ package server
 import (
 	"context"
 	"github.com/begonia-org/begonia/internal/biz"
+	"github.com/begonia-org/begonia/internal/biz/file"
+	"github.com/begonia-org/begonia/internal/biz/gateway"
 	"github.com/begonia-org/begonia/internal/data"
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/crypto"
 	"github.com/begonia-org/begonia/internal/pkg/middleware"
-	"github.com/begonia-org/begonia/internal/pkg/middleware/validator"
 	"github.com/begonia-org/begonia/internal/service"
 	"github.com/begonia-org/dynamic-proto"
 	"github.com/sirupsen/logrus"
@@ -27,9 +28,10 @@ func New(config2 *tiga.Configuration, log *logrus.Logger, endpoint string) *dyna
 	configConfig := config.NewConfig(config2)
 	mySQLDao := data.NewMySQL(config2)
 	redisDao := data.NewRDB(config2)
-	dataData := data.NewData(mySQLDao, redisDao)
+	etcdDao := data.NewEtcd(config2)
+	dataData := data.NewData(mySQLDao, redisDao, etcdDao)
 	fileRepo := data.NewFileRepoImpl(dataData)
-	fileUsecase := biz.NewFileUsecase(fileRepo, configConfig)
+	fileUsecase := file.NewFileUsecase(fileRepo, configConfig)
 	fileService := service.NewFileService(fileUsecase, configConfig)
 	contextContext := context.Background()
 	layeredCache := data.NewLayeredCache(contextContext, dataData, configConfig, log)
@@ -38,15 +40,14 @@ func New(config2 *tiga.Configuration, log *logrus.Logger, endpoint string) *dyna
 	usersUsecase := biz.NewUsersUsecase(usersRepo, log, usersAuth, configConfig)
 	usersService := service.NewUserService(usersUsecase, log, usersAuth, configConfig)
 	endpointRepo := data.NewEndpointRepoImpl(dataData)
-	endpointUsecase := biz.NewEndpointUsecase(endpointRepo)
+	endpointUsecase := gateway.NewEndpointUsecase(endpointRepo, fileUsecase, configConfig)
 	endpointsService := service.NewEndpointsService(endpointUsecase, log, configConfig)
 	appRepo := data.NewAppRepoImpl(dataData, layeredCache)
 	appUsecase := biz.NewAppUsecase(appRepo, configConfig)
 	appService := service.NewAppService(appUsecase, log, configConfig)
 	sysService := service.NewSysService()
 	v := service.NewServices(fileService, usersService, endpointsService, appService, sysService)
-	apiValidator := validator.NewAPIValidator(redisDao, log, usersUsecase, configConfig, mySQLDao, layeredCache)
-	loggerMiddleware := middleware.NewLoggerMiddleware(log)
-	gatewayServer := NewGateway(gatewayConfig, configConfig, v, apiValidator, loggerMiddleware)
+	pluginsApply := middleware.New(configConfig, redisDao, usersUsecase, log, appRepo, layeredCache)
+	gatewayServer := NewGateway(gatewayConfig, configConfig, v, pluginsApply)
 	return gatewayServer
 }

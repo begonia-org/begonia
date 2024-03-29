@@ -7,15 +7,14 @@ import (
 	"net/http"
 	"strconv"
 
-	common "github.com/begonia-org/begonia/common/api/v1"
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/gateway"
 	"github.com/begonia-org/begonia/internal/pkg/logger"
 	"github.com/begonia-org/begonia/internal/pkg/middleware"
-	"github.com/begonia-org/begonia/internal/pkg/middleware/validator"
 	"github.com/begonia-org/begonia/internal/pkg/routers"
 	"github.com/begonia-org/begonia/internal/service"
 	dp "github.com/begonia-org/dynamic-proto"
+	common "github.com/begonia-org/go-sdk/common/api/v1"
 	"github.com/google/wire"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/spark-lence/tiga/pool"
@@ -32,7 +31,7 @@ func NewGatewayConfig(gw string) *dp.GatewayConfig {
 		GatewayAddr:   gw,
 	}
 }
-func NewGateway(cfg *dp.GatewayConfig, conf *config.Config, services []service.Service, validate *validator.APIValidator, logM *middleware.LoggerMiddleware) *dp.GatewayServer {
+func NewGateway(cfg *dp.GatewayConfig, conf *config.Config, services []service.Service, pluginApply *middleware.PluginsApply) *dp.GatewayServer {
 	// 参数选项
 	opts := &dp.GrpcServerOptions{
 		Middlewares:     make([]dp.GrpcProxyMiddleware, 0),
@@ -42,7 +41,6 @@ func NewGateway(cfg *dp.GatewayConfig, conf *config.Config, services []service.S
 		HttpHandlers:    make([]func(http.Handler) http.Handler, 0),
 	}
 	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithMarshalerOption("application/json", middleware.NewResponseJSONMarshaler()))
-	// opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithMarshalerOption(runtime.MIMEWildcard, middleware.NewRawBinaryUnmarshaler()))
 	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithMetadata(middleware.IncomingHeadersToMetadata))
 	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithErrorHandler(middleware.HandleErrorWithLogger(logger.Logger)))
 	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithForwardResponseOption(middleware.HttpResponseBodyModify))
@@ -50,8 +48,8 @@ func NewGateway(cfg *dp.GatewayConfig, conf *config.Config, services []service.S
 	opts.PoolOptions = append(opts.PoolOptions, pool.WithMaxActiveConns(100))
 	opts.PoolOptions = append(opts.PoolOptions, pool.WithPoolSize(128))
 	// 中间件配置
-	opts.Options = append(opts.Options, grpc.ChainUnaryInterceptor(logM.LoggerUnaryInterceptor, middleware.UnaryServerErrInterceptor(logger.Logger), middleware.HttpUnaryInterceptor, validate.ValidateUnaryInterceptor))
-	opts.Options = append(opts.Options, grpc.ChainStreamInterceptor(logM.LoggerStreamInterceptor, middleware.UnaryStreamServerErrInterceptor(logger.Logger), middleware.HttpStreamInterceptor, validate.ValidateStreamInterceptor))
+	opts.Options = append(opts.Options, grpc.ChainUnaryInterceptor(pluginApply.UnaryInterceptorChains()...))
+	opts.Options = append(opts.Options, grpc.ChainStreamInterceptor(pluginApply.StreamInterceptorChains()...))
 
 	cors := &middleware.CorsMiddleware{
 		Cors: conf.GetCorsConfig(),

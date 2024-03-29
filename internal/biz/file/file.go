@@ -12,10 +12,10 @@ import (
 	"strings"
 	"time"
 
-	api "github.com/begonia-org/begonia/api/v1"
-	common "github.com/begonia-org/begonia/common/api/v1"
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/errors"
+	api "github.com/begonia-org/go-sdk/api/v1"
+	common "github.com/begonia-org/go-sdk/common/api/v1"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/spark-lence/tiga"
@@ -165,6 +165,7 @@ func (f *FileUsecase) getSaveDir(key string) (string, error) {
 	return saveDir, nil
 
 }
+
 // checkIn checks the key and authorId.
 //
 // If the key is empty or starts with '/', it returns an error.

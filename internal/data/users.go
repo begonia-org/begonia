@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	api "github.com/begonia-org/begonia/api/v1"
 	"github.com/begonia-org/begonia/internal/biz"
+	api "github.com/begonia-org/go-sdk/api/v1"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 )
@@ -29,9 +29,9 @@ func (r *userRepo) ListUsers(ctx context.Context, conds ...interface{}) ([]*api.
 	return users, nil
 
 }
-func (r *userRepo)GetUser(ctx context.Context,conds ...interface{}) (*api.Users, error) {
+func (r *userRepo) GetUser(ctx context.Context, conds ...interface{}) (*api.Users, error) {
 	user := &api.Users{}
-	err := r.data.Get(user,user, conds...)
+	err := r.data.Get(user, user, conds...)
 	if err != nil {
 		return nil, err
 	}
@@ -53,14 +53,13 @@ func (t *userRepo) DeleteUsers(ctx context.Context, models []*api.Users) error {
 	return t.data.BatchDelete(sources, &api.Users{})
 }
 func (t *userRepo) CacheToken(ctx context.Context, key, token string, exp time.Duration) error {
-    return t.local.Set(ctx, key, []byte(token),exp)
+	return t.local.Set(ctx, key, []byte(token), exp)
 }
 func (t *userRepo) GetToken(ctx context.Context, key string) string {
 	token, _ := t.local.Get(ctx, key)
 	if token != nil {
 		return string(token)
 	}
-
 
 	return ""
 }
@@ -95,7 +94,7 @@ func (u *userRepo) CacheUsers(ctx context.Context, prefix string, models []*api.
 }
 func (u *userRepo) cacheUsers(ctx context.Context, prefix string, uid string, value []byte, exp time.Duration) error {
 	key := fmt.Sprintf("%s:%s", prefix, uid)
-	err := u.local.Set(ctx,key, value,exp)
+	err := u.local.Set(ctx, key, value, exp)
 	if err != nil {
 		return err
 	}

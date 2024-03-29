@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 
-	api "github.com/begonia-org/begonia/api/v1"
+	api "github.com/begonia-org/go-sdk/api/v1"
 	"google.golang.org/grpc"
 )
 

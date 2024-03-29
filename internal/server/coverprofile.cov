@@ -1,11 +1,1 @@
 mode: set
-github.com/begonia-org/begonia/internal/server/server.go:27.52,34.2 3 1
-github.com/begonia-org/begonia/internal/server/server.go:35.176,61.16 12 1
-github.com/begonia-org/begonia/internal/server/server.go:61.16,62.13 1 0
-github.com/begonia-org/begonia/internal/server/server.go:65.2,66.31 2 1
-github.com/begonia-org/begonia/internal/server/server.go:66.31,68.17 2 1
-github.com/begonia-org/begonia/internal/server/server.go:68.17,69.14 1 0
-github.com/begonia-org/begonia/internal/server/server.go:73.2,81.16 8 1
-github.com/begonia-org/begonia/internal/server/server.go:81.16,82.13 1 0
-github.com/begonia-org/begonia/internal/server/server.go:84.2,84.11 1 1
-github.com/begonia-org/begonia/internal/server/wire_gen.go:25.104,48.2 22 1

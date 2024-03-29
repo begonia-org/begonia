@@ -1,16 +1,23 @@
-package biz
+package gateway
 
 import (
 	"context"
 	"fmt"
+	"io/fs"
+	"os"
 	"path/filepath"
 
-	api "github.com/begonia-org/begonia/api/v1"
-	dp "github.com/begonia-org/dynamic-proto"
-
+	"github.com/begonia-org/begonia/internal/biz/file"
 	"github.com/begonia-org/begonia/internal/pkg/config"
+	"github.com/begonia-org/begonia/internal/pkg/errors"
+	dp "github.com/begonia-org/dynamic-proto"
+	api "github.com/begonia-org/go-sdk/api/v1"
+	common "github.com/begonia-org/go-sdk/common/api/v1"
+	"google.golang.org/grpc/codes"
+
 	"github.com/begonia-org/begonia/internal/pkg/gateway"
 	"github.com/begonia-org/begonia/internal/pkg/routers"
+	"github.com/spark-lence/tiga"
 	"github.com/spark-lence/tiga/loadbalance"
 )
 
@@ -26,10 +33,11 @@ type EndpointRepo interface {
 type EndpointUsecase struct {
 	repo   EndpointRepo
 	config *config.Config
+	file   *file.FileUsecase
 }
 
-func NewEndpointUsecase(repo EndpointRepo) *EndpointUsecase {
-	return &EndpointUsecase{repo: repo}
+func NewEndpointUsecase(repo EndpointRepo, file *file.FileUsecase, config *config.Config) *EndpointUsecase {
+	return &EndpointUsecase{repo: repo, file: file, config: config}
 }
 func (u *EndpointUsecase) newEndpoint(lb loadbalance.BalanceType, endpoints []*api.EndpointMeta) ([]loadbalance.Endpoint, error) {
 	eps := make([]loadbalance.Endpoint, 0)
@@ -80,7 +88,85 @@ func (u *EndpointUsecase) newEndpoint(lb loadbalance.BalanceType, endpoints []*a
 
 	}
 }
-func (u *EndpointUsecase) AddEndpoint(ctx context.Context, endpoints []*api.Endpoints) error {
+func (e *EndpointUsecase) tmpProtoFile(data []byte) (string, error) {
+	tempFile, err := os.CreateTemp("", "begonia-endpoint-proto-")
+	if err != nil {
+		return "", fmt.Errorf("Failed to create temp file:%w", err)
+	}
+	defer tempFile.Close()
+
+	// 写入数据到临时文件
+	if _, err := tempFile.Write(data); err != nil {
+		// fmt.Println("Failed to write to temp file:", err)
+		return "", fmt.Errorf("Failed to write to temp file:%w", err)
+	}
+	return tempFile.Name(), nil
+
+}
+func (u *EndpointUsecase) CreateEndpoint(ctx context.Context, endpoint *api.AddEndpointRequest, author string) (string, error) {
+	// destDir := u.config.GetProtosDir()
+
+	// destDir = filepath.Join(destDir, "endpoints", endpoint.GetName(), endpoint.GetVersion())
+	protoFile, err := u.file.Download(ctx, &api.DownloadRequest{Key: endpoint.ProtoPath, Version: endpoint.ProtoVersion}, author)
+	if err != nil {
+		return "", err
+	}
+	tmp, err := u.tmpProtoFile(protoFile)
+	if err != nil {
+		return "", errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "create_tmp_file")
+
+	}
+	defer os.Remove(tmp)
+	// destDir := filepath.Join(u.config.GetProtosDir(), "endpoints", endpoint.GetName(), endpoint.ProtoVersion)
+	destDir, err := os.MkdirTemp("", "endpoints")
+	if err != nil {
+		return "", errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "create_tmp_dir")
+
+	}
+	defer os.RemoveAll(destDir)
+
+	err = tiga.Decompress(tmp, destDir)
+	if err != nil {
+		return "", errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "decompress_proto_file")
+	}
+
+	eps, err := u.newEndpoint(loadbalance.BalanceType(endpoint.Balance), endpoint.GetEndpoints())
+	if err != nil {
+		return "", errors.New(errors.ErrUnknownLoadBalancer, int32(api.EndpointSvrStatus_NOT_SUPPORT_BALANCE), codes.InvalidArgument, "new_endpoint")
+	}
+	lb, err := loadbalance.New(loadbalance.BalanceType(endpoint.Balance), eps)
+	if err != nil {
+		return "", errors.New(fmt.Errorf("new loadbalance error: %w", err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "new_loadbalance")
+	}
+	err = filepath.WalkDir(destDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// 检查是否为目录且确保只获取一级子目录
+		if d.IsDir() && filepath.Dir(path) == destDir {
+			pd, err := dp.NewDescription(path)
+			if err != nil {
+				return errors.New(fmt.Errorf("new description error: %w", err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "new_description")
+			}
+			routersList := routers.Get()
+			routersList.LoadAllRouters(pd)
+			err = gateway.Get().RegisterService(ctx, pd, lb)
+			if err != nil {
+				return errors.New(fmt.Errorf("register service error: %w", err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "register_service")
+			}
+		}
+
+		return nil
+	})
+
+
+	if err != nil {
+		return "", err
+	}
+	return "", nil
+}
+func (u *EndpointUsecase) AddEndpoints(ctx context.Context, endpoints []*api.Endpoints) error {
 	pds := make([]dp.ProtobufDescription, 0)
 	var err error
 	gw := gateway.Get()
@@ -92,7 +178,7 @@ func (u *EndpointUsecase) AddEndpoint(ctx context.Context, endpoints []*api.Endp
 			}
 		}
 	}()
-	routersList:=routers.Get()
+	routersList := routers.Get()
 	for _, endpoint := range endpoints {
 		destDir := u.config.GetProtosDir()
 

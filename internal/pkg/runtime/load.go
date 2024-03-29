@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -113,12 +112,9 @@ func (p *protoLoaderImpl) Makefile(dir, pkg, outDir string) (string, error) {
 	// 创建一个缓冲区用来存储命令的输出
 	var out bytes.Buffer
 	cmd.Stdout = &out
-	wd, _ := os.Getwd()
-	log.Println("执行命令:", cmd.String(), wd)
 	// 执行命令
 	err := cmd.Run()
 	if err != nil {
-		fmt.Println("Error:", err)
 		return "", fmt.Errorf("执行命令失败,%w,%s", err, out.String())
 	}
 	return pluginName, nil
