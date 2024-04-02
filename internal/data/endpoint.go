@@ -5,6 +5,7 @@ import (
 
 	"github.com/begonia-org/begonia/internal/biz/gateway"
 	api "github.com/begonia-org/go-sdk/api/v1"
+	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 type endpointRepoImpl struct {
@@ -48,4 +49,15 @@ func (r *endpointRepoImpl) ListEndpoint(ctx context.Context, plugins []string) (
 	// err := r.data.List(&api.Endpoints{}, &endpoints, "plugin_id in (?)", plugins)
 	// return err, endpoints
 	return nil, nil
+}
+
+func (r *endpointRepoImpl) PutConfig(ctx context.Context, key string, value string) (error) {
+	return r.data.EtcdPut(ctx,key, value)
+	// return "", nil
+}
+func (e *endpointRepoImpl)PutEndpoint(ctx context.Context, ops []clientv3.Op) (bool,error) {
+	return e.data.PutEtcdWithTxn(ctx, ops)
+}
+func (e *endpointRepoImpl)GetConfig(ctx context.Context, key string) (string,error) {
+	return e.data.EtcdGet(ctx, key)
 }

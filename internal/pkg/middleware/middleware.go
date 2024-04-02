@@ -27,13 +27,15 @@ func New(config *config.Config,
 	local *data.LayeredCache) *PluginsApply {
 	jwt := validator.NewJWTAuth(config, rdb, user, log)
 	ak := validator.NewAccessKeyAuth(app, config, local, log)
+	apiKey:=validator.NewApiKeyAuth(config)
 	plugins := map[string]gosdk.LocalPlugin{
 		"onlyJWT":   jwt,
 		"onlyAK":    ak,
 		"logger":    NewLoggerMiddleware(log),
 		"exception": NewException(log),
 		"http":      NewHttp(),
-		"auth":      NewAuth(ak, jwt),
+		"auth":      NewAuth(ak, jwt,apiKey),
+		"only_api_key_auth": apiKey,
 		// "logger":NewLoggerMiddleware(log),
 	}
 	pluginsApply := NewPluginsApply()

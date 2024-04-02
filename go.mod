@@ -5,16 +5,15 @@ go 1.20
 require (
 	// github.com/begonia-org/begonia/common v0.0.0-20240220080319-965ae95c8876
 	// github.com/begonia-org/begonia/endpoint v0.0.0-20240220080319-965ae95c8876
-	github.com/begonia-org/dynamic-proto v0.0.0-00010101000000-000000000000
+	// github.com/begonia-org/dynamic-proto v0.0.0-00010101000000-000000000000
 	github.com/begonia-org/go-layered-cache v0.0.0-20240312022317-e888e2200e7f
 	github.com/bsm/redislock v0.9.4
 	github.com/cockroachdb/errors v1.11.1
 	github.com/google/wire v0.5.0
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.19.1
 	github.com/smartystreets/goconvey v1.8.1
 	github.com/spark-lence/tiga v0.0.0-20240227050256-74ab5fae9bec
 	github.com/spf13/cobra v1.8.0
-	google.golang.org/genproto/googleapis/api v0.0.0-20240221002015-b0ce06bbee7c
+	google.golang.org/genproto/googleapis/api v0.0.0-20240325203815-454cdb8f5daa
 	google.golang.org/grpc v1.62.1
 	google.golang.org/protobuf v1.33.0
 )
@@ -80,10 +79,11 @@ require (
 )
 
 require (
-	github.com/begonia-org/begonia/endpoint v0.0.0-20240223143650-a47df10db8e0
+	github.com/begonia-org/dynamic-proto v0.0.0-00010101000000-000000000000
 	github.com/begonia-org/go-loadbalancer v0.0.0-20240329014325-4a48bea6bec5
-	github.com/begonia-org/go-sdk v0.0.0-20240327074433-f18fef230058
+	github.com/begonia-org/go-sdk v0.0.0-20240327074433-f18fef230058compiler
 	github.com/go-git/go-git/v5 v5.11.0
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.19.1
 	go.etcd.io/etcd/client/v3 v3.5.12
 )
 
@@ -108,6 +108,7 @@ require (
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/gopherjs/gopherjs v1.17.2 // indirect
 	github.com/gorilla/websocket v1.5.1 // indirect
+	github.com/iancoleman/strcase v0.3.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
 	github.com/jtolds/gls v4.20.0+incompatible // indirect
@@ -128,8 +129,7 @@ require (
 	golang.org/x/sys v0.18.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/tools v0.19.0 // indirect
-	google.golang.org/genproto v0.0.0-20240221002015-b0ce06bbee7c // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240221002015-b0ce06bbee7c // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240325203815-454cdb8f5daa // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 )
 
@@ -144,3 +144,6 @@ replace github.com/begonia-org/go-sdk => ../begonia-go-sdk
 replace github.com/begonia-org/go-loadbalancer => ../go-loadbalancer
 
 // replace github.com/begonia-org/begonia/common => ./common
+replace github.com/grpc-ecosystem/grpc-gateway/v2 v2.19.1 => github.com/geebytes/grpc-gateway/v2 v2.0.0-20240330063207-392782282837
+
+replace github.com/geebytes/grpc-gateway/v2 => /data/work/geebytes/grpc-gateway

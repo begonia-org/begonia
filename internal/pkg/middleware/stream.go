@@ -12,6 +12,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -67,9 +68,22 @@ func (s *grpcPluginStream) RecvMsg(m interface{}) error {
 		return errors.New(fmt.Errorf("call %s plugin error: %w", s.plugin.Name(), err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "call_plugin")
 
 	}
-	if len(rsp.Metadata) > 0 {
-		s.ctx = metadata.NewIncomingContext(s.ctx, metadata.New(rsp.Metadata))
+	md, ok := metadata.FromIncomingContext(s.ctx)
+	if !ok {
+		md = metadata.New(nil)
 	}
+	for k, v := range rsp.Metadata {
+		md.Append(k, v)
+	}
+	newRequest := rsp.NewRequest
+	if newRequest != nil {
+		err = newRequest.UnmarshalTo(m.(proto.Message))
+		if err != nil {
+			return errors.New(fmt.Errorf("unmarshal to request error: %w", err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "unmarshal_to_request")
+		}
+	}
+	s.ctx = metadata.NewIncomingContext(s.ctx, md)
+
 	// s.ctx = metadata.NewIncomingContext(s.ctx, metadata.New(rsp.Metadata))
 	return err
 }

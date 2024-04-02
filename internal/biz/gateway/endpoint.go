@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/begonia-org/begonia/internal/biz/file"
 	"github.com/begonia-org/begonia/internal/pkg/config"
@@ -13,7 +14,10 @@ import (
 	dp "github.com/begonia-org/dynamic-proto"
 	api "github.com/begonia-org/go-sdk/api/v1"
 	common "github.com/begonia-org/go-sdk/common/api/v1"
+	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/begonia-org/begonia/internal/pkg/gateway"
 	"github.com/begonia-org/begonia/internal/pkg/routers"
@@ -28,66 +32,23 @@ type EndpointRepo interface {
 	UpdateEndpoint(ctx context.Context, endpoints []*api.Endpoints) error
 	GetEndpoint(ctx context.Context, pluginId string) (*api.Endpoints, error)
 	ListEndpoint(ctx context.Context, plugins []string) ([]*api.Endpoints, error)
+	PutConfig(ctx context.Context, key string, value string) error
+	PutEndpoint(ctx context.Context, ops []clientv3.Op) (bool, error)
+	GetConfig(ctx context.Context, key string) (string, error)
 }
 
 type EndpointUsecase struct {
 	repo   EndpointRepo
 	config *config.Config
 	file   *file.FileUsecase
+	snk    *tiga.Snowflake
 }
 
 func NewEndpointUsecase(repo EndpointRepo, file *file.FileUsecase, config *config.Config) *EndpointUsecase {
-	return &EndpointUsecase{repo: repo, file: file, config: config}
+	snk, _ := tiga.NewSnowflake(1)
+	return &EndpointUsecase{repo: repo, file: file, config: config, snk: snk}
 }
-func (u *EndpointUsecase) newEndpoint(lb loadbalance.BalanceType, endpoints []*api.EndpointMeta) ([]loadbalance.Endpoint, error) {
-	eps := make([]loadbalance.Endpoint, 0)
-	gw := gateway.Get()
 
-	opts := gw.GetOptions()
-	for _, ep := range endpoints {
-		pool := dp.NewGrpcConnPool(ep.GetAddr(), opts.PoolOptions...)
-		eps = append(eps, dp.NewGrpcEndpoint(ep.GetAddr(), pool))
-	}
-	switch lb {
-	case loadbalance.RRBalanceType:
-		return eps, nil
-	case loadbalance.WRRBalanceType:
-		wrrEndpoints := make([]loadbalance.Endpoint, 0)
-		for index, ep := range eps {
-			wrrEndpoints = append(wrrEndpoints, loadbalance.NewWRREndpointImpl(ep, int(endpoints[index].GetWeight())))
-		}
-		return wrrEndpoints, nil
-	case loadbalance.ConsistentHashBalanceType:
-		return eps, nil
-	case loadbalance.LCBalanceType:
-		lcEndpoints := make([]loadbalance.Endpoint, 0)
-		for _, ep := range eps {
-			lcEndpoints = append(lcEndpoints, loadbalance.NewLCEndpointImpl(ep))
-		}
-		return lcEndpoints, nil
-	case loadbalance.SEDBalanceType:
-		sedEndpoints := make([]loadbalance.Endpoint, 0)
-		for index, ep := range eps {
-			sedEndpoints = append(sedEndpoints, loadbalance.NewSedEndpointImpl(ep, int(endpoints[index].GetWeight())))
-		}
-		return sedEndpoints, nil
-	case loadbalance.WLCBalanceType:
-		wlcEndpoints := make([]loadbalance.Endpoint, 0)
-		for index, ep := range eps {
-			wlcEndpoints = append(wlcEndpoints, loadbalance.NewWLCEndpointImpl(ep, int(endpoints[index].GetWeight())))
-		}
-		return wlcEndpoints, nil
-	case loadbalance.NQBalanceType:
-		nqEndpoints := make([]loadbalance.Endpoint, 0)
-		for index, ep := range eps {
-			nqEndpoints = append(nqEndpoints, loadbalance.NewSedEndpointImpl(ep, int(endpoints[index].GetWeight())))
-		}
-		return nqEndpoints, nil
-	default:
-		return nil, fmt.Errorf("Unknown load balance type")
-
-	}
-}
 func (e *EndpointUsecase) tmpProtoFile(data []byte) (string, error) {
 	tempFile, err := os.CreateTemp("", "begonia-endpoint-proto-")
 	if err != nil {
@@ -103,15 +64,16 @@ func (e *EndpointUsecase) tmpProtoFile(data []byte) (string, error) {
 	return tempFile.Name(), nil
 
 }
-func (u *EndpointUsecase) CreateEndpoint(ctx context.Context, endpoint *api.AddEndpointRequest, author string) (string, error) {
+
+func (e *EndpointUsecase) CreateEndpoint(ctx context.Context, endpoint *api.AddEndpointRequest, author string) (string, error) {
 	// destDir := u.config.GetProtosDir()
 
 	// destDir = filepath.Join(destDir, "endpoints", endpoint.GetName(), endpoint.GetVersion())
-	protoFile, err := u.file.Download(ctx, &api.DownloadRequest{Key: endpoint.ProtoPath, Version: endpoint.ProtoVersion}, author)
+	protoFile, err := e.file.Download(ctx, &api.DownloadRequest{Key: endpoint.ProtoPath, Version: endpoint.ProtoVersion}, author)
 	if err != nil {
 		return "", err
 	}
-	tmp, err := u.tmpProtoFile(protoFile)
+	tmp, err := e.tmpProtoFile(protoFile)
 	if err != nil {
 		return "", errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "create_tmp_file")
 
@@ -130,7 +92,7 @@ func (u *EndpointUsecase) CreateEndpoint(ctx context.Context, endpoint *api.AddE
 		return "", errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "decompress_proto_file")
 	}
 
-	eps, err := u.newEndpoint(loadbalance.BalanceType(endpoint.Balance), endpoint.GetEndpoints())
+	eps, err := newEndpoint(loadbalance.BalanceType(endpoint.Balance), endpoint.GetEndpoints())
 	if err != nil {
 		return "", errors.New(errors.ErrUnknownLoadBalancer, int32(api.EndpointSvrStatus_NOT_SUPPORT_BALANCE), codes.InvalidArgument, "new_endpoint")
 	}
@@ -138,6 +100,7 @@ func (u *EndpointUsecase) CreateEndpoint(ctx context.Context, endpoint *api.AddE
 	if err != nil {
 		return "", errors.New(fmt.Errorf("new loadbalance error: %w", err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "new_loadbalance")
 	}
+	id := e.snk.GenerateIDString()
 	err = filepath.WalkDir(destDir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -155,16 +118,74 @@ func (u *EndpointUsecase) CreateEndpoint(ctx context.Context, endpoint *api.AddE
 			if err != nil {
 				return errors.New(fmt.Errorf("register service error: %w", err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "register_service")
 			}
+			id, err = e.AddConfig(ctx, &api.EndpointSrvConfig{
+				Name:          endpoint.Name,
+				Description:   endpoint.Description,
+				Tags:          endpoint.Tags,
+				DescriptorSet: pd.GetDescription(),
+				Endpoints:     endpoint.Endpoints,
+				Balance:       endpoint.Balance,
+				ServiceName:   endpoint.ServiceName,
+			})
+			if err != nil {
+				return errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "add_config")
+			}
+
 		}
 
 		return nil
 	})
 
-
 	if err != nil {
 		return "", err
 	}
-	return "", nil
+	return id, nil
+}
+
+func (e *EndpointUsecase) AddConfig(ctx context.Context, srvConfig *api.EndpointSrvConfig) (string, error) {
+	// prefix := e.config.GetEndpointsPrefix()
+	exists, err := e.repo.GetConfig(ctx, getServiceNameKey(e.config, srvConfig.Name))
+	if err != nil {
+		return "", errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_config")
+
+	}
+	if exists != "" {
+		return "", errors.New(errors.ErrEndpointExists, int32(api.EndpointSvrStatus_SERVICE_NAME_DUPLICATE), codes.AlreadyExists, "endpoint_exists")
+
+	}
+	id := e.snk.GenerateIDString()
+	srvKey := getServiceKey(e.config, id)
+	endpoint := &api.Endpoints{
+		Name:          srvConfig.Name,
+		Description:   srvConfig.Description,
+		Tags:          srvConfig.Tags,
+		Version:       fmt.Sprintf("%d", time.Now().UnixMilli()),
+		CreatedAt:     timestamppb.New(time.Now()).AsTime().Format(time.RFC3339),
+		UpdatedAt:     timestamppb.New(time.Now()).AsTime().Format(time.RFC3339),
+		UniqueKey:     id,
+		Endpoints:     srvConfig.Endpoints,
+		Balance:       srvConfig.Balance,
+		ServiceName:   srvConfig.ServiceName,
+		DescriptorSet: srvConfig.DescriptorSet,
+	}
+
+	ops := make([]clientv3.Op, 0)
+	// Add service key to tag list
+	for _, tag := range srvConfig.Tags {
+		tagKey := getTagsKey(e.config, tag, id)
+		ops = append(ops, clientv3.OpPut(tagKey, srvKey))
+	}
+	ops = append(ops, clientv3.OpPut(getServiceNameKey(e.config, endpoint.Name), srvKey))
+	details, _ := protojson.Marshal(endpoint)
+	ops = append(ops, clientv3.OpPut(getDetailsKey(e.config, id), string(details)))
+	ok, err := e.repo.PutEndpoint(ctx, ops)
+	if err != nil {
+		return "", errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "put_endpoint")
+	}
+	if !ok {
+		return "", errors.New(fmt.Errorf("put config fail"), int32(common.Code_INTERNAL_ERROR), codes.Internal, "put_endpoint")
+	}
+	return id, nil
 }
 func (u *EndpointUsecase) AddEndpoints(ctx context.Context, endpoints []*api.Endpoints) error {
 	pds := make([]dp.ProtobufDescription, 0)
@@ -174,7 +195,7 @@ func (u *EndpointUsecase) AddEndpoints(ctx context.Context, endpoints []*api.End
 	defer func() {
 		if err != nil {
 			for _, pd := range pds {
-				gw.DeleteService(pd)
+				gw.DeleteLoadBalance(pd)
 			}
 		}
 	}()
@@ -183,7 +204,10 @@ func (u *EndpointUsecase) AddEndpoints(ctx context.Context, endpoints []*api.End
 		destDir := u.config.GetProtosDir()
 
 		destDir = filepath.Join(destDir, "endpoints", endpoint.GetName(), endpoint.GetVersion())
-		eps, err := u.newEndpoint(loadbalance.BalanceType(endpoint.Balance), endpoint.GetEndpoint())
+		if err := os.MkdirAll(destDir, 0755); err != nil {
+			return fmt.Errorf("create dir error: %w", err)
+		}
+		eps, err := newEndpoint(loadbalance.BalanceType(endpoint.Balance), endpoint.GetEndpoints())
 		if err != nil {
 			return fmt.Errorf("new endpoint error: %w", err)
 		}

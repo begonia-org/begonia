@@ -24,7 +24,6 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
-	"google.golang.org/protobuf/types/dynamicpb"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/structpb"
 )
@@ -40,7 +39,7 @@ type HttpStream struct {
 }
 type Http struct {
 	priority int
-	name string
+	name     string
 }
 
 func (s *HttpStream) SendMsg(m interface{}) error {
@@ -94,21 +93,7 @@ func clientMessageFromCode(code codes.Code) string {
 //		mimeType, _, err := mime.ParseMediaType(ct)
 //		return err == nil && mimeType != ""
 //	}
-func convertDynamicMessageToHttpBody(dynamicMessage *dynamicpb.Message) (*httpbody.HttpBody, error) {
-	// 序列化dynamicpb.Message为字节流
-	serialized, err := proto.Marshal(dynamicMessage)
-	if err != nil {
-		return nil, err
-	}
 
-	// 反序列化字节流回原始的HttpBody
-	var httpBody httpbody.HttpBody
-	if err := proto.Unmarshal(serialized, &httpBody); err != nil {
-		return nil, err
-	}
-
-	return &httpBody, nil
-}
 func writeHttpHeaders(w http.ResponseWriter, key string, value []string) {
 	if httpKey := gosdk.GetHttpHeaderKey(key); httpKey != "" {
 		for _, v := range value {
@@ -330,7 +315,7 @@ func (h *Http) UnaryInterceptor(ctx context.Context, req interface{}, info *grpc
 	if !ok {
 		return handler(ctx, req)
 	}
-	if protocol, ok := md["grpcgateway-content-type"]; ok {
+	if protocol, ok := md["grpcgateway-accept"]; ok {
 		if !strings.EqualFold(protocol[0], "application/json") {
 			return handler(ctx, req)
 		}

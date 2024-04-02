@@ -36,53 +36,15 @@ func (e *EndpointsService) Create(ctx context.Context, in *api.AddEndpointReques
 	}
 	return &api.AddEndpointResponse{UniqueKey: key}, nil
 }
+func (e *EndpointsService) Config(ctx context.Context,in *api.EndpointSrvConfig) (*api.AddEndpointResponse, error) {
+	id,err:=e.biz.AddConfig(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return &api.AddEndpointResponse{UniqueKey: id}, nil
+}
 
-// func (e *EndpointsService) Update(ctx context.Context, in *api.EndpointRequest) (*common.APIResponse, error) {
-// 	err := e.biz.UpdateEndpoint(ctx, in.Endpoints)
-// 	if err != nil {
-// 		return web.MakeResponse(nil, err)
-// 	}
-// 	return web.MakeResponse(nil, nil)
-// }
-// func (e *EndpointsService) Delete(ctx context.Context, in *api.EndpointRequest) (*common.APIResponse, error) {
-// 	err := e.biz.DeleteEndpoint(ctx, in.Endpoints)
-// 	if err != nil {
-// 		return web.MakeResponse(nil, err)
-// 	}
-// 	return web.MakeResponse(nil, nil)
-// }
-
-//	func (e *EndpointsService) List(ctx context.Context, in *api.EndpointRequest) (*common.APIResponse, error) {
-//		return web.MakeResponse(nil, nil)
-//	}
 func (e *EndpointsService) Desc() *grpc.ServiceDesc {
 	return &api.EndpointService_ServiceDesc
 }
 
-// service EndpointService{
-//     rpc Create(EndpointRequest) returns (.begonia.org.begonia.common.api.v1.APIResponse){
-//         option (google.api.http) = {
-//             post: "/api/v1/endpoint/create"
-//             body: "*"
-//           };
-
-//     };
-//     rpc Update(EndpointRequest) returns (.begonia.org.begonia.common.api.v1.APIResponse){
-//         option (google.api.http) = {
-//             post: "/api/v1/endpoint/update"
-//             body: "*"
-//           };
-//     };
-//     rpc Delete(EndpointRequest) returns (.begonia.org.begonia.common.api.v1.APIResponse){
-//         option (google.api.http) = {
-//             post: "/api/v1/endpoint/delete"
-//             body: "*"
-//           };
-//     };
-//     rpc List(EndpointRequest) returns (.begonia.org.begonia.common.api.v1.APIResponse){
-//         option (google.api.http) = {
-//             post: "/api/v1/endpoint/list"
-//             body: "*"
-//           };
-//     };
-// }

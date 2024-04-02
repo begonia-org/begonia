@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"log"
 	"net/http"
 	"path/filepath"
 	"runtime"
@@ -13,11 +14,11 @@ import (
 	"time"
 
 	"github.com/begonia-org/begonia/config"
-	"github.com/begonia-org/begonia/example/server"
 	"github.com/begonia-org/begonia/internal/pkg/logger"
 	dp "github.com/begonia-org/dynamic-proto"
 	gosdk "github.com/begonia-org/go-sdk"
 	api "github.com/begonia-org/go-sdk/api/v1"
+	"github.com/begonia-org/go-sdk/example"
 
 	c "github.com/smartystreets/goconvey/convey"
 	"github.com/spark-lence/tiga/loadbalance"
@@ -32,38 +33,35 @@ func RunTestServer() {
 		serverForTest = New(config, logger.Logger, "0.0.0.0:12140")
 		go func() {
 			err := serverForTest.Start()
+			log.Printf("启动服务:%v", err)
 			if err != nil {
+				log.Fatal(err)
 				panic(err)
 			}
 		}()
 		go func() {
-			server.Run("127.0.0.1:29527")
+			example.Run("127.0.0.1:29527")
 		}()
 		go func() {
-			server.Run("127.0.0.1:9000")
+			example.RunPlugins("127.0.0.1:9000")
 		}()
 		go func() {
-			server.Run("127.0.0.1:9001")
+			example.RunPlugins("127.0.0.1:9001")
 		}()
+
 	})
 }
 func TestMain(m *testing.M) {
+
 	RunTestServer()
-	
+	time.Sleep(5 * time.Second)
+
 	m.Run()
 
 }
 func TestServer(t *testing.T) {
 	c.Convey("test server init", t, func() {
 
-		config := config.ReadConfig("dev")
-		server := New(config, logger.Logger, "0.0.0.0:12141")
-		go func() {
-			err := server.Start()
-			t.Error(err)
-		}()
-		// err := server.Start()
-		// t.Error(err)
 		time.Sleep(3 * time.Second)
 
 		url := "http://127.0.0.1:12140/api/v1/auth/log"
@@ -73,14 +71,19 @@ func TestServer(t *testing.T) {
 
 		client := &http.Client{}
 		req, err := http.NewRequest(method, url, payload)
+		req.Header.Add("accept", "application/json")
+		req.Header.Add("Content-Type", "application/json")
 		c.So(err, c.ShouldBeNil)
 
 		res, err := client.Do(req)
-		c.So(err, c.ShouldBeNil)
-		c.So(res.StatusCode, c.ShouldEqual, 200)
-		defer res.Body.Close()
 
 		body, err := io.ReadAll(res.Body)
+		t.Log(string(body))
+		defer res.Body.Close()
+
+		c.So(err, c.ShouldBeNil)
+		c.So(res.StatusCode, c.ShouldEqual, 200)
+
 		c.So(err, c.ShouldBeNil)
 		c.So(body, c.ShouldNotBeNil)
 	})
@@ -88,8 +91,7 @@ func TestServer(t *testing.T) {
 
 func TestCreateEndpointAPI(t *testing.T) {
 	c.Convey("test create endpoint api", t, func() {
-		RunTestServer()
-		time.Sleep(3 * time.Second)
+
 		// url := "http://127.0.0.1:12140/api/v1/endpoint/create"
 		cli := gosdk.NewBegoniaClient("http://127.0.0.1:12140", "NWkbCslfh9ea2LjVIUsKehJuopPb65fn",
 			"oVPNllSR1DfizdmdSF7wLjgABYbexdt4FZ1HWrI81dD5BeNhsyXpXPDFoDEyiSVe")

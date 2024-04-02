@@ -76,9 +76,23 @@ func (p *pluginImpl) UnaryInterceptor(ctx context.Context, req any, info *grpc.U
 	if err != nil {
 		return nil, errors.New(fmt.Errorf("call plugin error: %w", err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "call_plugin")
 	}
-	if len(rsp.Metadata) > 0 {
-		ctx = metadata.NewIncomingContext(ctx, metadata.New(rsp.Metadata))
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		md = metadata.New(nil)
 	}
+	for k, v := range rsp.Metadata {
+		md.Append(k, v)
+	}
+
+	newRequest := rsp.NewRequest
+	if newRequest != nil {
+		err = newRequest.UnmarshalTo(req.(proto.Message))
+		if err != nil {
+			return nil, errors.New(fmt.Errorf("unmarshal to request error: %w", err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "unmarshal_to_request")
+		}
+	}
+
+	ctx = metadata.NewIncomingContext(ctx, md)
 	return handler(ctx, req)
 }
 func (p *pluginImpl) getEndpoint(ctx context.Context) (lb.Endpoint, error) {

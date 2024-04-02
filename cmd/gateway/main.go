@@ -5,7 +5,6 @@ import (
 
 	"github.com/begonia-org/begonia/config"
 	"github.com/begonia-org/begonia/internal/pkg/logger"
-	"github.com/begonia-org/begonia/internal/server"
 	"github.com/spf13/cobra"
 )
 
@@ -41,8 +40,8 @@ func NewGatewayCmd() *cobra.Command {
 			// name, _ := cmd.Flags().GetString("name")
 			env, _ := cmd.Flags().GetString("env")
 			config := config.ReadConfig(env)
-			server := server.New(config, logger.Logger, endpoint)
-			err := server.Start()
+			worker := New(config, logger.Logger, endpoint)
+			err := worker.Start()
 			if err != nil {
 				log.Fatalf("failed to start master: %v", err)
 			}

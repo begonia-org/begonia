@@ -17,22 +17,31 @@ import (
 type Auth struct {
 	ak       *validator.AccessKeyAuth
 	jwt      *validator.JWTAuth
+	apikey   validator.ApiKeyAuth
 	priority int
-	name string
+	name     string
 }
 
-func NewAuth(ak *validator.AccessKeyAuth, jwt *validator.JWTAuth) gosdk.LocalPlugin {
+func NewAuth(ak *validator.AccessKeyAuth, jwt *validator.JWTAuth, apikey validator.ApiKeyAuth) gosdk.LocalPlugin {
 	return &Auth{
-		ak:  ak,
-		jwt: jwt,
-		name: "auth",
+		ak:     ak,
+		jwt:    jwt,
+		apikey: apikey,
+		name:   "auth",
 	}
 }
 
 func (a *Auth) UnaryInterceptor(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
+	if !validator.IfNeedValidate(ctx, info.FullMethod) {
+		return handler(ctx, req)
+	}
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
 		return nil, status.Errorf(codes.Unauthenticated, "metadata not exists in context")
+	}
+	xApiKey:=md.Get("x-api-key")
+	if len(xApiKey) != 0 {
+		return a.apikey.UnaryInterceptor(ctx, req, info, handler)
 	}
 	authorization := a.jwt.GetAuthorizationFromMetadata(md)
 
@@ -55,9 +64,16 @@ func (a *Auth) UnaryInterceptor(ctx context.Context, req any, info *grpc.UnarySe
 }
 
 func (a *Auth) StreamInterceptor(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+	if !validator.IfNeedValidate(ss.Context(), info.FullMethod) {
+		return handler(srv, ss)
+	}
 	md, ok := metadata.FromIncomingContext(ss.Context())
 	if !ok {
 		return status.Errorf(codes.Unauthenticated, "metadata not exists in context")
+	}
+	xApiKey:=md.Get("x-api-key")
+	if len(xApiKey) != 0 {
+		return a.apikey.StreamInterceptor(srv, ss, info, handler)
 	}
 	authorization := a.jwt.GetAuthorizationFromMetadata(md)
 
@@ -88,6 +104,6 @@ func (a *Auth) Priority() int {
 	return a.priority
 }
 
-func (a *Auth)Name() string {
+func (a *Auth) Name() string {
 	return a.name
 }

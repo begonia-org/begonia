@@ -28,7 +28,7 @@ type JWTAuth struct {
 	biz      *biz.UsersUsecase
 	log      *logrus.Logger
 	priority int
-	name string
+	name     string
 }
 
 func NewJWTAuth(config *config.Config, rdb *tiga.RedisDao, biz *biz.UsersUsecase, log *logrus.Logger) *JWTAuth {
@@ -37,7 +37,7 @@ func NewJWTAuth(config *config.Config, rdb *tiga.RedisDao, biz *biz.UsersUsecase
 		rdb:    rdb,
 		biz:    biz,
 		log:    log,
-		name: "jwt_auth",
+		name:   "jwt_auth",
 	}
 }
 func (a *JWTAuth) GetAuthorizationFromMetadata(md metadata.MD) string {
@@ -241,6 +241,9 @@ func (a *JWTAuth) StreamResponseAfter(ctx context.Context, ss grpc.ServerStream,
 }
 
 func (a *JWTAuth) UnaryInterceptor(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
+	if !IfNeedValidate(ctx, info.FullMethod) {
+		return handler(ctx, req)
+	}
 	ctx, err = a.RequestBefore(ctx, info, req)
 	if err != nil {
 		return nil, err
@@ -256,6 +259,9 @@ func (a *JWTAuth) UnaryInterceptor(ctx context.Context, req any, info *grpc.Unar
 }
 
 func (a *JWTAuth) StreamInterceptor(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+	if !IfNeedValidate(ss.Context(), info.FullMethod) {
+		return handler(srv, ss)
+	}
 	grpcStream, err := a.StreamRequestBefore(ss.Context(), ss, info, srv)
 	if err != nil {
 		return err

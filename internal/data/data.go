@@ -51,7 +51,7 @@ func NewEtcd(config *tiga.Configuration) *tiga.EtcdDao {
 	return etcd
 }
 
-var ProviderSet = wire.NewSet(NewMySQL, NewRDB, NewEtcd, GetRDBClient, NewData, NewLayeredCache, NewUserRepo, NewFileRepoImpl, NewEndpointRepoImpl, NewAppRepoImpl)
+var ProviderSet = wire.NewSet(NewMySQL, NewRDB, NewEtcd, GetRDBClient, NewData, NewLayeredCache, NewUserRepo, NewFileRepoImpl, NewEndpointRepoImpl, NewAppRepoImpl,NewDataOperatorRepo)
 
 type Data struct {
 	// mysql
@@ -221,6 +221,9 @@ func (d *Data) BatchDelete(models []SourceType, dataModel interface{}) error {
 func (d *Data) EtcdPut(ctx context.Context, key string, value string, opts ...clientv3.OpOption) error {
 	return d.etcd.Put(ctx, key, value, opts...)
 }
+func (d *Data) PutEtcdWithTxn(ctx context.Context, ops []clientv3.Op) (bool, error) {
+	return d.etcd.BatchOps(ctx, ops)
+}
 func NewSourceTypeArray(models interface{}) []SourceType {
 	items := tiga.GetArrayOrSlice(models)
 	sources := make([]SourceType, 0)
@@ -228,4 +231,7 @@ func NewSourceTypeArray(models interface{}) []SourceType {
 		sources = append(sources, item.(SourceType))
 	}
 	return sources
+}
+func (d *Data)EtcdGet(ctx context.Context, key string) (string,error) {
+	return d.etcd.GetString(ctx, key)
 }

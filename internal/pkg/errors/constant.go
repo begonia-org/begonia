@@ -102,4 +102,8 @@ var (
 	ErrIdentityMissing = errors.New("identity缺失")
 
 	ErrUnknownLoadBalancer = errors.New("未知的负载均衡器")
+
+	ErrAPIKeyNotMatch = errors.New("api key不匹配")
+
+	ErrEndpointExists = errors.New("endpoint已存在")
 )

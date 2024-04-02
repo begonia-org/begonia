@@ -1,4 +1,4 @@
-package middleware
+package serialization
 
 import (
 	"fmt"
@@ -13,6 +13,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/dynamicpb"
 
@@ -23,6 +24,7 @@ type RawBinaryUnmarshaler runtime.HTTPBodyMarshaler
 type ResponseJSONMarshaler struct {
 	runtime.JSONPb
 }
+
 type EventSourceMarshaler struct {
 	ResponseJSONMarshaler
 }
@@ -93,9 +95,24 @@ func NewRawBinaryUnmarshaler() *RawBinaryUnmarshaler {
 //	func (m *RawBinaryUnmarshaler) NewDecoder(r io.Reader) runtime.Decoder {
 //		return &BinaryDecoder{"Data", r}
 //	}
+func ConvertDynamicMessageToHttpBody(dynamicMessage *dynamicpb.Message) (*httpbody.HttpBody, error) {
+	// 序列化dynamicpb.Message为字节流
+	serialized, err := proto.Marshal(dynamicMessage)
+	if err != nil {
+		return nil, err
+	}
+
+	// 反序列化字节流回原始的HttpBody
+	var httpBody httpbody.HttpBody
+	if err := proto.Unmarshal(serialized, &httpBody); err != nil {
+		return nil, err
+	}
+
+	return &httpBody, nil
+}
 func (m *RawBinaryUnmarshaler) ContentType(v interface{}) string {
 	if dpb, ok := v.(*dynamicpb.Message); ok {
-		if httpBody, err := convertDynamicMessageToHttpBody(dpb); err == nil && httpBody != nil {
+		if httpBody, err := ConvertDynamicMessageToHttpBody(dpb); err == nil && httpBody != nil {
 			return httpBody.GetContentType()
 		}
 	}
@@ -103,7 +120,7 @@ func (m *RawBinaryUnmarshaler) ContentType(v interface{}) string {
 }
 func (m *RawBinaryUnmarshaler) Marshal(v interface{}) ([]byte, error) {
 	if dpb, ok := v.(*dynamicpb.Message); ok {
-		if httpBody, err := convertDynamicMessageToHttpBody(dpb); err == nil && httpBody != nil {
+		if httpBody, err := ConvertDynamicMessageToHttpBody(dpb); err == nil && httpBody != nil {
 			return httpBody.GetData(), nil
 		}
 	}
@@ -179,20 +196,6 @@ func NewEventSourceMarshaler() *EventSourceMarshaler {
 		}}}
 }
 
-// func (m *ResponseJSONMarshaler) dynamicpbToMap(message *dynamicpb.Message) (map[string]interface{}, error) {
-// 	// 首先，将dynamicpb.Message转换为JSON
-// 	jsonBytes, err := protojson.Marshal(message)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("Error marshalling to JSON: %w", err)
-// 	}
-
-//		// 然后，将JSON字符串反序列化为map[string]interface{}
-//		var result map[string]interface{}
-//		if err := json.Unmarshal(jsonBytes, &result); err != nil {
-//			return nil, fmt.Errorf("Error unmarshalling JSON to map: %w", err)
-//		}
-//		return result, nil
-//	}
 func (m *ResponseJSONMarshaler) Marshal(v interface{}) ([]byte, error) {
 	if response, ok := v.(map[string]interface{}); ok {
 		if _, ok := response["result"]; ok {
@@ -201,7 +204,6 @@ func (m *ResponseJSONMarshaler) Marshal(v interface{}) ([]byte, error) {
 
 	}
 
-	// 在这里定义你的自定义序列化逻辑
 	if response, ok := v.(*dynamicpb.Message); ok {
 		// log.Println("实际类型,", response.Type().Descriptor().Name())
 		byteData, err := m.JSONPb.Marshal(response)

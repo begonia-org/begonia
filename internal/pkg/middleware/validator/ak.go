@@ -9,6 +9,7 @@ import (
 	"github.com/begonia-org/begonia/internal/data"
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/errors"
+	"github.com/begonia-org/begonia/internal/pkg/routers"
 	gosdk "github.com/begonia-org/go-sdk"
 	api "github.com/begonia-org/go-sdk/api/v1"
 	"github.com/sirupsen/logrus"
@@ -24,7 +25,7 @@ type AccessKeyAuth struct {
 	localCache *data.LayeredCache
 	log        *logrus.Logger
 	priority   int
-	name string
+	name       string
 }
 
 func NewAccessKeyAuth(app biz.AppRepo, config *config.Config, local *data.LayeredCache, log *logrus.Logger) *AccessKeyAuth {
@@ -33,10 +34,19 @@ func NewAccessKeyAuth(app biz.AppRepo, config *config.Config, local *data.Layere
 		config:     config,
 		localCache: local,
 		log:        log,
-		name: "ak_auth",
+		name:       "ak_auth",
 	}
 }
 
+func IfNeedValidate(ctx context.Context, fullMethod string) bool {
+	routersList := routers.Get()
+	router := routersList.GetRouteByGrpcMethod(strings.ToUpper(fullMethod))
+	if router == nil {
+		return false
+	}
+	return router.AuthRequired
+
+}
 func (a *AccessKeyAuth) RequestBefore(ctx context.Context, info *grpc.UnaryServerInfo, req interface{}) (context.Context, error) {
 	gwRequest, err := gosdk.NewGatewayRequestFromGrpc(ctx, req, info.FullMethod)
 	if err != nil {
@@ -138,6 +148,9 @@ func (a *AccessKeyAuth) StreamRequestBefore(ctx context.Context, ss grpc.ServerS
 
 }
 func (a *AccessKeyAuth) UnaryInterceptor(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
+	if !IfNeedValidate(ctx, info.FullMethod) {
+		return handler(ctx, req)
+	}
 	ctx, err = a.RequestBefore(ctx, info, req)
 	if err != nil {
 		return nil, err
@@ -153,6 +166,9 @@ func (a *AccessKeyAuth) UnaryInterceptor(ctx context.Context, req any, info *grp
 	return resp, err
 }
 func (a *AccessKeyAuth) StreamInterceptor(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+	if !IfNeedValidate(ss.Context(), info.FullMethod) {
+		return handler(srv, ss)
+	}
 	grpcStream, err := a.StreamRequestBefore(ss.Context(), ss, info, srv)
 	if err != nil {
 		return err

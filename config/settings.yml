@@ -10,7 +10,7 @@
     upload:
       dir: /data/work/begonia-org/begonia/upload
     protos:
-      dir: /data/work/begonia-org/begonia/protos
+      dir: /data/work/begonia-org/begonia-go-sdk/protos
   mysql:
     host: "127.0.0.1"
     port: 3306
@@ -38,6 +38,8 @@
         cache_expire: 3600 # seconds
     app:
       cache_expire: 3600 # seconds
+    admin:
+      apikey: "1234567890"
   redis:
     addr: "127.0.0.1:6379"
     password: ""
@@ -49,7 +51,7 @@
     endpoints:
       - "http://127.0.0.1:2379"
     timeout: 5
-    worker_prefix: "/go-scheduler/agent"
+    # worker_prefix: "/go-scheduler/agent"
   gateway:
     cors:
       - "localhost"
@@ -60,32 +62,38 @@
         exception: 1
         http: 2
         auth: 3
-      rpc:
-        - server:
-          name: "example-server"
-          endpoint:
-            - addr: "127.0.0.1:9000"
-              weight: 1
-            - addr: "127.0.0.1:9001"
-              weight: 2
-          priority: 10
-          timeout: 30
-          lb: "round_robin"
-          pool:
-            max_open_conns: 100
-            max_idle_conns: 50
-            size: 50
-            timeout: 10
-            min_idle_conns: 25
-            max_active_conns: 20
+        # only_api_key_auth: 4
+      # rpc:
+      #   - server:
+      #     name: "example-server"
+      #     endpoint:
+      #       - addr: "127.0.0.1:9000"
+      #         weight: 1
+      #       - addr: "127.0.0.1:9001"
+      #         weight: 2
+      #     priority: 10
+      #     timeout: 30
+      #     lb: "round_robin"
+      #     pool:
+      #       max_open_conns: 100
+      #       max_idle_conns: 50
+      #       size: 50
+      #       timeout: 10
+      #       min_idle_conns: 25
+      #       max_active_conns: 20
 
-
-  common:
-    rdb_key_prefix: "begonia"
-    filter_key_prefix: "begonia:filter"
-    app_key_prefix: "begonia:kv:app"
-    blacklist_key_prefix: "begonia:blacklist"
-    pubsub_key_prefix: "begonia:pubsub"
-    multi_cache_strategy: 1
-    kv_prefix: "begonia:kv"
-    pubsub_key_channel: "begonia:pubsub:channel"
+common:
+  rdb_key_prefix: "begonia"
+  filter_key_prefix: "begonia:filter"
+  app_key_prefix: "begonia:kv:app"
+  blacklist_key_prefix: "begonia:blacklist"
+  pubsub_key_prefix: "begonia:pubsub"
+  multi_cache_strategy: 1
+  kv_prefix: "begonia:kv"
+  pubsub_key_channel: "begonia:pubsub:channel"
+  etcd:
+    endpoint:
+      prefix: "/begonia/endpoints"
+  gateway:
+    descriptor:
+      out_dir: "/data/work/begonia/descriptors"

@@ -16,10 +16,10 @@ type Config struct {
 }
 
 type RPCPlugins struct {
-	Name     string  `mapstructure:"name"`
-	Endpoint string  `mapstructure:"endpoint"`
-	Priority int     `mapstructure:"priority"`
-	Timeout  int `mapstructure:"timeout"`
+	Name     string `mapstructure:"name"`
+	Endpoint string `mapstructure:"endpoint"`
+	Priority int    `mapstructure:"priority"`
+	Timeout  int    `mapstructure:"timeout"`
 }
 
 func NewConfig(config *tiga.Configuration) *Config {
@@ -71,7 +71,7 @@ func (c *Config) GetAppsLockKey() string {
 	return fmt.Sprintf("%s:lock", prefix)
 }
 func (c *Config) GetUserBlackListExpiration() int {
-	return c.GetInt("auth.user.blacklist.cache_expire")
+	return c.GetInt("auth.blacklist.user.cache_expire")
 }
 
 func (c *Config) GetAPPAccessKeyExpiration() int {
@@ -171,7 +171,17 @@ func (c *Config) GetRPCPlugins() ([]*goloadbalancer.Server, error) {
 	}
 	return plugins, nil
 }
+func (c *Config) GetEndpointsPrefix() string {
+	return c.GetString("common.etcd.endpoint.prefix")
+}
 
+func (c *Config) GetGatewayDescriptionOut() string {
+	return c.GetString("common.gateway.descriptor.out_dir")
+}
+
+func (c *Config)GetAdminAPIKey() string {
+	return c.GetString("auth.admin.apikey")
+}
 // func (c *Config) GetAppKeyPrefix() string {
 // 	prefix := c.GetString("common.app_key_prefix")
 // 	return prefix

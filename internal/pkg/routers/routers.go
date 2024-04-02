@@ -53,6 +53,11 @@ func (r *HttpURIRouteToSrvMethod) AddRoute(uri string, srvMethod *APIMethodDetai
 	r.routers[uri] = srvMethod
 	r.grpcRouter[srvMethod.GrpcFullRouter] = srvMethod
 }
+func (r *HttpURIRouteToSrvMethod) DeleteRoute(uri string, grpcFullMethod string) {
+	delete(r.routers, uri)
+	delete(r.grpcRouter, grpcFullMethod)
+}
+
 func (r *HttpURIRouteToSrvMethod) GetRoute(uri string) *APIMethodDetails {
 	return r.routers[uri]
 }
@@ -108,10 +113,10 @@ func (r *HttpURIRouteToSrvMethod) IsLocalSrv(fullMethod string) bool {
 	ret := r.localSrv[strings.ToUpper(fullMethod)]
 	return ret
 }
-func (r *HttpURIRouteToSrvMethod) addRouterDetails(serviceName string, authRequired bool, methodName *descriptorpb.MethodDescriptorProto) {
-	// 获取并打印 google.api.http 注解
-	if httpRule := r.getHttpRule(methodName); httpRule != nil {
-		var path, method string
+func (h *HttpURIRouteToSrvMethod) getUri(methodName *descriptorpb.MethodDescriptorProto) (string, string) {
+	if httpRule := h.getHttpRule(methodName); httpRule != nil {
+		var path string
+		var method string
 		switch pattern := httpRule.Pattern.(type) {
 		case *annotations.HttpRule_Get:
 			path = pattern.Get
@@ -128,17 +133,34 @@ func (r *HttpURIRouteToSrvMethod) addRouterDetails(serviceName string, authRequi
 		case *annotations.HttpRule_Patch:
 			path = pattern.Patch
 			method = "PATCH"
-			// 可以继续处理其他情况，如 Custom 方法
+		// 可以继续处理其他情况，如 Custom 方法
+		case *annotations.HttpRule_Custom:
+			path = pattern.Custom.Path
+			method = pattern.Custom.Kind
 		}
-		if path != "" {
-			r.AddRoute(path, &APIMethodDetails{
-				ServiceName:    serviceName,
-				MethodName:     string(methodName.GetName()),
-				AuthRequired:   authRequired,
-				RequestMethod:  method,
-				GrpcFullRouter: serviceName,
-			})
-		}
+		return path, method
+	}
+	return "", ""
+
+}
+func (h *HttpURIRouteToSrvMethod) DeleteRouterDetails(fullMethod string, method *descriptorpb.MethodDescriptorProto) {
+	h.mux.Lock()
+	defer h.mux.Unlock()
+	uri, _ := h.getUri(method)
+	h.DeleteRoute(uri, fullMethod)
+}
+func (r *HttpURIRouteToSrvMethod) addRouterDetails(serviceName string, authRequired bool, methodName *descriptorpb.MethodDescriptorProto) {
+	// 获取并打印 google.api.http 注解
+	if path, method := r.getUri(methodName); path != "" {
+
+		r.AddRoute(path, &APIMethodDetails{
+			ServiceName:    serviceName,
+			MethodName:     string(methodName.GetName()),
+			AuthRequired:   authRequired,
+			RequestMethod:  method,
+			GrpcFullRouter: serviceName,
+		})
+
 	}
 
 }
@@ -166,4 +188,18 @@ func (r *HttpURIRouteToSrvMethod) LoadAllRouters(pd dp.ProtobufDescription) {
 		}
 	}
 
+}
+
+func (h *HttpURIRouteToSrvMethod) DeleteRouters(pd dp.ProtobufDescription) {
+	h.mux.Lock()
+	defer h.mux.Unlock()
+	fds := pd.GetFileDescriptorSet()
+	for _, fd := range fds.File {
+		for _, service := range fd.Service {
+			for _, method := range service.GetMethod() {
+				key := fmt.Sprintf("/%s.%s/%s", fd.GetPackage(), service.GetName(), method.GetName())
+				h.DeleteRouterDetails(strings.ToUpper(key), method)
+			}
+		}
+	}
 }

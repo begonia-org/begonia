@@ -7,7 +7,12 @@ import (
 
 	"github.com/begonia-org/begonia/internal/biz"
 	api "github.com/begonia-org/go-sdk/api/v1"
+	"github.com/redis/go-redis/v9"
+	"github.com/sirupsen/logrus"
 	"github.com/spark-lence/tiga"
+	"go.etcd.io/etcd/api/v3/mvccpb"
+	clientv3 "go.etcd.io/etcd/client/v3"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 type dataOperatorRepo struct {
@@ -15,10 +20,13 @@ type dataOperatorRepo struct {
 	app   biz.AppRepo
 	user  biz.UsersRepo
 	local *LayeredCache
+	log   *logrus.Logger
 }
 
-func NewDataOperatorRepo(data *Data, app biz.AppRepo, user biz.UsersRepo, local *LayeredCache, lock biz.DataLock) biz.DataOperatorRepo {
-	return &dataOperatorRepo{data: data, app: app, user: user, local: local}
+func NewDataOperatorRepo(data *Data, app biz.AppRepo, user biz.UsersRepo, local *LayeredCache, log *logrus.Logger) biz.DataOperatorRepo {
+	log = log.WithField("module", "dataOperatorRepo").Logger
+	log.SetReportCaller(true)
+	return &dataOperatorRepo{data: data, app: app, user: user, local: local, log: log}
 }
 
 // DistributedLock 分布式锁,拿到锁对象后需要调用DistributedUnlock释放锁
@@ -66,7 +74,8 @@ func (d *dataOperatorRepo) FlashUsersCache(ctx context.Context, prefix string, m
 	kv := make([]interface{}, 0)
 	for _, model := range models {
 		key := fmt.Sprintf("%s:%s", prefix, model.Uid)
-		kv = append(kv, key, model)
+		val, _ := protojson.Marshal(model)
+		kv = append(kv, key, string(val))
 	}
 	pipe := d.data.BatchCacheByTx(ctx, exp, kv...)
 	// 记录最后更新时间
@@ -95,14 +104,6 @@ func (d *dataOperatorRepo) LoadUsersLayeredCache(ctx context.Context, prefix str
 	return nil
 }
 
-// func (r *dataOperatorRepo) ScanUsersFromCache(ctx context.Context, prefix string, exp time.Duration) ([]*api.Users, error) {
-// 	key := fmt.Sprintf("%s:*", prefix)
-// 	var cursor uint64
-// 	var n int
-// for {
-
-// }
-// }
 func (r *dataOperatorRepo) CacheUsers(ctx context.Context, prefix string, models []*api.Users, exp time.Duration) error {
 
 	pipe := r.user.CacheUsers(ctx, prefix, models, exp, func(user *api.Users) ([]byte, interface{}) {
@@ -125,6 +126,9 @@ func (d *dataOperatorRepo) LastUpdated(ctx context.Context, key string) (time.Ti
 	key = fmt.Sprintf("%s:last_updated", key)
 	timestamp, err := d.data.rdb.GetClient().Get(ctx, key).Int64()
 	if err != nil {
+		if err == redis.Nil {
+			return time.Time{}, nil
+		}
 		return time.Time{}, err
 	}
 	// 将毫秒转换为秒和纳秒
@@ -134,4 +138,20 @@ func (d *dataOperatorRepo) LastUpdated(ctx context.Context, key string) (time.Ti
 	// 使用秒和纳秒创建一个time.Time对象
 	t := time.Unix(sec, nsec)
 	return t, nil
+}
+
+func (d *dataOperatorRepo) Watcher(ctx context.Context, prefix string, handle func(ctx context.Context, op mvccpb.Event_EventType, key, value string) error) error {
+	// prefix := d.local.config.GetEndpointsPrefix()
+	// prefix = filepath.Join(prefix, "details")
+	watcher := d.data.etcd.Watch(ctx, prefix, clientv3.WithPrefix())
+	for wresp := range watcher {
+		for _, ev := range wresp.Events {
+			err := handle(ctx, ev.Type, string(ev.Kv.Key), string(ev.Kv.Value))
+			if err != nil {
+				d.log.Error(err)
+			}
+
+		}
+	}
+	return nil
 }
