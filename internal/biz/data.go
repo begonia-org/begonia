@@ -2,8 +2,9 @@ package biz
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	"path/filepath"
+	"log"
 	"sync"
 	"time"
 
@@ -34,17 +35,25 @@ type DataOperatorRepo interface {
 type operationAction func(ctx context.Context) error
 type DataOperatorUsecase struct {
 	repo            DataOperatorRepo
+	endpoint        gateway.EndpointRepo
 	config          *config.Config
 	log             *logrus.Logger
 	endpointWatcher *gateway.GatewayWatcher
 }
 
-func NewDataOperatorUsecase(repo DataOperatorRepo, config *config.Config, log *logrus.Logger, endpointWatch *gateway.GatewayWatcher) *DataOperatorUsecase {
-	return &DataOperatorUsecase{repo: repo, config: config, log: log, endpointWatcher: endpointWatch}
+func NewDataOperatorUsecase(repo DataOperatorRepo, config *config.Config, log *logrus.Logger, endpointWatch *gateway.GatewayWatcher, endpoint gateway.EndpointRepo) *DataOperatorUsecase {
+	log = log.WithField("module", "data").Logger
+	log.SetReportCaller(true)
+	return &DataOperatorUsecase{repo: repo, config: config, log: log, endpointWatcher: endpointWatch, endpoint: endpoint}
 }
 
 func (d *DataOperatorUsecase) Do(ctx context.Context) {
 	// d.LoadCache(context.Background())
+	err := d.OnStart(ctx)
+	if err != nil {
+		d.log.Error(err)
+	}
+	log.Println("start watch")
 	d.handle(ctx)
 
 }
@@ -138,8 +147,8 @@ func (d *DataOperatorUsecase) loadApps(ctx context.Context) error {
 	return d.repo.FlashAppsCache(ctx, prefix, apps, time.Duration(exp)*time.Second)
 }
 
-func (d *DataOperatorUsecase) Refresh(duratoin time.Duration) {
-	ticker := time.NewTicker(duratoin)
+func (d *DataOperatorUsecase) Refresh(duration time.Duration) {
+	ticker := time.NewTicker(duration)
 	for range ticker.C {
 		d.handle(context.Background())
 	}
@@ -148,7 +157,24 @@ func (d *DataOperatorUsecase) Refresh(duratoin time.Duration) {
 func PutConfig(ctx context.Context, key string, value string) error {
 	return nil
 }
+func (d *DataOperatorUsecase) OnStart(ctx context.Context) error {
+	endpoints, err := d.endpoint.List(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("list endpoints error,%s", err.Error())
+	}
+	for _, in := range endpoints {
+		bData, _ := json.Marshal(in)
+
+		err := d.endpointWatcher.Update(ctx, in.UniqueKey, string(bData))
+		if err != nil {
+			d.log.Errorf("init endpoints error,%s", err.Error())
+			continue
+		}
+	}
+	return nil
+}
 func (d *DataOperatorUsecase) watch(ctx context.Context) error {
-	prefix := d.config.GetEndpointsPrefix()
-	return d.repo.Watcher(context.Background(), filepath.Join(prefix, "details"), d.endpointWatcher.Handle)
+	prefix := d.config.GetServicePrefix()
+
+	return d.repo.Watcher(context.Background(), prefix, d.endpointWatcher.Handle)
 }

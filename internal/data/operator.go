@@ -3,9 +3,11 @@ package data
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/begonia-org/begonia/internal/biz"
+	"github.com/begonia-org/begonia/internal/biz/gateway"
 	api "github.com/begonia-org/go-sdk/api/v1"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
@@ -16,11 +18,12 @@ import (
 )
 
 type dataOperatorRepo struct {
-	data  *Data
-	app   biz.AppRepo
-	user  biz.UsersRepo
-	local *LayeredCache
-	log   *logrus.Logger
+	data     *Data
+	app      biz.AppRepo
+	user     biz.UsersRepo
+	local    *LayeredCache
+	log      *logrus.Logger
+	endpoint gateway.EndpointRepo
 }
 
 func NewDataOperatorRepo(data *Data, app biz.AppRepo, user biz.UsersRepo, local *LayeredCache, log *logrus.Logger) biz.DataOperatorRepo {
@@ -143,6 +146,7 @@ func (d *dataOperatorRepo) LastUpdated(ctx context.Context, key string) (time.Ti
 func (d *dataOperatorRepo) Watcher(ctx context.Context, prefix string, handle func(ctx context.Context, op mvccpb.Event_EventType, key, value string) error) error {
 	// prefix := d.local.config.GetEndpointsPrefix()
 	// prefix = filepath.Join(prefix, "details")
+	log.Println("watcher prefix:", prefix)
 	watcher := d.data.etcd.Watch(ctx, prefix, clientv3.WithPrefix())
 	for wresp := range watcher {
 		for _, ev := range wresp.Events {

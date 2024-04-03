@@ -53,7 +53,7 @@ func (r *HttpURIRouteToSrvMethod) AddRoute(uri string, srvMethod *APIMethodDetai
 	r.routers[uri] = srvMethod
 	r.grpcRouter[srvMethod.GrpcFullRouter] = srvMethod
 }
-func (r *HttpURIRouteToSrvMethod) DeleteRoute(uri string, grpcFullMethod string) {
+func (r *HttpURIRouteToSrvMethod) deleteRoute(uri string, grpcFullMethod string) {
 	delete(r.routers, uri)
 	delete(r.grpcRouter, grpcFullMethod)
 }
@@ -147,7 +147,7 @@ func (h *HttpURIRouteToSrvMethod) DeleteRouterDetails(fullMethod string, method 
 	h.mux.Lock()
 	defer h.mux.Unlock()
 	uri, _ := h.getUri(method)
-	h.DeleteRoute(uri, fullMethod)
+	h.deleteRoute(uri, fullMethod)
 }
 func (r *HttpURIRouteToSrvMethod) addRouterDetails(serviceName string, authRequired bool, methodName *descriptorpb.MethodDescriptorProto) {
 	// 获取并打印 google.api.http 注解
@@ -191,8 +191,8 @@ func (r *HttpURIRouteToSrvMethod) LoadAllRouters(pd dp.ProtobufDescription) {
 }
 
 func (h *HttpURIRouteToSrvMethod) DeleteRouters(pd dp.ProtobufDescription) {
-	h.mux.Lock()
-	defer h.mux.Unlock()
+	// h.mux.Lock()
+	// defer h.mux.Unlock()
 	fds := pd.GetFileDescriptorSet()
 	for _, fd := range fds.File {
 		for _, service := range fd.Service {

@@ -106,4 +106,6 @@ var (
 	ErrAPIKeyNotMatch = errors.New("api key不匹配")
 
 	ErrEndpointExists = errors.New("endpoint已存在")
+
+	ErrEndpointNotExists = errors.New("endpoint不存在")
 )

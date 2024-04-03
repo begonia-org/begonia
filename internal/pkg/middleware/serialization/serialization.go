@@ -215,3 +215,7 @@ func (m *ResponseJSONMarshaler) Marshal(v interface{}) ([]byte, error) {
 	}
 	return m.JSONPb.Marshal(v)
 }
+func (m *ResponseJSONMarshaler) ContentType(v interface{}) string {
+	return "application/json"
+}
+

@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"path/filepath"
 
 	goloadbalancer "github.com/begonia-org/go-loadbalancer"
 	"github.com/spark-lence/tiga"
@@ -179,9 +180,37 @@ func (c *Config) GetGatewayDescriptionOut() string {
 	return c.GetString("common.gateway.descriptor.out_dir")
 }
 
-func (c *Config)GetAdminAPIKey() string {
+func (c *Config) GetAdminAPIKey() string {
 	return c.GetString("auth.admin.apikey")
 }
+
+func (c *Config) GetServicePrefix() string {
+	prefix := c.GetEndpointsPrefix()
+	return fmt.Sprintf("%s/service", prefix)
+}
+func (c *Config) GetServiceNamePrefix() string {
+	prefix := c.GetEndpointsPrefix()
+	return fmt.Sprintf("%s/service_name", prefix)
+}
+func (c *Config) GetServiceTagsPrefix() string {
+	prefix := c.GetEndpointsPrefix()
+	return fmt.Sprintf("%s/tags", prefix)
+}
+func (c *Config) GetServiceKey(id string) string {
+	prefix := c.GetServicePrefix()
+	return filepath.Join(prefix, id)
+}
+func (c *Config) GetServiceNameKey(name string) string {
+	prefix := c.GetServiceNamePrefix()
+	return filepath.Join(prefix, name)
+}
+
+func (c *Config) GetTagsKey(tag, id string) string {
+
+	prefix := c.GetServiceTagsPrefix()
+	return filepath.Join(prefix, tag, id)
+}
+
 // func (c *Config) GetAppKeyPrefix() string {
 // 	prefix := c.GetString("common.app_key_prefix")
 // 	return prefix

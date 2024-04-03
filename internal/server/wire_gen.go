@@ -39,7 +39,7 @@ func New(config2 *tiga.Configuration, log *logrus.Logger, endpoint string) *dyna
 	usersAuth := crypto.NewUsersAuth()
 	usersUsecase := biz.NewUsersUsecase(usersRepo, log, usersAuth, configConfig)
 	usersService := service.NewUserService(usersUsecase, log, usersAuth, configConfig)
-	endpointRepo := data.NewEndpointRepoImpl(dataData)
+	endpointRepo := data.NewEndpointRepoImpl(dataData, configConfig)
 	endpointUsecase := gateway.NewEndpointUsecase(endpointRepo, fileUsecase, configConfig)
 	endpointsService := service.NewEndpointsService(endpointUsecase, log, configConfig)
 	appRepo := data.NewAppRepoImpl(dataData, layeredCache)

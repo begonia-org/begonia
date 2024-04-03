@@ -59,7 +59,7 @@
     plugins:
       local:
         logger: 0
-        exception: 1
+        # exception: 1
         http: 2
         auth: 3
         # only_api_key_auth: 4

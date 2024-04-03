@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"os"
@@ -12,11 +13,10 @@ import (
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/errors"
 	dp "github.com/begonia-org/dynamic-proto"
+	goloadbalancer "github.com/begonia-org/go-loadbalancer"
 	api "github.com/begonia-org/go-sdk/api/v1"
 	common "github.com/begonia-org/go-sdk/common/api/v1"
-	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/begonia-org/begonia/internal/pkg/gateway"
@@ -27,14 +27,13 @@ import (
 
 type EndpointRepo interface {
 	// mysql
-	AddEndpoint(ctx context.Context, endpoints []*api.Endpoints) error
-	DeleteEndpoint(ctx context.Context, endpoints []*api.Endpoints) error
-	UpdateEndpoint(ctx context.Context, endpoints []*api.Endpoints) error
-	GetEndpoint(ctx context.Context, pluginId string) (*api.Endpoints, error)
-	ListEndpoint(ctx context.Context, plugins []string) ([]*api.Endpoints, error)
-	PutConfig(ctx context.Context, key string, value string) error
-	PutEndpoint(ctx context.Context, ops []clientv3.Op) (bool, error)
-	GetConfig(ctx context.Context, key string) (string, error)
+	Del(ctx context.Context, id string) error
+	Get(ctx context.Context, key string) (string, error)
+	List(ctx context.Context, keys []string) ([]*api.Endpoints, error)
+	Put(ctx context.Context, endpoint *api.Endpoints) error
+	Patch(ctx context.Context, id string, patch map[string]interface{}) error
+	PutTags(ctx context.Context, id string, tags []string) error
+	GetKeysByTags(ctx context.Context, tags []string) ([]string, error)
 }
 
 type EndpointUsecase struct {
@@ -143,18 +142,21 @@ func (e *EndpointUsecase) CreateEndpoint(ctx context.Context, endpoint *api.AddE
 }
 
 func (e *EndpointUsecase) AddConfig(ctx context.Context, srvConfig *api.EndpointSrvConfig) (string, error) {
+
 	// prefix := e.config.GetEndpointsPrefix()
-	exists, err := e.repo.GetConfig(ctx, getServiceNameKey(e.config, srvConfig.Name))
+	exists, err := e.repo.Get(ctx, getServiceNameKey(e.config, srvConfig.ServiceName))
 	if err != nil {
 		return "", errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_config")
 
 	}
 	if exists != "" {
 		return "", errors.New(errors.ErrEndpointExists, int32(api.EndpointSvrStatus_SERVICE_NAME_DUPLICATE), codes.AlreadyExists, "endpoint_exists")
-
+	}
+	if !goloadbalancer.CheckBalanceType(srvConfig.Balance) {
+		return "", errors.New(errors.ErrUnknownLoadBalancer, int32(api.EndpointSvrStatus_NOT_SUPPORT_BALANCE), codes.InvalidArgument, "balance_type")
 	}
 	id := e.snk.GenerateIDString()
-	srvKey := getServiceKey(e.config, id)
+
 	endpoint := &api.Endpoints{
 		Name:          srvConfig.Name,
 		Description:   srvConfig.Description,
@@ -168,81 +170,78 @@ func (e *EndpointUsecase) AddConfig(ctx context.Context, srvConfig *api.Endpoint
 		ServiceName:   srvConfig.ServiceName,
 		DescriptorSet: srvConfig.DescriptorSet,
 	}
-
-	ops := make([]clientv3.Op, 0)
-	// Add service key to tag list
-	for _, tag := range srvConfig.Tags {
-		tagKey := getTagsKey(e.config, tag, id)
-		ops = append(ops, clientv3.OpPut(tagKey, srvKey))
-	}
-	ops = append(ops, clientv3.OpPut(getServiceNameKey(e.config, endpoint.Name), srvKey))
-	details, _ := protojson.Marshal(endpoint)
-	ops = append(ops, clientv3.OpPut(getDetailsKey(e.config, id), string(details)))
-	ok, err := e.repo.PutEndpoint(ctx, ops)
+	err = e.repo.Put(ctx, endpoint)
 	if err != nil {
 		return "", errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "put_endpoint")
-	}
-	if !ok {
-		return "", errors.New(fmt.Errorf("put config fail"), int32(common.Code_INTERNAL_ERROR), codes.Internal, "put_endpoint")
+
 	}
 	return id, nil
+
 }
-func (u *EndpointUsecase) AddEndpoints(ctx context.Context, endpoints []*api.Endpoints) error {
-	pds := make([]dp.ProtobufDescription, 0)
-	var err error
-	gw := gateway.Get()
-
-	defer func() {
-		if err != nil {
-			for _, pd := range pds {
-				gw.DeleteLoadBalance(pd)
-			}
-		}
-	}()
-	routersList := routers.Get()
-	for _, endpoint := range endpoints {
-		destDir := u.config.GetProtosDir()
-
-		destDir = filepath.Join(destDir, "endpoints", endpoint.GetName(), endpoint.GetVersion())
-		if err := os.MkdirAll(destDir, 0755); err != nil {
-			return fmt.Errorf("create dir error: %w", err)
-		}
-		eps, err := newEndpoint(loadbalance.BalanceType(endpoint.Balance), endpoint.GetEndpoints())
-		if err != nil {
-			return fmt.Errorf("new endpoint error: %w", err)
-		}
-		lb, err := loadbalance.New(loadbalance.BalanceType(endpoint.Balance), eps)
-		if err != nil {
-			return fmt.Errorf("new loadbalance error: %w", err)
-		}
-		pd, err := dp.NewDescription(destDir)
-		pds = append(pds, pd)
-		if err != nil {
-			return fmt.Errorf("new description error: %w", err)
-		}
-		routersList.LoadAllRouters(pd)
-		err = gw.RegisterService(ctx, pd, lb)
-		if err != nil {
-			return fmt.Errorf("register service error: %w", err)
-		}
+func (e *EndpointUsecase) Patch(ctx context.Context, srvConfig *api.EndpointSrvUpdateRequest) (string, error) {
+	patch := make(map[string]interface{})
+	bSrvConfig, err := json.Marshal(srvConfig)
+	if err != nil {
+		return "", errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "marshal_config")
+	}
+	svrConfigPatch := make(map[string]interface{})
+	err = json.Unmarshal(bSrvConfig, &svrConfigPatch)
+	if err != nil {
+		return "", errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "unmarshal_config")
 
 	}
-	err = u.repo.AddEndpoint(ctx, endpoints)
-	return err
+	for _, field := range srvConfig.Mask.Paths {
+		patch[field] = svrConfigPatch[field]
+
+	}
+	// 过滤掉空值
+	if len(srvConfig.Mask.Paths) == 0 {
+		for key, value := range svrConfigPatch {
+			if value != nil {
+				patch[key] = value
+			}
+		}
+	}
+	updated_at := timestamppb.New(time.Now()).AsTime().Format(time.RFC3339)
+	patch["updated_at"] = updated_at
+	err = e.repo.Patch(ctx, srvConfig.UniqueKey, patch)
+	if err != nil {
+		return "", errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "patch_config")
+	}
+	return updated_at, nil
 }
 
-func (u *EndpointUsecase) DeleteEndpoint(ctx context.Context, endpoints []*api.Endpoints) error {
-	return u.repo.DeleteEndpoint(ctx, endpoints)
+func (u *EndpointUsecase) Delete(ctx context.Context, uniqueKey string) error {
+	return u.repo.Del(ctx, uniqueKey)
 }
 
-func (u *EndpointUsecase) UpdateEndpoint(ctx context.Context, endpoints []*api.Endpoints) error {
-	return u.repo.UpdateEndpoint(ctx, endpoints)
+func (u *EndpointUsecase) Get(ctx context.Context, uniqueKey string) (*api.Endpoints, error) {
+	detailsKey := getDetailsKey(u.config, uniqueKey)
+	value, err := u.repo.Get(ctx, detailsKey)
+	if err != nil {
+		return nil, errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_endpoint")
+	}
+	endpoint := &api.Endpoints{}
+	err = json.Unmarshal([]byte(value), endpoint)
+	if err != nil {
+		return nil, errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "unmarshal_endpoint")
+	}
+	return endpoint, nil
+
 }
 
-func (u *EndpointUsecase) GetEndpoint(ctx context.Context, pluginId string) (*api.Endpoints, error) {
-	return u.repo.GetEndpoint(ctx, pluginId)
-}
+func (u *EndpointUsecase) List(ctx context.Context, in *api.ListEndpointRequest) ([]*api.Endpoints, error) {
+	keys := make([]string, 0)
+	if len(in.Tags) > 0 {
+		ks, err := u.repo.GetKeysByTags(ctx, in.Tags)
+		if err != nil {
+			return nil, errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_keys_by_tags")
+		}
+		keys = append(keys, ks...)
 
-func (u *EndpointUsecase) ListEndpoint(ctx context.Context, plugins []string) ([]*api.Endpoints, error) {
-	return u.repo.ListEndpoint(ctx, plugins)
+	}
+	if len(in.UniqueKeys) > 0 {
+		keys = append(keys, in.UniqueKeys...)
+	}
+	return u.repo.List(ctx, keys)
 }
