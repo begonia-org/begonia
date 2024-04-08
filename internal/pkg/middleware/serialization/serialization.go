@@ -21,12 +21,12 @@ import (
 )
 
 type RawBinaryUnmarshaler runtime.HTTPBodyMarshaler
-type ResponseJSONMarshaler struct {
+type JSONMarshaler struct {
 	runtime.JSONPb
 }
 
 type EventSourceMarshaler struct {
-	ResponseJSONMarshaler
+	JSONMarshaler
 }
 type BinaryDecoder struct {
 	fieldName string
@@ -174,8 +174,8 @@ func (m *EventSourceMarshaler) Marshal(v interface{}) ([]byte, error) {
 	}
 	return m.JSONPb.Marshal(v)
 }
-func NewResponseJSONMarshaler() *ResponseJSONMarshaler {
-	return &ResponseJSONMarshaler{JSONPb: runtime.JSONPb{
+func NewJSONMarshaler() *JSONMarshaler {
+	return &JSONMarshaler{JSONPb: runtime.JSONPb{
 		MarshalOptions: protojson.MarshalOptions{
 			EmitUnpopulated: true, // 设置为 true 以确保默认值（例如 0 或空字符串）被序列化
 			UseEnumNumbers:  true, // 设置为 true 以确保枚举值被序列化为数字而不是字符串
@@ -185,7 +185,7 @@ func NewResponseJSONMarshaler() *ResponseJSONMarshaler {
 	}}
 }
 func NewEventSourceMarshaler() *EventSourceMarshaler {
-	return &EventSourceMarshaler{ResponseJSONMarshaler: ResponseJSONMarshaler{
+	return &EventSourceMarshaler{JSONMarshaler: JSONMarshaler{
 		JSONPb: runtime.JSONPb{
 			MarshalOptions: protojson.MarshalOptions{
 				EmitUnpopulated: true, // 设置为 true 以确保默认值（例如 0 或空字符串）被序列化
@@ -196,7 +196,7 @@ func NewEventSourceMarshaler() *EventSourceMarshaler {
 		}}}
 }
 
-func (m *ResponseJSONMarshaler) Marshal(v interface{}) ([]byte, error) {
+func (m *JSONMarshaler) Marshal(v interface{}) ([]byte, error) {
 	if response, ok := v.(map[string]interface{}); ok {
 		if _, ok := response["result"]; ok {
 			v = response["result"]
@@ -215,7 +215,7 @@ func (m *ResponseJSONMarshaler) Marshal(v interface{}) ([]byte, error) {
 	}
 	return m.JSONPb.Marshal(v)
 }
-func (m *ResponseJSONMarshaler) ContentType(v interface{}) string {
+func (m *JSONMarshaler) ContentType(v interface{}) string {
 	return "application/json"
 }
 

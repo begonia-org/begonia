@@ -7,7 +7,7 @@ import (
 	"github.com/begonia-org/begonia/internal/biz"
 	"github.com/begonia-org/begonia/internal/data"
 	"github.com/begonia-org/begonia/internal/pkg/config"
-	"github.com/begonia-org/begonia/internal/pkg/middleware/validator"
+	"github.com/begonia-org/begonia/internal/pkg/middleware/auth"
 	goloadbalancer "github.com/begonia-org/go-loadbalancer"
 	gosdk "github.com/begonia-org/go-sdk"
 	"github.com/sirupsen/logrus"
@@ -16,7 +16,7 @@ import (
 )
 
 // var Plugins = map[string]gosdk.GrpcPlugin{
-// 	"jwt": &validator.JWTAuth{},
+// 	"jwt": &auth.JWTAuth{},
 // }
 
 func New(config *config.Config,
@@ -25,9 +25,9 @@ func New(config *config.Config,
 	log *logrus.Logger,
 	app biz.AppRepo,
 	local *data.LayeredCache) *PluginsApply {
-	jwt := validator.NewJWTAuth(config, rdb, user, log)
-	ak := validator.NewAccessKeyAuth(app, config, local, log)
-	apiKey:=validator.NewApiKeyAuth(config)
+	jwt := auth.NewJWTAuth(config, rdb, user, log)
+	ak := auth.NewAccessKeyAuth(app, config, local, log)
+	apiKey:=auth.NewApiKeyAuth(config)
 	plugins := map[string]gosdk.LocalPlugin{
 		"onlyJWT":   jwt,
 		"onlyAK":    ak,
@@ -35,6 +35,7 @@ func New(config *config.Config,
 		"exception": NewException(log),
 		"http":      NewHttp(),
 		"auth":      NewAuth(ak, jwt,apiKey),
+		"params_validator": NewParamsValidator(),
 		"only_api_key_auth": apiKey,
 		// "logger":NewLoggerMiddleware(log),
 	}

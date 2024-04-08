@@ -59,9 +59,10 @@
     plugins:
       local:
         logger: 0
-        # exception: 1
+        exception: 1
         http: 2
-        auth: 3
+        params_validator: 3
+        auth: 4
         # only_api_key_auth: 4
       # rpc:
       #   - server:

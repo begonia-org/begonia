@@ -143,7 +143,6 @@ func (e *EndpointUsecase) CreateEndpoint(ctx context.Context, endpoint *api.AddE
 
 func (e *EndpointUsecase) AddConfig(ctx context.Context, srvConfig *api.EndpointSrvConfig) (string, error) {
 
-	// prefix := e.config.GetEndpointsPrefix()
 	exists, err := e.repo.Get(ctx, getServiceNameKey(e.config, srvConfig.ServiceName))
 	if err != nil {
 		return "", errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_config")

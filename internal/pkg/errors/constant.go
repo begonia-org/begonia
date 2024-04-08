@@ -25,7 +25,16 @@ func As(err error, target interface{}) bool {
 	return errors.As(err, target)
 
 }
-func New(err error, code int32, grpcCode codes.Code, action string) error {
+
+type Options func(*common.Errors)
+
+func WithClientMessage(msg string) Options {
+	return func(e *common.Errors) {
+		e.ToClientMessage = msg
+	}
+
+}
+func New(err error, code int32, grpcCode codes.Code, action string, opts ...Options) error {
 	pc, file, line, ok := runtime.Caller(1)
 	if !ok {
 		file = "unknown"
@@ -44,6 +53,9 @@ func New(err error, code int32, grpcCode codes.Code, action string) error {
 		File:    file,
 		Line:    int32(line),
 		Fn:      funcName,
+	}
+	for _, opt := range opts {
+		opt(srvErr)
 	}
 	st := status.New(grpcCode, err.Error())
 	detailProto, err := anypb.New(srvErr)

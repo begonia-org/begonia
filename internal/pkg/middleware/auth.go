@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/begonia-org/begonia/internal/pkg/errors"
-	"github.com/begonia-org/begonia/internal/pkg/middleware/validator"
+	"github.com/begonia-org/begonia/internal/pkg/middleware/auth"
 	gosdk "github.com/begonia-org/go-sdk"
 	api "github.com/begonia-org/go-sdk/api/v1"
 	"google.golang.org/grpc"
@@ -15,14 +15,14 @@ import (
 )
 
 type Auth struct {
-	ak       *validator.AccessKeyAuth
-	jwt      *validator.JWTAuth
-	apikey   validator.ApiKeyAuth
+	ak       *auth.AccessKeyAuth
+	jwt      *auth.JWTAuth
+	apikey   auth.ApiKeyAuth
 	priority int
 	name     string
 }
 
-func NewAuth(ak *validator.AccessKeyAuth, jwt *validator.JWTAuth, apikey validator.ApiKeyAuth) gosdk.LocalPlugin {
+func NewAuth(ak *auth.AccessKeyAuth, jwt *auth.JWTAuth, apikey auth.ApiKeyAuth) gosdk.LocalPlugin {
 	return &Auth{
 		ak:     ak,
 		jwt:    jwt,
@@ -32,7 +32,7 @@ func NewAuth(ak *validator.AccessKeyAuth, jwt *validator.JWTAuth, apikey validat
 }
 
 func (a *Auth) UnaryInterceptor(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
-	if !validator.IfNeedValidate(ctx, info.FullMethod) {
+	if !auth.IfNeedValidate(ctx, info.FullMethod) {
 		return handler(ctx, req)
 	}
 	md, ok := metadata.FromIncomingContext(ctx)
@@ -64,7 +64,7 @@ func (a *Auth) UnaryInterceptor(ctx context.Context, req any, info *grpc.UnarySe
 }
 
 func (a *Auth) StreamInterceptor(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-	if !validator.IfNeedValidate(ss.Context(), info.FullMethod) {
+	if !auth.IfNeedValidate(ss.Context(), info.FullMethod) {
 		return handler(srv, ss)
 	}
 	md, ok := metadata.FromIncomingContext(ss.Context())

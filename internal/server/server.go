@@ -41,7 +41,7 @@ func NewGateway(cfg *dp.GatewayConfig, conf *config.Config, services []service.S
 		HttpMiddlewares: make([]runtime.ServeMuxOption, 0),
 		HttpHandlers:    make([]func(http.Handler) http.Handler, 0),
 	}
-	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithMarshalerOption("application/json", serialization.NewResponseJSONMarshaler()))
+	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithMarshalerOption("application/json", serialization.NewJSONMarshaler()))
 	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithMarshalerOption("multipart/form-data", serialization.NewFormDataMarshaler()))
 	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithMarshalerOption("application/x-www-form-urlencoded", serialization.NewFormUrlEncodedMarshaler()))
 
