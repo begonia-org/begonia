@@ -9,10 +9,10 @@ import (
 	"github.com/begonia-org/begonia/internal/data"
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/errors"
+	"github.com/begonia-org/begonia/internal/pkg/logger"
 	"github.com/begonia-org/begonia/internal/pkg/routers"
 	gosdk "github.com/begonia-org/go-sdk"
 	api "github.com/begonia-org/go-sdk/api/v1"
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -23,12 +23,12 @@ type AccessKeyAuth struct {
 	config *config.Config
 	// rdb        *tiga.RedisDao
 	localCache *data.LayeredCache
-	log        *logrus.Logger
+	log        logger.Logger
 	priority   int
 	name       string
 }
 
-func NewAccessKeyAuth(app biz.AppRepo, config *config.Config, local *data.LayeredCache, log *logrus.Logger) *AccessKeyAuth {
+func NewAccessKeyAuth(app biz.AppRepo, config *config.Config, local *data.LayeredCache, log logger.Logger) *AccessKeyAuth {
 	return &AccessKeyAuth{
 		app:        app,
 		config:     config,

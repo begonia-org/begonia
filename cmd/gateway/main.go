@@ -4,7 +4,9 @@ import (
 	"log"
 
 	"github.com/begonia-org/begonia/config"
+	"github.com/begonia-org/begonia/internal"
 	"github.com/begonia-org/begonia/internal/pkg/logger"
+
 	"github.com/spf13/cobra"
 )
 
@@ -20,7 +22,7 @@ func NewInitCmd() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			env, _ := cmd.Flags().GetString("env")
 			config := config.ReadConfig(env)
-			operator := initOperatorApp(config)
+			operator := internal.InitOperatorApp(config)
 			err := operator.Init()
 			if err != nil {
 				log.Fatalf("failed to init database: %v", err)
@@ -40,7 +42,7 @@ func NewGatewayCmd() *cobra.Command {
 			// name, _ := cmd.Flags().GetString("name")
 			env, _ := cmd.Flags().GetString("env")
 			config := config.ReadConfig(env)
-			worker := New(config, logger.Logger, endpoint)
+			worker := internal.New(config, logger.Log, endpoint)
 			err := worker.Start()
 			if err != nil {
 				log.Fatalf("failed to start master: %v", err)

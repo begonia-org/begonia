@@ -11,6 +11,8 @@ import (
 	"github.com/go-playground/validator/v10"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
 )
 
 type validatePluginStream struct {
@@ -51,20 +53,43 @@ func (p *validatePluginStream) RecvMsg(m interface{}) error {
 
 }
 
-//	type Plugin interface {
-//		SetPriority(priority int)
-//		Priority() int
-//		Name () string
-//	}
-//
-//	type LocalPlugin interface {
-//		Plugin
-//		UnaryInterceptor(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error)
-//		StreamInterceptor(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error
-//	}
+func (p *ParamsValidatorImpl) FiltersFields(v interface{}) []string {
+	fields := make([]string, 0)
+	if message, ok := v.(protoreflect.ProtoMessage); ok {
+		md := message.ProtoReflect().Descriptor()
+
+		// 遍历所有字段
+		for i := 0; i < md.Fields().Len(); i++ {
+			field := md.Fields().Get(i)
+
+			// 检查字段是否是FieldMask类型
+			if field.Message() != nil && field.Message().FullName() == "google.protobuf.FieldMask" {
+
+				// 获取字段的值（确保它是FieldMask类型）
+				fieldValue := message.ProtoReflect().Get(field).Message()
+				mask := fieldValue.Interface().(*fieldmaskpb.FieldMask)
+				if mask == nil {
+					continue
+				}
+				for _, path := range mask.Paths {
+					if fd := message.ProtoReflect().Descriptor().Fields().ByJSONName(path); fd != nil {
+						fields = append(fields, string(fd.Name()))
+					}
+
+				}
+			}
+		}
+		return fields
+	}
+	return nil
+}
 func (p *ParamsValidatorImpl) ValidateParams(v interface{}) error {
 	validate := validator.New()
 	err := validate.Struct(v)
+	filters := p.FiltersFields(v)
+	if len(filters) > 0 {
+		err = validate.StructPartial(v, filters...)
+	}
 	if errs, ok := err.(validator.ValidationErrors); ok {
 		clientMsg := fmt.Sprintf("params %s validation failed with %v,except %s", errs[0].Field(), errs[0].Value(), errs[0].ActualTag())
 		return errors.New(fmt.Errorf("params %s validation failed: %v", errs[0].Field(), errs[0].Value()), int32(common.Code_PARAMS_ERROR), codes.InvalidArgument, "params_validation", errors.WithClientMessage(clientMsg))

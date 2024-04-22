@@ -19,9 +19,7 @@ import (
 	c "github.com/smartystreets/goconvey/convey"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/reflect/protoregistry"
-
-	"github.com/spark-lence/tiga/loadbalance"
-	"github.com/spark-lence/tiga/pool"
+	loadbalance "github.com/begonia-org/go-loadbalancer"
 )
 
 func initTestCase() *EndpointUsecase {
@@ -37,7 +35,7 @@ func initTestCase() *EndpointUsecase {
 	gateway.New(&dp.GatewayConfig{GatewayAddr: "127.0.0.1:12138", GrpcProxyAddr: "127.0.0.1:12139"}, &dp.GrpcServerOptions{
 		Middlewares: make([]dp.GrpcProxyMiddleware, 0),
 		Options:     make([]grpc.ServerOption, 0),
-		PoolOptions: make([]pool.PoolOptionsBuildOption, 0),
+		PoolOptions: make([]loadbalance.PoolOptionsBuildOption, 0),
 	})
 
 	return endpoint

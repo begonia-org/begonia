@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/begonia-org/begonia/internal/pkg/logger"
 	common "github.com/begonia-org/go-sdk/common/api/v1"
 	"github.com/bsm/redislock"
 	"github.com/cockroachdb/errors"
@@ -51,7 +50,7 @@ func NewEtcd(config *tiga.Configuration) *tiga.EtcdDao {
 	return etcd
 }
 
-var ProviderSet = wire.NewSet(NewMySQL, NewRDB, NewEtcd, GetRDBClient, NewData, NewLayeredCache, NewUserRepo, NewFileRepoImpl, NewEndpointRepoImpl, NewAppRepoImpl,NewDataOperatorRepo)
+var ProviderSet = wire.NewSet(NewMySQL, NewRDB, NewEtcd, GetRDBClient, NewData, NewLayeredCache, NewUserRepo, NewFileRepoImpl, NewEndpointRepoImpl, NewAppRepoImpl, NewDataOperatorRepo)
 
 type Data struct {
 	// mysql
@@ -128,7 +127,7 @@ func (d *Data) CreateInBatchesByTx(models interface{}) (*gorm.DB, error) {
 			UpdatedAt:    timestamppb.New(time.Now()),
 		})
 	}
-	logger.Logger.Infoln("resources", resources)
+	// logger.Logger.Infoln("resources", resources)
 	err = db.CreateInBatches(resources, len(resources)).Error
 	if err != nil {
 		db.Rollback()
@@ -232,6 +231,6 @@ func NewSourceTypeArray(models interface{}) []SourceType {
 	}
 	return sources
 }
-func (d *Data)EtcdGet(ctx context.Context, key string) (string,error) {
+func (d *Data) EtcdGet(ctx context.Context, key string) (string, error) {
 	return d.etcd.GetString(ctx, key)
 }

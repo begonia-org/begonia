@@ -3,14 +3,13 @@ package data
 import (
 	"context"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/begonia-org/begonia/internal/biz"
 	"github.com/begonia-org/begonia/internal/biz/gateway"
+	"github.com/begonia-org/begonia/internal/pkg/logger"
 	api "github.com/begonia-org/go-sdk/api/v1"
 	"github.com/redis/go-redis/v9"
-	"github.com/sirupsen/logrus"
 	"github.com/spark-lence/tiga"
 	"go.etcd.io/etcd/api/v3/mvccpb"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -22,12 +21,12 @@ type dataOperatorRepo struct {
 	app      biz.AppRepo
 	user     biz.UsersRepo
 	local    *LayeredCache
-	log      *logrus.Logger
+	log      logger.Logger
 	endpoint gateway.EndpointRepo
 }
 
-func NewDataOperatorRepo(data *Data, app biz.AppRepo, user biz.UsersRepo, local *LayeredCache, log *logrus.Logger) biz.DataOperatorRepo {
-	log = log.WithField("module", "dataOperatorRepo").Logger
+func NewDataOperatorRepo(data *Data, app biz.AppRepo, user biz.UsersRepo, local *LayeredCache, log logger.Logger) biz.DataOperatorRepo {
+	log.WithField("module", "dataOperatorRepo")
 	log.SetReportCaller(true)
 	return &dataOperatorRepo{data: data, app: app, user: user, local: local, log: log}
 }
@@ -146,11 +145,15 @@ func (d *dataOperatorRepo) LastUpdated(ctx context.Context, key string) (time.Ti
 func (d *dataOperatorRepo) Watcher(ctx context.Context, prefix string, handle func(ctx context.Context, op mvccpb.Event_EventType, key, value string) error) error {
 	// prefix := d.local.config.GetEndpointsPrefix()
 	// prefix = filepath.Join(prefix, "details")
-	log.Println("watcher prefix:", prefix)
-	watcher := d.data.etcd.Watch(ctx, prefix, clientv3.WithPrefix())
+	watcher := d.data.etcd.Watch(ctx, prefix, clientv3.WithPrefix(), clientv3.WithPrevKV())
 	for wresp := range watcher {
 		for _, ev := range wresp.Events {
-			err := handle(ctx, ev.Type, string(ev.Kv.Key), string(ev.Kv.Value))
+			val := ev.Kv.Value
+			if ev.Type == mvccpb.DELETE {
+				val = ev.PrevKv.Value
+
+			}
+			err := handle(ctx, ev.Type, string(ev.Kv.Key), string(val))
 			if err != nil {
 				d.log.Error(err)
 			}

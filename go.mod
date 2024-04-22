@@ -83,7 +83,9 @@ require (
 	github.com/begonia-org/go-loadbalancer v0.0.0-20240329014325-4a48bea6bec5
 	github.com/begonia-org/go-sdk v0.0.0-20240327074433-f18fef230058compiler
 	github.com/go-git/go-git/v5 v5.11.0
+	github.com/go-playground/validator/v10 v10.19.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.19.1
+	go.etcd.io/etcd/api/v3 v3.5.12
 	go.etcd.io/etcd/client/v3 v3.5.12
 )
 
@@ -105,14 +107,12 @@ require (
 	github.com/go-git/go-billy/v5 v5.5.0 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
-	github.com/go-playground/validator/v10 v10.19.0 // indirect
 	github.com/go-redis/redismock/v9 v9.2.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/gopherjs/gopherjs v1.17.2 // indirect
 	github.com/gorilla/websocket v1.5.1 // indirect
-	github.com/iancoleman/strcase v0.3.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
 	github.com/jtolds/gls v4.20.0+incompatible // indirect
@@ -127,7 +127,6 @@ require (
 	github.com/skeema/knownhosts v1.2.2 // indirect
 	github.com/smarty/assertions v1.15.0 // indirect
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
-	go.etcd.io/etcd/api/v3 v3.5.12 // indirect
 	go.etcd.io/etcd/client/pkg/v3 v3.5.12 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/mod v0.16.0 // indirect

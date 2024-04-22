@@ -5,17 +5,17 @@ import (
 
 	"github.com/begonia-org/begonia/internal/biz"
 	"github.com/begonia-org/begonia/internal/pkg/config"
+	"github.com/begonia-org/begonia/internal/pkg/logger"
 	"github.com/begonia-org/begonia/internal/pkg/web"
 	api "github.com/begonia-org/go-sdk/api/v1"
 	common "github.com/begonia-org/go-sdk/common/api/v1"
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 )
 
 type AppService struct {
 	api.UnimplementedAppsServiceServer
 	biz    *biz.AppUsecase
-	log    *logrus.Logger
+	log    logger.Logger
 	config *config.Config
 }
 
@@ -54,6 +54,6 @@ func (app *AppService) Desc() *grpc.ServiceDesc {
 	return &api.AppsService_ServiceDesc
 }
 
-func NewAppService(biz *biz.AppUsecase, log *logrus.Logger, config *config.Config) *AppService {
+func NewAppService(biz *biz.AppUsecase, log logger.Logger, config *config.Config) *AppService {
 	return &AppService{biz: biz, log: log, config: config}
 }

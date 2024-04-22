@@ -53,7 +53,6 @@ func (f *FormDataDecoder) Decode(v interface{}) error {
 		return err
 	}
 
-
 	for key, files := range formData.File {
 		file := files[0]
 		fd, err := file.Open()
@@ -168,6 +167,7 @@ func getProtoreflectValue(value string, field protoreflect.FieldDescriptor) (pro
 func parseFormToProto(values url.Values, pb proto.Message) error {
 	pbReflect := pb.ProtoReflect()
 	fields := pbReflect.Descriptor().Fields()
+	mask := make([]string, 0)
 	for i := 0; i < fields.Len(); i++ {
 		field := fields.Get(i)
 		fieldName := field.JSONName()
@@ -189,11 +189,13 @@ func parseFormToProto(values url.Values, pb proto.Message) error {
 				return err
 			}
 			pbReflect.Set(field, elem)
+			mask = append(mask, fieldName)
 
 		}
 	}
+	return SetUpdateMaskFields(pb, mask)
 
-	return nil
+	// return nil
 }
 func NewFormDataMarshaler() *FormDataMarshaler {
 	return &FormDataMarshaler{JSONPb: runtime.JSONPb{
@@ -219,6 +221,12 @@ func (f *FormUrlEncodedDecoder) Decode(v interface{}) error {
 		err := parseFormToProto(data, pb)
 		if err != nil {
 			return errors.New(fmt.Errorf("parse form data to proto error,%w", err), int32(common.Code_PARAMS_ERROR), codes.InvalidArgument, "parse_form_data")
+		}
+		return nil
+	}
+	if mapData, ok := v.(map[string]interface{}); ok {
+		for k, v := range data {
+			mapData[k] = v
 		}
 		return nil
 	}

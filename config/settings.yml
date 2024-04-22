@@ -59,29 +59,29 @@
     plugins:
       local:
         logger: 0
-        exception: 1
+        # exception: 1
         http: 2
         params_validator: 3
         auth: 4
         # only_api_key_auth: 4
-      # rpc:
-      #   - server:
-      #     name: "example-server"
-      #     endpoint:
-      #       - addr: "127.0.0.1:9000"
-      #         weight: 1
-      #       - addr: "127.0.0.1:9001"
-      #         weight: 2
-      #     priority: 10
-      #     timeout: 30
-      #     lb: "round_robin"
-      #     pool:
-      #       max_open_conns: 100
-      #       max_idle_conns: 50
-      #       size: 50
-      #       timeout: 10
-      #       min_idle_conns: 25
-      #       max_active_conns: 20
+      rpc:
+        - server:
+          name: "example-server"
+          endpoint:
+            - addr: "127.0.0.1:21216"
+              weight: 1
+            - addr: "127.0.0.1:21217"
+              weight: 2
+          priority: 10
+          timeout: 30
+          lb: "round_robin"
+          pool:
+            max_open_conns: 100
+            max_idle_conns: 50
+            size: 50
+            timeout: 10
+            min_idle_conns: 25
+            max_active_conns: 20
 
 common:
   rdb_key_prefix: "begonia"

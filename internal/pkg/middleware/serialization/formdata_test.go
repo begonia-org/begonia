@@ -26,9 +26,9 @@ func TestFormDataContentType(t *testing.T) {
 
 		// 添加文本字段
 		_ = writer.WriteField("message", "John Doe")
-		_= writer.WriteField("msg", `{"msg":"hello world"}`)
+		_ = writer.WriteField("msg", `{"msg":"hello world"}`)
 		_ = writer.WriteField("allow", api.EnumAllow_DENY.String())
-		_ = writer.WriteField("repeated_msg",`{"msg":"John Doe"}`)
+		_ = writer.WriteField("repeated_msg", `{"msg":"John Doe"}`)
 		_, filePath, _, _ := runtime.Caller(0)
 
 		// 添加文件
@@ -43,7 +43,8 @@ func TestFormDataContentType(t *testing.T) {
 		writer.Close()
 		pb := &api.ExampleMessage{}
 		dpb := dynamicpb.NewMessage(pb.ProtoReflect().Descriptor())
-		decoder := &FormDataDecoder{r: &requestBody, boundary: writer.Boundary()}
+		// decoder := &FormDataDecoder{r: &requestBody, boundary: writer.Boundary()}
+		decoder :=&FormDataDecoder{r: &requestBody, boundary: writer.Boundary()}
 		err := decoder.Decode(dpb)
 		c.So(err, c.ShouldBeNil)
 		bData, err := protojson.Marshal(dpb)
@@ -54,29 +55,30 @@ func TestFormDataContentType(t *testing.T) {
 		c.So(pb.Allow, c.ShouldEqual, api.EnumAllow_DENY)
 		c.So(pb.RepeatedMsg[0].Msg, c.ShouldEqual, "John Doe")
 		c.So(pb.Msg.Msg, c.ShouldEqual, "hello world")
+		c.So(pb.Mask.Paths, c.ShouldNotBeEmpty)
 	})
 }
 
 func TestFormUrlEncodedContentType(t *testing.T) {
-c.Convey("TestFormUrlEncodedContentType", t, func() {
-	formData := url.Values{}
-	formData.Add("message", "John Doe")
-	formData.Add("allow", api.EnumAllow_DENY.String())
-	_, filePath, _, _ := runtime.Caller(0)
+	c.Convey("TestFormUrlEncodedContentType", t, func() {
+		formData := url.Values{}
+		formData.Add("message", "John Doe")
+		formData.Add("allow", api.EnumAllow_DENY.String())
+		_, filePath, _, _ := runtime.Caller(0)
 
-	// 添加文件
-	data, _ := os.ReadFile(filePath)
-	formData.Add("byte_data", string(data))
-	pb := &api.ExampleMessage{}
-	dpb := dynamicpb.NewMessage(pb.ProtoReflect().Descriptor())
-	decoder := &FormUrlEncodedDecoder{r: strings.NewReader(formData.Encode())}
-	err := decoder.Decode(dpb)
-	c.So(err, c.ShouldBeNil)
-	bData, err := protojson.Marshal(dpb)
-	c.So(err, c.ShouldBeNil)
-	err = protojson.Unmarshal(bData, pb)
-	c.So(err, c.ShouldBeNil)
-	c.So(pb.Message, c.ShouldEqual, "John Doe")
-	c.So(pb.Allow, c.ShouldEqual, api.EnumAllow_DENY)
-})
+		// 添加文件
+		data, _ := os.ReadFile(filePath)
+		formData.Add("byte_data", string(data))
+		pb := &api.ExampleMessage{}
+		dpb := dynamicpb.NewMessage(pb.ProtoReflect().Descriptor())
+		decoder := &FormUrlEncodedDecoder{r: strings.NewReader(formData.Encode())}
+		err := decoder.Decode(dpb)
+		c.So(err, c.ShouldBeNil)
+		bData, err := protojson.Marshal(dpb)
+		c.So(err, c.ShouldBeNil)
+		err = protojson.Unmarshal(bData, pb)
+		c.So(err, c.ShouldBeNil)
+		c.So(pb.Message, c.ShouldEqual, "John Doe")
+		c.So(pb.Allow, c.ShouldEqual, api.EnumAllow_DENY)
+	})
 }

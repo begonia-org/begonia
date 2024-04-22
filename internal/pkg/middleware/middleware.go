@@ -7,10 +7,10 @@ import (
 	"github.com/begonia-org/begonia/internal/biz"
 	"github.com/begonia-org/begonia/internal/data"
 	"github.com/begonia-org/begonia/internal/pkg/config"
+	"github.com/begonia-org/begonia/internal/pkg/logger"
 	"github.com/begonia-org/begonia/internal/pkg/middleware/auth"
 	goloadbalancer "github.com/begonia-org/go-loadbalancer"
 	gosdk "github.com/begonia-org/go-sdk"
-	"github.com/sirupsen/logrus"
 	"github.com/spark-lence/tiga"
 	"google.golang.org/grpc"
 )
@@ -22,20 +22,20 @@ import (
 func New(config *config.Config,
 	rdb *tiga.RedisDao,
 	user *biz.UsersUsecase,
-	log *logrus.Logger,
+	log logger.Logger,
 	app biz.AppRepo,
 	local *data.LayeredCache) *PluginsApply {
 	jwt := auth.NewJWTAuth(config, rdb, user, log)
 	ak := auth.NewAccessKeyAuth(app, config, local, log)
-	apiKey:=auth.NewApiKeyAuth(config)
+	apiKey := auth.NewApiKeyAuth(config)
 	plugins := map[string]gosdk.LocalPlugin{
-		"onlyJWT":   jwt,
-		"onlyAK":    ak,
-		"logger":    NewLoggerMiddleware(log),
-		"exception": NewException(log),
-		"http":      NewHttp(),
-		"auth":      NewAuth(ak, jwt,apiKey),
-		"params_validator": NewParamsValidator(),
+		"onlyJWT":           jwt,
+		"onlyAK":            ak,
+		"logger":            NewLoggerMiddleware(log),
+		"exception":         NewException(log),
+		"http":              NewHttp(),
+		"auth":              NewAuth(ak, jwt, apiKey),
+		"params_validator":  NewParamsValidator(),
 		"only_api_key_auth": apiKey,
 		// "logger":NewLoggerMiddleware(log),
 	}
@@ -56,11 +56,11 @@ func New(config *config.Config,
 		return pluginsApply
 	}
 	for _, rpc := range rpcPlugins {
-		lb:=goloadbalancer.NewGrpcLoadBalance(rpc)
+		lb := goloadbalancer.NewGrpcLoadBalance(rpc)
 		pluginsApply.Register(&pluginImpl{
-			lb: lb,
-			name:     rpc.Name,
-			timeout:  time.Duration(rpc.Timeout) * time.Second,
+			lb:      lb,
+			name:    rpc.Name,
+			timeout: time.Duration(rpc.Timeout) * time.Second,
 		}, rpc.Priority)
 	}
 	return pluginsApply

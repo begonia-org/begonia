@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"path/filepath"
 
 	"github.com/begonia-org/begonia/internal/biz/gateway"
@@ -21,13 +22,7 @@ func NewEndpointRepoImpl(data *Data, cfg *config.Config) gateway.EndpointRepo {
 	return &endpointRepoImpl{data: data, cfg: cfg}
 }
 
-// AddEndpoint(ctx context.Context,endpoints []*api.Endpoints) error
-// DeleteEndpoint(ctx context.Context, endpoints []*api.Endpoints) error
-// UpdateEndpoint(ctx context.Context, endpoints []*api.Endpoints) error
-// GetEndpoint(ctx context.Context, pluginId string) (error, []*api.Endpoints)
-// ListEndpoint(ctx context.Context, plugins[]string) (error, []*api.Endpoints)
 func (r *endpointRepoImpl) AddEndpoint(ctx context.Context, endpoints []*api.Endpoints) error {
-	// return r.data.CreateInBatches(endpoints)
 	sources := NewSourceTypeArray(endpoints)
 	return r.data.CreateInBatches(sources)
 }
@@ -36,12 +31,11 @@ func (r *endpointRepoImpl) Get(ctx context.Context, key string) (string, error) 
 	return r.data.etcd.GetString(ctx, key)
 }
 func (e *endpointRepoImpl) Del(ctx context.Context, id string) error {
-	srvKey := getServiceKey(e.cfg, id)
+	srvKey := e.cfg.GetServiceKey(id)
 	ops := make([]clientv3.Op, 0)
-	details := getDetailsKey(e.cfg, id)
-	ops = append(ops, clientv3.OpDelete(details))
+	// details := getDetailsKey(e.cfg, id)
+	// ops = append(ops, clientv3.OpDelete(details))
 	ops = append(ops, clientv3.OpDelete(srvKey))
-	// getTagsKey()
 	kvs, err := e.data.etcd.GetWithPrefix(ctx, filepath.Join(e.cfg.GetEndpointsPrefix(), "tags"))
 	if err != nil {
 		return err
@@ -63,18 +57,17 @@ func (e *endpointRepoImpl) Del(ctx context.Context, id string) error {
 }
 func (e *endpointRepoImpl) Put(ctx context.Context, endpoint *api.Endpoints) error {
 	ops := make([]clientv3.Op, 0)
-	// Add service key to tag list
 	srvKey := e.cfg.GetServiceKey(endpoint.UniqueKey)
 	for _, tag := range endpoint.Tags {
 		tagKey := e.cfg.GetTagsKey(tag, endpoint.UniqueKey)
 		ops = append(ops, clientv3.OpPut(tagKey, srvKey))
 	}
-	// ops = append(ops, clientv3.OpPut(srvKey, endpoint.UniqueKey))
-	ops = append(ops, clientv3.OpPut(e.cfg.GetServiceNameKey(endpoint.ServiceName), srvKey))
+
 	details, _ := json.Marshal(endpoint)
 	ops = append(ops, clientv3.OpPut(srvKey, string(details)))
 	ok, err := e.data.PutEtcdWithTxn(ctx, ops)
 	if err != nil {
+		log.Printf("put endpoint fail: %v", err)
 		return fmt.Errorf("put endpoint fail: %w", err)
 	}
 	if !ok {
@@ -192,13 +185,23 @@ func (e *endpointRepoImpl) PutTags(ctx context.Context, id string, tags []string
 	}
 
 	ops := make([]clientv3.Op, 0)
+	filters := make(map[string]bool)
+
 	// 先删除原有tags
 	for _, tag := range endpoint.Tags {
+		if _, ok := filters[tag]; ok {
+			continue
+		}
+		filters[tag] = true
 		tagKey := e.cfg.GetTagsKey(tag, id)
 		ops = append(ops, clientv3.OpDelete(tagKey))
 	}
 	srvKey := e.cfg.GetServiceKey(id)
 	for _, tag := range tags {
+		if _, ok := filters[tag]; ok {
+			continue
+		}
+		filters[tag] = true
 		tagKey := e.cfg.GetTagsKey(tag, id)
 		ops = append(ops, clientv3.OpPut(tagKey, srvKey))
 	}

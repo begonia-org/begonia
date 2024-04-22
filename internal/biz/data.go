@@ -10,10 +10,11 @@ import (
 
 	"github.com/begonia-org/begonia/internal/biz/gateway"
 	"github.com/begonia-org/begonia/internal/pkg/config"
+	"github.com/begonia-org/begonia/internal/pkg/logger"
 	api "github.com/begonia-org/go-sdk/api/v1"
 	"github.com/bsm/redislock"
-	"github.com/sirupsen/logrus"
 	"go.etcd.io/etcd/api/v3/mvccpb"
+	"google.golang.org/grpc/status"
 )
 
 type DataLock interface {
@@ -37,12 +38,12 @@ type DataOperatorUsecase struct {
 	repo            DataOperatorRepo
 	endpoint        gateway.EndpointRepo
 	config          *config.Config
-	log             *logrus.Logger
+	log             logger.Logger
 	endpointWatcher *gateway.GatewayWatcher
 }
 
-func NewDataOperatorUsecase(repo DataOperatorRepo, config *config.Config, log *logrus.Logger, endpointWatch *gateway.GatewayWatcher, endpoint gateway.EndpointRepo) *DataOperatorUsecase {
-	log = log.WithField("module", "data").Logger
+func NewDataOperatorUsecase(repo DataOperatorRepo, config *config.Config, log logger.Logger, endpointWatch *gateway.GatewayWatcher, endpoint gateway.EndpointRepo) *DataOperatorUsecase {
+	log.WithField("module", "data")
 	log.SetReportCaller(true)
 	return &DataOperatorUsecase{repo: repo, config: config, log: log, endpointWatcher: endpointWatch, endpoint: endpoint}
 }
@@ -79,6 +80,9 @@ func (d *DataOperatorUsecase) handle(ctx context.Context) {
 	go func() {
 		for err := range errChan {
 			if err != nil {
+				if st, ok := status.FromError(err); ok {
+					st.Details()
+				}
 				d.log.Error(err)
 			}
 
@@ -111,7 +115,7 @@ func (d *DataOperatorUsecase) loadUsersBlacklist(ctx context.Context) error {
 		err = lock.UnLock(ctx)
 		if err != nil {
 			// d.log.Error("unlock error", err)
-			d.log.Error("unlock error", err)
+			d.log.Error(fmt.Errorf("unlock error: %w", err))
 
 		}
 	}()

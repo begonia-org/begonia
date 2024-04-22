@@ -2,8 +2,10 @@ package middleware
 
 import (
 	"context"
+	"fmt"
 	"time"
 
+	"github.com/begonia-org/begonia/internal/pkg/logger"
 	common "github.com/begonia-org/go-sdk/common/api/v1"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
@@ -14,12 +16,12 @@ import (
 )
 
 type LoggerMiddleware struct {
-	*logrus.Logger
+	logger.Logger
 	priority int
-	name string
+	name     string
 }
 
-func NewLoggerMiddleware(log *logrus.Logger) *LoggerMiddleware {
+func NewLoggerMiddleware(log logger.Logger) *LoggerMiddleware {
 	return &LoggerMiddleware{Logger: log, name: "logger"}
 }
 func (log *LoggerMiddleware) Priority() int {
@@ -55,7 +57,7 @@ func (log *LoggerMiddleware) logger(ctx context.Context, fullMethod string, err 
 		xuid = md.Get("x-uid")[0]
 	}
 	code := status.Code(err)
-	logger := log.WithFields(logrus.Fields{
+	logger := log.Logger.WithFields(logrus.Fields{
 		"x-request-id": reqId,
 		"uri":          uri,
 		"method":       method,
@@ -85,7 +87,8 @@ func (log *LoggerMiddleware) logger(ctx context.Context, fullMethod string, err 
 			}
 
 		}
-		logger.Error(err.Error())
+		fmt.Println("发生错误", err)
+		logger.Error(err)
 	} else {
 		logger.Info("success")
 	}

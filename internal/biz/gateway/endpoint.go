@@ -13,7 +13,7 @@ import (
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/errors"
 	dp "github.com/begonia-org/dynamic-proto"
-	goloadbalancer "github.com/begonia-org/go-loadbalancer"
+	loadbalance "github.com/begonia-org/go-loadbalancer"
 	api "github.com/begonia-org/go-sdk/api/v1"
 	common "github.com/begonia-org/go-sdk/common/api/v1"
 	"google.golang.org/grpc/codes"
@@ -22,7 +22,6 @@ import (
 	"github.com/begonia-org/begonia/internal/pkg/gateway"
 	"github.com/begonia-org/begonia/internal/pkg/routers"
 	"github.com/spark-lence/tiga"
-	"github.com/spark-lence/tiga/loadbalance"
 )
 
 type EndpointRepo interface {
@@ -142,16 +141,7 @@ func (e *EndpointUsecase) CreateEndpoint(ctx context.Context, endpoint *api.AddE
 }
 
 func (e *EndpointUsecase) AddConfig(ctx context.Context, srvConfig *api.EndpointSrvConfig) (string, error) {
-
-	exists, err := e.repo.Get(ctx, getServiceNameKey(e.config, srvConfig.ServiceName))
-	if err != nil {
-		return "", errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_config")
-
-	}
-	if exists != "" {
-		return "", errors.New(errors.ErrEndpointExists, int32(api.EndpointSvrStatus_SERVICE_NAME_DUPLICATE), codes.AlreadyExists, "endpoint_exists")
-	}
-	if !goloadbalancer.CheckBalanceType(srvConfig.Balance) {
+	if !loadbalance.CheckBalanceType(srvConfig.Balance) {
 		return "", errors.New(errors.ErrUnknownLoadBalancer, int32(api.EndpointSvrStatus_NOT_SUPPORT_BALANCE), codes.InvalidArgument, "balance_type")
 	}
 	id := e.snk.GenerateIDString()
@@ -169,7 +159,7 @@ func (e *EndpointUsecase) AddConfig(ctx context.Context, srvConfig *api.Endpoint
 		ServiceName:   srvConfig.ServiceName,
 		DescriptorSet: srvConfig.DescriptorSet,
 	}
-	err = e.repo.Put(ctx, endpoint)
+	err := e.repo.Put(ctx, endpoint)
 	if err != nil {
 		return "", errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "put_endpoint")
 
@@ -189,18 +179,12 @@ func (e *EndpointUsecase) Patch(ctx context.Context, srvConfig *api.EndpointSrvU
 		return "", errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "unmarshal_config")
 
 	}
+	// 过滤掉不允许修改的字段
 	for _, field := range srvConfig.Mask.Paths {
 		patch[field] = svrConfigPatch[field]
 
 	}
-	// 过滤掉空值
-	if len(srvConfig.Mask.Paths) == 0 {
-		for key, value := range svrConfigPatch {
-			if value != nil {
-				patch[key] = value
-			}
-		}
-	}
+
 	updated_at := timestamppb.New(time.Now()).AsTime().Format(time.RFC3339)
 	patch["updated_at"] = updated_at
 	err = e.repo.Patch(ctx, srvConfig.UniqueKey, patch)
@@ -210,13 +194,20 @@ func (e *EndpointUsecase) Patch(ctx context.Context, srvConfig *api.EndpointSrvU
 	return updated_at, nil
 }
 
+//	func (e *EndpointUsecase) DeleteByName(ctx context.Context, name string) error {
+//		return e.repo.Del(ctx, uniqueKey)
+//	}
 func (u *EndpointUsecase) Delete(ctx context.Context, uniqueKey string) error {
 	return u.repo.Del(ctx, uniqueKey)
 }
 
 func (u *EndpointUsecase) Get(ctx context.Context, uniqueKey string) (*api.Endpoints, error) {
-	detailsKey := getDetailsKey(u.config, uniqueKey)
+	detailsKey := u.config.GetServiceKey(uniqueKey)
 	value, err := u.repo.Get(ctx, detailsKey)
+	if value == "" {
+		return nil, errors.New(errors.ErrEndpointNotExists, int32(common.Code_NOT_FOUND), codes.NotFound, "get_endpoint")
+
+	}
 	if err != nil {
 		return nil, errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_endpoint")
 	}

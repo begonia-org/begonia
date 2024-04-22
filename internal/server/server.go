@@ -18,7 +18,7 @@ import (
 	common "github.com/begonia-org/go-sdk/common/api/v1"
 	"github.com/google/wire"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	"github.com/spark-lence/tiga/pool"
+	loadbalance "github.com/begonia-org/go-loadbalancer"
 	"google.golang.org/grpc"
 )
 
@@ -37,20 +37,23 @@ func NewGateway(cfg *dp.GatewayConfig, conf *config.Config, services []service.S
 	opts := &dp.GrpcServerOptions{
 		Middlewares:     make([]dp.GrpcProxyMiddleware, 0),
 		Options:         make([]grpc.ServerOption, 0),
-		PoolOptions:     make([]pool.PoolOptionsBuildOption, 0),
+		PoolOptions:     make([]loadbalance.PoolOptionsBuildOption, 0),
 		HttpMiddlewares: make([]runtime.ServeMuxOption, 0),
 		HttpHandlers:    make([]func(http.Handler) http.Handler, 0),
 	}
 	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithMarshalerOption("application/json", serialization.NewJSONMarshaler()))
 	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithMarshalerOption("multipart/form-data", serialization.NewFormDataMarshaler()))
 	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithMarshalerOption("application/x-www-form-urlencoded", serialization.NewFormUrlEncodedMarshaler()))
+	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithMarshalerOption(runtime.MIMEWildcard, serialization.NewRawBinaryUnmarshaler()))
+	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithMarshalerOption("application/octet-stream", serialization.NewRawBinaryUnmarshaler()))
 
 	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithMetadata(middleware.IncomingHeadersToMetadata))
-	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithErrorHandler(middleware.HandleErrorWithLogger(logger.Logger)))
+	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithErrorHandler(middleware.HandleErrorWithLogger(logger.Log)))
 	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithForwardResponseOption(middleware.HttpResponseBodyModify))
+	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithRoutingErrorHandler(middleware.HandleRoutingError))
 	// 连接池配置
-	opts.PoolOptions = append(opts.PoolOptions, pool.WithMaxActiveConns(100))
-	opts.PoolOptions = append(opts.PoolOptions, pool.WithPoolSize(128))
+	opts.PoolOptions = append(opts.PoolOptions, loadbalance.WithMaxActiveConns(100))
+	opts.PoolOptions = append(opts.PoolOptions, loadbalance.WithPoolSize(128))
 	// 中间件配置
 	opts.Options = append(opts.Options, grpc.ChainUnaryInterceptor(pluginApply.UnaryInterceptorChains()...))
 	opts.Options = append(opts.Options, grpc.ChainStreamInterceptor(pluginApply.StreamInterceptorChains()...))

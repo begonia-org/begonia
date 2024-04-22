@@ -9,10 +9,10 @@ import (
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/crypto"
 	"github.com/begonia-org/begonia/internal/pkg/errors"
+	"github.com/begonia-org/begonia/internal/pkg/logger"
 	api "github.com/begonia-org/go-sdk/api/v1"
 	common "github.com/begonia-org/go-sdk/common/api/v1"
 	"github.com/redis/go-redis/v9"
-	"github.com/sirupsen/logrus"
 	"github.com/spark-lence/tiga"
 	srvErr "github.com/spark-lence/tiga/errors"
 	"google.golang.org/grpc/codes"
@@ -39,12 +39,12 @@ type UsersRepo interface {
 
 type UsersUsecase struct {
 	repo       UsersRepo
-	log        *logrus.Logger
+	log        logger.Logger
 	authCrypto *crypto.UsersAuth
 	config     *config.Config
 }
 
-func NewUsersUsecase(repo UsersRepo, log *logrus.Logger, crypto *crypto.UsersAuth, config *config.Config) *UsersUsecase {
+func NewUsersUsecase(repo UsersRepo, log logger.Logger, crypto *crypto.UsersAuth, config *config.Config) *UsersUsecase {
 	return &UsersUsecase{repo: repo, log: log, authCrypto: crypto, config: config}
 }
 func (u *UsersUsecase) ListUsers(ctx context.Context, conds ...interface{}) ([]*api.Users, error) {

@@ -11,9 +11,9 @@ import (
 
 	"github.com/begonia-org/begonia/internal/pkg/errors"
 	"github.com/begonia-org/begonia/internal/pkg/gateway"
+	loadbalance "github.com/begonia-org/go-loadbalancer"
 	api "github.com/begonia-org/go-sdk/api/v1"
 	common "github.com/begonia-org/go-sdk/common/api/v1"
-	"github.com/spark-lence/tiga/loadbalance"
 	"google.golang.org/grpc/codes"
 )
 

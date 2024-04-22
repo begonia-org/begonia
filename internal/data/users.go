@@ -6,18 +6,18 @@ import (
 	"time"
 
 	"github.com/begonia-org/begonia/internal/biz"
+	"github.com/begonia-org/begonia/internal/pkg/logger"
 	api "github.com/begonia-org/go-sdk/api/v1"
 	"github.com/redis/go-redis/v9"
-	"github.com/sirupsen/logrus"
 )
 
 type userRepo struct {
 	data  *Data
-	log   *logrus.Logger
+	log   logger.Logger
 	local *LayeredCache
 }
 
-func NewUserRepo(data *Data, log *logrus.Logger, local *LayeredCache) biz.UsersRepo {
+func NewUserRepo(data *Data, log logger.Logger, local *LayeredCache) biz.UsersRepo {
 	return &userRepo{data: data, log: log, local: local}
 }
 

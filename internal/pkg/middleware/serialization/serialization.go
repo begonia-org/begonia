@@ -112,16 +112,22 @@ func ConvertDynamicMessageToHttpBody(dynamicMessage *dynamicpb.Message) (*httpbo
 }
 func (m *RawBinaryUnmarshaler) ContentType(v interface{}) string {
 	if dpb, ok := v.(*dynamicpb.Message); ok {
-		if httpBody, err := ConvertDynamicMessageToHttpBody(dpb); err == nil && httpBody != nil {
-			return httpBody.GetContentType()
+		typ := dpb.Type().Descriptor().Name()
+		if typ == "HttpBody" {
+			if httpBody, err := ConvertDynamicMessageToHttpBody(dpb); err == nil && httpBody != nil {
+				return httpBody.GetContentType()
+			}
 		}
 	}
 	return "application/octet-stream"
 }
 func (m *RawBinaryUnmarshaler) Marshal(v interface{}) ([]byte, error) {
 	if dpb, ok := v.(*dynamicpb.Message); ok {
-		if httpBody, err := ConvertDynamicMessageToHttpBody(dpb); err == nil && httpBody != nil {
-			return httpBody.GetData(), nil
+		typ := dpb.Type().Descriptor().Name()
+		if typ == "HttpBody" {
+			if httpBody, err := ConvertDynamicMessageToHttpBody(dpb); err == nil && httpBody != nil {
+				return httpBody.GetData(), nil
+			}
 		}
 	}
 	return m.Marshaler.Marshal(v)
@@ -179,7 +185,7 @@ func NewJSONMarshaler() *JSONMarshaler {
 		MarshalOptions: protojson.MarshalOptions{
 			EmitUnpopulated: true, // 设置为 true 以确保默认值（例如 0 或空字符串）被序列化
 			UseEnumNumbers:  true, // 设置为 true 以确保枚举值被序列化为数字而不是字符串
-			UseProtoNames:   true, // 设置为 true 以确保 proto 消息的原始名称（而不是 Go 字段名称）被序列化
+			// UseProtoNames:   true, // 设置为 true 以确保 proto 消息的原始名称（而不是 Go 字段名称）被序列化
 
 		},
 	}}
@@ -219,3 +225,7 @@ func (m *JSONMarshaler) ContentType(v interface{}) string {
 	return "application/json"
 }
 
+// func (m *JSONMarshaler) NewDecoder(r io.Reader) runtime.Decoder {
+// 	// return NewMaskDecoder(m.JSONPb.NewDecoder(r))
+// 	return json.NewDecoder(r)
+// }

@@ -10,10 +10,10 @@ import (
 	"github.com/begonia-org/begonia/internal/biz"
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/errors"
+	"github.com/begonia-org/begonia/internal/pkg/logger"
 	"github.com/begonia-org/begonia/internal/pkg/routers"
 	api "github.com/begonia-org/go-sdk/api/v1"
 	"github.com/bsm/redislock"
-	"github.com/sirupsen/logrus"
 	"github.com/spark-lence/tiga"
 	srvErr "github.com/spark-lence/tiga/errors"
 	"google.golang.org/grpc"
@@ -26,12 +26,12 @@ type JWTAuth struct {
 	config   *config.Config
 	rdb      *tiga.RedisDao
 	biz      *biz.UsersUsecase
-	log      *logrus.Logger
+	log      logger.Logger
 	priority int
 	name     string
 }
 
-func NewJWTAuth(config *config.Config, rdb *tiga.RedisDao, biz *biz.UsersUsecase, log *logrus.Logger) *JWTAuth {
+func NewJWTAuth(config *config.Config, rdb *tiga.RedisDao, biz *biz.UsersUsecase, log logger.Logger) *JWTAuth {
 	return &JWTAuth{
 		config: config,
 		rdb:    rdb,

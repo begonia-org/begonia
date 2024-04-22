@@ -6,20 +6,20 @@ import (
 
 	"github.com/begonia-org/begonia/internal/biz/gateway"
 	"github.com/begonia-org/begonia/internal/pkg/config"
+	"github.com/begonia-org/begonia/internal/pkg/logger"
 	api "github.com/begonia-org/go-sdk/api/v1"
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type EndpointsService struct {
 	biz    *gateway.EndpointUsecase
-	log    *logrus.Logger
+	log    logger.Logger
 	config *config.Config
 	api.UnimplementedEndpointServiceServer
 }
 
-func NewEndpointsService(biz *gateway.EndpointUsecase, log *logrus.Logger, config *config.Config) *EndpointsService {
+func NewEndpointsService(biz *gateway.EndpointUsecase, log logger.Logger, config *config.Config) *EndpointsService {
 	return &EndpointsService{biz: biz, log: log, config: config}
 }
 
@@ -33,14 +33,14 @@ func (e *EndpointsService) Create(ctx context.Context, in *api.AddEndpointReques
 	}
 	return &api.AddEndpointResponse{UniqueKey: key}, nil
 }
-func (e *EndpointsService) Update(ctx context.Context, in *api.EndpointSrvUpdateRequest) (*api.UpdateResponse, error) {
+func (e *EndpointsService) Update(ctx context.Context, in *api.EndpointSrvUpdateRequest) (*api.UpdateEndpointResponse, error) {
 	timestamp, err := e.biz.Patch(ctx, in)
 	if err != nil {
 		return nil, err
 
 	}
 	tm, _ := time.Parse(time.RFC3339, timestamp)
-	return &api.UpdateResponse{UpdatedAt: timestamppb.New(tm)}, nil
+	return &api.UpdateEndpointResponse{UpdatedAt: timestamppb.New(tm)}, nil
 }
 func (e *EndpointsService) Config(ctx context.Context, in *api.EndpointSrvConfig) (*api.AddEndpointResponse, error) {
 	id, err := e.biz.AddConfig(ctx, in)
@@ -69,4 +69,12 @@ func (e *EndpointsService) Delete(ctx context.Context, in *api.DeleteEndpointReq
 		return nil, err
 	}
 	return &api.DeleteEndpointResponse{}, nil
+}
+
+func (e *EndpointsService) Details(ctx context.Context, in *api.DetailsEndpointRequest) (*api.DetailsEndpointResponse, error) {
+	endpoint, err := e.biz.Get(ctx, in.UniqueKey)
+	if err != nil {
+		return nil, err
+	}
+	return &api.DetailsEndpointResponse{Endpoints: endpoint}, nil
 }

@@ -13,7 +13,7 @@ import (
 	dp "github.com/begonia-org/dynamic-proto"
 	api "github.com/begonia-org/go-sdk/api/v1"
 	common "github.com/begonia-org/go-sdk/common/api/v1"
-	"github.com/spark-lence/tiga/loadbalance"
+	loadbalance "github.com/begonia-org/go-loadbalancer"	
 	"google.golang.org/grpc/codes"
 )
 

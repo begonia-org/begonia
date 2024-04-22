@@ -6,23 +6,23 @@ import (
 	"time"
 
 	"github.com/begonia-org/begonia/internal/pkg/config"
+	"github.com/begonia-org/begonia/internal/pkg/logger"
 	glc "github.com/begonia-org/go-layered-cache"
 	"github.com/begonia-org/go-layered-cache/gocuckoo"
 	"github.com/begonia-org/go-layered-cache/source"
-	"github.com/sirupsen/logrus"
 )
 
 type LayeredCache struct {
 	kv          glc.LayeredKeyValueCache
 	data        *Data
 	config      *config.Config
-	log         *logrus.Logger
+	log         logger.Logger
 	mux         sync.Mutex
 	filters     glc.LayeredCuckooFilter
 	onceOnStart sync.Once
 }
 
-func NewLayeredCache(ctx context.Context, data *Data, config *config.Config, log *logrus.Logger) *LayeredCache {
+func NewLayeredCache(ctx context.Context, data *Data, config *config.Config, log logger.Logger) *LayeredCache {
 
 	kvWatcher := source.NewWatchOptions([]interface{}{config.GetKeyValuePubsubKey()})
 	strategy := glc.CacheReadStrategy(config.GetMultiCacheReadStrategy())
@@ -31,7 +31,7 @@ func NewLayeredCache(ctx context.Context, data *Data, config *config.Config, log
 		Strategy:  glc.CacheReadStrategy(strategy),
 		Watcher:   kvWatcher,
 		Channel:   config.GetKeyValuePubsubKey(),
-		Log:       log,
+		Log:       log.Logurs(),
 		KeyPrefix: config.GetKeyValuePrefix(),
 	}
 	kv, err := glc.NewKeyValueCache(ctx, KvOptions, 5*100*100)
@@ -45,7 +45,7 @@ func NewLayeredCache(ctx context.Context, data *Data, config *config.Config, log
 		Strategy:  glc.LocalOnly,
 		Watcher:   filterWatcher,
 		Channel:   config.GetFilterPubsubKey(),
-		Log:       log,
+		Log:       log.Logurs(),
 		KeyPrefix: config.GetFilterPrefix(),
 	}
 	filter := glc.NewLayeredCuckoo(&filterOptions, gocuckoo.CuckooBuildOptions{

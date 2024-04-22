@@ -6,16 +6,16 @@ import (
 	sysRuntime "runtime"
 
 	"github.com/begonia-org/begonia/internal/pkg/errors"
+	"github.com/begonia-org/begonia/internal/pkg/logger"
 	common "github.com/begonia-org/go-sdk/common/api/v1"
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )
 
 type Exception struct {
-	log      *logrus.Logger
+	log      logger.Logger
 	priority int
-	name string
+	name     string
 }
 
 func (e *Exception) UnaryInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
@@ -48,8 +48,8 @@ func (e *Exception) StreamInterceptor(srv interface{}, ss grpc.ServerStream, inf
 	}()
 	return handler(srv, ss)
 }
-func NewException(log *logrus.Logger) *Exception {
-	return &Exception{log: log,name: "exception"}
+func NewException(log logger.Logger) *Exception {
+	return &Exception{log: log, name: "exception"}
 }
 
 func (e *Exception) Priority() int {

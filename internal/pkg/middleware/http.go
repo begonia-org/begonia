@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/begonia-org/begonia/internal/pkg/errors"
+	"github.com/begonia-org/begonia/internal/pkg/logger"
 	"github.com/begonia-org/begonia/internal/pkg/routers"
 	gosdk "github.com/begonia-org/go-sdk"
 	_ "github.com/begonia-org/go-sdk/api/v1"
@@ -151,7 +152,7 @@ func HttpResponseBodyModify(ctx context.Context, w http.ResponseWriter, msg prot
 	}
 	return nil
 }
-func HandleErrorWithLogger(logger *logrus.Logger) runtime.ErrorHandlerFunc {
+func HandleErrorWithLogger(logger logger.Logger) runtime.ErrorHandlerFunc {
 	codes := getClientMessageMap()
 	return func(ctx context.Context, mux *runtime.ServeMux, marshaler runtime.Marshaler, w http.ResponseWriter, req *http.Request, err error) {
 		md, ok := runtime.ServerMetadataFromContext(ctx)
@@ -169,6 +170,7 @@ func HandleErrorWithLogger(logger *logrus.Logger) runtime.ErrorHandlerFunc {
 		method := req.Method
 		remoteAddr := req.RemoteAddr
 		statusCode := http.StatusOK
+
 		// file, line, fn, _ := errors.GetOneLineSource(err)
 		log := logger.WithFields(logrus.Fields{
 			"x-request-id": reqId,
@@ -200,8 +202,15 @@ func HandleErrorWithLogger(logger *logrus.Logger) runtime.ErrorHandlerFunc {
 							"line":   errDetail.Line,
 							"fn":     errDetail.Fn,
 						})
+						// log.Error(msg)
+						// fmt.Printf("error code:%d", errDetail.Code)
+						msg := codes[int32(errDetail.Code)]
+						if errDetail.ToClientMessage != "" {
+							msg = errDetail.ToClientMessage
+						}
+
 						data.Code = errDetail.Code
-						data.Message = codes[int32(errDetail.Code)]
+						data.Message = msg
 						data.Data = &structpb.Struct{}
 						break
 					}
@@ -212,7 +221,7 @@ func HandleErrorWithLogger(logger *logrus.Logger) runtime.ErrorHandlerFunc {
 
 			}
 			code = runtime.HTTPStatusFromCode(st.Code())
-
+			fmt.Printf("error code:%s", msg)
 			log.Errorf(msg)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(code)
@@ -258,6 +267,8 @@ func toStructMessage(msg protoreflect.ProtoMessage) (*structpb.Struct, error) {
 	return structMsg, nil
 }
 func grpcToHttpResponse(rsp interface{}, err error) (*common.HttpResponse, error) {
+	// log.Printf("error code:%d", 2222222)
+
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			details := st.Details()
@@ -269,9 +280,13 @@ func grpcToHttpResponse(rsp interface{}, err error) (*common.HttpResponse, error
 					if stErr == nil {
 						rspCode := int32(errDetail.Code)
 						codesMap := getClientMessageMap()
+						msg := codesMap[rspCode]
+						if errDetail.ToClientMessage != "" {
+							msg = errDetail.ToClientMessage
+						}
 						return &common.HttpResponse{
 							Code:    rspCode,
-							Message: codesMap[int32(rspCode)],
+							Message: msg,
 							Data:    nil,
 						}, err
 					}
@@ -299,11 +314,15 @@ func grpcToHttpResponse(rsp interface{}, err error) (*common.HttpResponse, error
 		}, nil
 
 	}
-	data := rsp.(protoreflect.ProtoMessage)
-	anyData, err := toStructMessage(data)
-	if err != nil {
-		return nil, errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "internal_error")
+	anyData := &structpb.Struct{}
+	if rsp != nil {
+		data := rsp.(protoreflect.ProtoMessage)
+		anyData, err = toStructMessage(data)
+		if err != nil {
+			return nil, errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "internal_error")
+		}
 	}
+
 	return &common.HttpResponse{
 		Code:    int32(common.Code_OK),
 		Message: "success",
@@ -351,4 +370,21 @@ func (h *Http) SetPriority(priority int) {
 }
 func (h *Http) Name() string {
 	return h.name
+}
+
+
+
+func HandleRoutingError(ctx context.Context, mux *runtime.ServeMux, marshaler runtime.Marshaler, w http.ResponseWriter, r *http.Request, httpStatus int) {
+	if httpStatus != http.StatusMethodNotAllowed {
+		runtime.DefaultRoutingErrorHandler(ctx, mux, marshaler, w, r, httpStatus)
+		return
+	}
+
+	// Use HTTPStatusError to customize the DefaultHTTPErrorHandler status code
+	err := &runtime.HTTPStatusError{
+		HTTPStatus: httpStatus,
+		Err:        status.Error(codes.Unimplemented, http.StatusText(httpStatus)),
+	}
+
+	runtime.DefaultHTTPErrorHandler(ctx, mux, marshaler, w, r, err)
 }

@@ -6,20 +6,20 @@ import (
 	"github.com/begonia-org/begonia/internal/biz"
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/crypto"
+	"github.com/begonia-org/begonia/internal/pkg/logger"
 	api "github.com/begonia-org/go-sdk/api/v1"
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 )
 
 type UsersService struct {
 	biz    *biz.UsersUsecase
-	log    *logrus.Logger
+	log    logger.Logger
 	config *config.Config
 	api.UnimplementedAuthServiceServer
 	authCrypto *crypto.UsersAuth
 }
 
-func NewUserService(biz *biz.UsersUsecase, log *logrus.Logger, auth *crypto.UsersAuth, config *config.Config) *UsersService {
+func NewUserService(biz *biz.UsersUsecase, log logger.Logger, auth *crypto.UsersAuth, config *config.Config) *UsersService {
 	return &UsersService{biz: biz, log: log, authCrypto: auth, config: config}
 }
 
