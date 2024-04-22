@@ -221,7 +221,6 @@ func HandleErrorWithLogger(logger logger.Logger) runtime.ErrorHandlerFunc {
 
 			}
 			code = runtime.HTTPStatusFromCode(st.Code())
-			fmt.Printf("error code:%s", msg)
 			log.Errorf(msg)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(code)

@@ -9,17 +9,16 @@ import (
 	"testing"
 	"time"
 
-
 	goloadbalancer "github.com/begonia-org/go-loadbalancer"
-	gosdk "github.com/begonia-org/go-sdk"
 	api "github.com/begonia-org/go-sdk/api/v1"
+	"github.com/begonia-org/go-sdk/client"
 	common "github.com/begonia-org/go-sdk/common/api/v1"
 	c "github.com/smartystreets/goconvey/convey"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 )
 
 func postEndpoint(t *testing.T) {
-	client := gosdk.NewBegoniaClient("http://127.0.0.1:12140", "NWkbCslfh9ea2LjVIUsKehJuopPb65fn", "oVPNllSR1DfizdmdSF7wLjgABYbexdt4FZ1HWrI81dD5BeNhsyXpXPDFoDEyiSVe")
+	apiClient := client.NewEndpointAPI("http://127.0.0.1:12140", "NWkbCslfh9ea2LjVIUsKehJuopPb65fn", "oVPNllSR1DfizdmdSF7wLjgABYbexdt4FZ1HWrI81dD5BeNhsyXpXPDFoDEyiSVe")
 
 	c.Convey("test create endpoint api", t, func() {
 		_, filename, _, _ := runtime.Caller(0)
@@ -48,7 +47,7 @@ func postEndpoint(t *testing.T) {
 			},
 			Tags: []string{"test"},
 		}
-		resp, err := client.PostEndpointConfig(context.Background(), endpoint)
+		resp, err := apiClient.PostEndpointConfig(context.Background(), endpoint)
 		c.So(err, c.ShouldBeNil)
 		c.So(resp.StatusCode, c.ShouldEqual, common.Code_OK)
 		c.So(resp.Id, c.ShouldNotBeEmpty)
@@ -67,7 +66,7 @@ func postEndpoint(t *testing.T) {
 
 func patchEndpoint(t *testing.T) {
 	c.Convey("test patch endpoint api", t, func() {
-		client := gosdk.NewBegoniaClient("http://127.0.0.1:12140", "NWkbCslfh9ea2LjVIUsKehJuopPb65fn", "oVPNllSR1DfizdmdSF7wLjgABYbexdt4FZ1HWrI81dD5BeNhsyXpXPDFoDEyiSVe")
+		apiClient := client.NewEndpointAPI("http://127.0.0.1:12140", "NWkbCslfh9ea2LjVIUsKehJuopPb65fn", "oVPNllSR1DfizdmdSF7wLjgABYbexdt4FZ1HWrI81dD5BeNhsyXpXPDFoDEyiSVe")
 
 		patch := &api.EndpointSrvUpdateRequest{
 			UniqueKey:   shareEndpoint,
@@ -85,7 +84,7 @@ func patchEndpoint(t *testing.T) {
 			Mask: &fieldmaskpb.FieldMask{Paths: []string{"description", "endpoints"}},
 		}
 
-		resp, err := client.PatchEndpointConfig(context.Background(), patch)
+		resp, err := apiClient.PatchEndpointConfig(context.Background(), patch)
 		c.So(err, c.ShouldBeNil)
 		c.So(resp.StatusCode, c.ShouldEqual, common.Code_OK)
 		time.Sleep(3 * time.Second)
@@ -93,10 +92,10 @@ func patchEndpoint(t *testing.T) {
 }
 
 func getEndpoint(t *testing.T) {
-	client := gosdk.NewBegoniaClient("http://127.0.0.1:12140", "NWkbCslfh9ea2LjVIUsKehJuopPb65fn", "oVPNllSR1DfizdmdSF7wLjgABYbexdt4FZ1HWrI81dD5BeNhsyXpXPDFoDEyiSVe")
+	apiClient := client.NewEndpointAPI("http://127.0.0.1:12140", "NWkbCslfh9ea2LjVIUsKehJuopPb65fn", "oVPNllSR1DfizdmdSF7wLjgABYbexdt4FZ1HWrI81dD5BeNhsyXpXPDFoDEyiSVe")
 
 	c.Convey("test get endpoint api", t, func() {
-		rsp, err := client.GetEndpointDetails(context.Background(), shareEndpoint)
+		rsp, err := apiClient.GetEndpointDetails(context.Background(), shareEndpoint)
 		c.So(err, c.ShouldBeNil)
 		c.So(rsp.StatusCode, c.ShouldEqual, common.Code_OK)
 		c.So(rsp.Endpoints.Description, c.ShouldEqual, "test patch")
@@ -107,9 +106,9 @@ func getEndpoint(t *testing.T) {
 
 func delEndpoint(t *testing.T) {
 
-	client := gosdk.NewBegoniaClient("http://127.0.0.1:12140", "NWkbCslfh9ea2LjVIUsKehJuopPb65fn", "oVPNllSR1DfizdmdSF7wLjgABYbexdt4FZ1HWrI81dD5BeNhsyXpXPDFoDEyiSVe")
+	apiClient := client.NewEndpointAPI("http://127.0.0.1:12140", "NWkbCslfh9ea2LjVIUsKehJuopPb65fn", "oVPNllSR1DfizdmdSF7wLjgABYbexdt4FZ1HWrI81dD5BeNhsyXpXPDFoDEyiSVe")
 	c.Convey("test delete endpoint api", t, func() {
-		rsp, err := client.DeleteEndpointConfig(context.Background(), shareEndpoint)
+		rsp, err := apiClient.DeleteEndpointConfig(context.Background(), shareEndpoint)
 		c.So(err, c.ShouldBeNil)
 		c.So(rsp.StatusCode, c.ShouldEqual, common.Code_OK)
 		time.Sleep(3 * time.Second)
