@@ -128,14 +128,13 @@ func uploadParts(t *testing.T) {
 		filename := filepath.Base(rsp.Uri)
 		filePath := filepath.Join(saveDir, filename)
 
-
 		file, err := os.Open(filePath)
 		c.So(err, c.ShouldBeNil)
 		defer file.Close()
-	
+
 		hasher := sha256.New()
 		buf := make([]byte, 32*1024) // 32KB buffer
-	
+
 		for {
 			n, err := file.Read(buf)
 			// c.So(err, c.ShouldNotEqual, io.EOF)
@@ -146,17 +145,31 @@ func uploadParts(t *testing.T) {
 			if n == 0 {
 				break
 			}
-	
+
 			// Update the hash with the chunk read
 			hasher.Write(buf[:n])
 		}
-	
+
 		sum := hasher.Sum(nil)
 		c.So(hex.EncodeToString(sum), c.ShouldEqual, tmp.sha256)
 	})
 }
-
+func download(t *testing.T) {
+	c.Convey("test download file", t, func() {
+		apiClient := client.NewFilesAPI("http://127.0.0.1:12140", "NWkbCslfh9ea2LjVIUsKehJuopPb65fn", "oVPNllSR1DfizdmdSF7wLjgABYbexdt4FZ1HWrI81dD5BeNhsyXpXPDFoDEyiSVe")
+		tmp, err := os.CreateTemp("", "testfile-*.txt")
+		c.So(err, c.ShouldBeNil)
+		defer tmp.Close()
+		defer os.Remove(tmp.Name())
+		sha256Str, err := apiClient.DownloadFile(context.Background(), "test/helloworld.pb", tmp.Name(), "")
+		c.So(err, c.ShouldBeNil)
+		downloadedSha256, _ := sumFileSha256(tmp.Name())
+		t.Log(sha256Str)
+		c.So(sha256Str, c.ShouldEqual, downloadedSha256)
+	})
+}
 func TestFile(t *testing.T) {
 	// t.Run("upload", upload)
-	t.Run("uploadParts", uploadParts)
+	t.Run("download", download)
+	// t.Run("uploadParts", uploadParts)
 }

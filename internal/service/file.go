@@ -2,8 +2,12 @@ package service
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
+	"log"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -74,10 +78,28 @@ func (f *FileService) Download(ctx context.Context, in *api.DownloadRequest) (*h
 	if len(identity) == 0 {
 		return nil, errors.New(errors.ErrIdentityMissing, int32(api.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
 	}
+	newKey, err := url.PathUnescape(in.Key)
+	if err != nil {
+		return nil, errors.New(err, int32(common.Code_UNKNOWN), codes.InvalidArgument, "url_unescape")
+	}
+	in.Key = newKey
+	log.Printf("download key: %s", in.Key)
 	buf, err := f.biz.Download(ctx, in, identity[0])
 	if err != nil {
 		return nil, err
 	}
+
+	shaer := sha256.New()
+	shaer.Write(buf)
+	rspMd := metadata.Pairs(
+		gosdk.GetMetadataKey("Content-Length"), fmt.Sprintf("%d", len(buf)),
+		gosdk.GetMetadataKey("x-content-sha256"), hex.EncodeToString(shaer.Sum(nil)),
+	)
+	err = grpc.SendHeader(ctx, rspMd)
+	if err != nil {
+		return nil, errors.New(err, int32(common.Code_UNKNOWN), codes.Internal, "send_header")
+	}
+
 	rsp := &httpbody.HttpBody{
 		ContentType: http.DetectContentType(buf),
 		Data:        buf,
