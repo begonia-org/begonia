@@ -14,12 +14,12 @@ import (
 	"github.com/begonia-org/begonia/internal/biz/file"
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/gateway"
-	dp "github.com/begonia-org/dynamic-proto"
+	"github.com/begonia-org/begonia/transport"
+	loadbalance "github.com/begonia-org/go-loadbalancer"
 	api "github.com/begonia-org/go-sdk/api/v1"
 	c "github.com/smartystreets/goconvey/convey"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/reflect/protoregistry"
-	loadbalance "github.com/begonia-org/go-loadbalancer"
 )
 
 func initTestCase() *EndpointUsecase {
@@ -32,8 +32,8 @@ func initTestCase() *EndpointUsecase {
 	// fileRepo := data.NewFileRepoImpl(dataData)
 	fileUsecase := file.NewFileUsecase(nil, configConfig)
 	endpoint := NewEndpointUsecase(nil, fileUsecase, configConfig)
-	gateway.New(&dp.GatewayConfig{GatewayAddr: "127.0.0.1:12138", GrpcProxyAddr: "127.0.0.1:12139"}, &dp.GrpcServerOptions{
-		Middlewares: make([]dp.GrpcProxyMiddleware, 0),
+	gateway.New(&transport.GatewayConfig{GatewayAddr: "127.0.0.1:12138", GrpcProxyAddr: "127.0.0.1:12139"}, &transport.GrpcServerOptions{
+		Middlewares: make([]transport.GrpcProxyMiddleware, 0),
 		Options:     make([]grpc.ServerOption, 0),
 		PoolOptions: make([]loadbalance.PoolOptionsBuildOption, 0),
 	})

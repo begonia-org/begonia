@@ -150,7 +150,7 @@ func NewFileVersionReader(path string, version string) (FileVersionReader, error
 		return nil, err
 
 	}
-	if version == "" {
+	if version == ""||version=="latest" {
 		ref, err := repo.Head()
 		if err != nil {
 			return nil, err

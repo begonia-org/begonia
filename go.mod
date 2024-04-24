@@ -5,7 +5,6 @@ go 1.20
 require (
 	// github.com/begonia-org/begonia/common v0.0.0-20240220080319-965ae95c8876
 	// github.com/begonia-org/begonia/endpoint v0.0.0-20240220080319-965ae95c8876
-	// github.com/begonia-org/dynamic-proto v0.0.0-00010101000000-000000000000
 	github.com/begonia-org/go-layered-cache v0.0.0-20240312022317-e888e2200e7f
 	github.com/bsm/redislock v0.9.4
 	github.com/cockroachdb/errors v1.11.1
@@ -20,7 +19,7 @@ require (
 
 require (
 	github.com/allegro/bigcache/v3 v3.1.0 // indirect
-	golang.org/x/net v0.22.0 // indirect
+	golang.org/x/net v0.22.0
 )
 
 require (
@@ -79,11 +78,12 @@ require (
 )
 
 require (
-	github.com/begonia-org/dynamic-proto v0.0.0-00010101000000-000000000000
 	github.com/begonia-org/go-loadbalancer v0.0.0-20240329014325-4a48bea6bec5
 	github.com/begonia-org/go-sdk v0.0.0-20240327074433-f18fef230058compiler
 	github.com/go-git/go-git/v5 v5.11.0
 	github.com/go-playground/validator/v10 v10.19.0
+	github.com/golang/protobuf v1.5.4
+	github.com/gorilla/websocket v1.5.1
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.19.1
 	go.etcd.io/etcd/api/v3 v3.5.12
 	go.etcd.io/etcd/client/v3 v3.5.12
@@ -110,9 +110,7 @@ require (
 	github.com/go-redis/redismock/v9 v9.2.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
-	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/gopherjs/gopherjs v1.17.2 // indirect
-	github.com/gorilla/websocket v1.5.1 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
 	github.com/jtolds/gls v4.20.0+incompatible // indirect
@@ -138,8 +136,6 @@ require (
 )
 
 replace github.com/spark-lence/tiga => /data/work/spark-lence/tiga
-
-replace github.com/begonia-org/dynamic-proto => ../dynamic-proto
 
 replace github.com/begonia-org/go-layered-cache => ../go-layered-cache
 

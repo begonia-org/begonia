@@ -10,10 +10,10 @@ import (
 	"github.com/begonia-org/begonia/internal/pkg/errors"
 	"github.com/begonia-org/begonia/internal/pkg/gateway"
 	"github.com/begonia-org/begonia/internal/pkg/routers"
-	dp "github.com/begonia-org/dynamic-proto"
+	"github.com/begonia-org/begonia/transport"
+	loadbalance "github.com/begonia-org/go-loadbalancer"
 	api "github.com/begonia-org/go-sdk/api/v1"
 	common "github.com/begonia-org/go-sdk/common/api/v1"
-	loadbalance "github.com/begonia-org/go-loadbalancer"	
 	"google.golang.org/grpc/codes"
 )
 
@@ -23,8 +23,8 @@ func newEndpoint(lb loadbalance.BalanceType, endpoints []*api.EndpointMeta) ([]l
 
 	opts := gw.GetOptions()
 	for _, ep := range endpoints {
-		pool := dp.NewGrpcConnPool(ep.GetAddr(), opts.PoolOptions...)
-		eps = append(eps, dp.NewGrpcEndpoint(ep.GetAddr(), pool))
+		pool := transport.NewGrpcConnPool(ep.GetAddr(), opts.PoolOptions...)
+		eps = append(eps, transport.NewGrpcEndpoint(ep.GetAddr(), pool))
 	}
 	switch lb {
 	case loadbalance.RRBalanceType:
@@ -67,7 +67,7 @@ func newEndpoint(lb loadbalance.BalanceType, endpoints []*api.EndpointMeta) ([]l
 	}
 }
 
-func deleteAll(ctx context.Context, pd dp.ProtobufDescription) error {
+func deleteAll(ctx context.Context, pd transport.ProtobufDescription) error {
 	routersList := routers.Get()
 	routersList.DeleteRouters(pd)
 	gw := gateway.Get()
@@ -76,10 +76,10 @@ func deleteAll(ctx context.Context, pd dp.ProtobufDescription) error {
 	return err
 }
 
-func getDescriptorSet(config *config.Config, key string, value []byte) (dp.ProtobufDescription, error) {
+func getDescriptorSet(config *config.Config, key string, value []byte) (transport.ProtobufDescription, error) {
 	key = getEndpointId(config, key)
 	outDir := config.GetGatewayDescriptionOut()
-	pd, err := dp.NewDescriptionFromBinary(value, filepath.Join(outDir, key))
+	pd, err := transport.NewDescriptionFromBinary(value, filepath.Join(outDir, key))
 	if err != nil {
 		return nil, errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "new_description_from_binary")
 	}

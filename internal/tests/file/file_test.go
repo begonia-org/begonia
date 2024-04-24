@@ -70,7 +70,7 @@ type TmpFile struct {
 	path        string
 	content     []byte
 }
-
+var tmpFile *TmpFile
 func generateRandomFile(size int64) (*TmpFile, error) {
 	// 创建临时文件
 	tmp, err := os.CreateTemp("", "testfile-*.txt")
@@ -113,10 +113,11 @@ func generateRandomFile(size int64) (*TmpFile, error) {
 func uploadParts(t *testing.T) {
 	c.Convey("test upload file", t, func() {
 		apiClient := client.NewFilesAPI("http://127.0.0.1:12140", "NWkbCslfh9ea2LjVIUsKehJuopPb65fn", "oVPNllSR1DfizdmdSF7wLjgABYbexdt4FZ1HWrI81dD5BeNhsyXpXPDFoDEyiSVe")
-		tmp, err := generateRandomFile(1024 * 1024 * 20)
+		var err error
+		tmpFile, err = generateRandomFile(1024 * 1024 * 20)
 		c.So(err, c.ShouldBeNil)
-		defer os.Remove(tmp.path)
-		rsp, err := apiClient.UploadFileWithMuiltParts(context.Background(), tmp.path, "test/tmp.bin", true)
+		defer os.Remove(tmpFile.path)
+		rsp, err := apiClient.UploadFileWithMuiltParts(context.Background(), tmpFile.path, "test/tmp.bin", true)
 		c.So(err, c.ShouldBeNil)
 		c.So(rsp.StatusCode, c.ShouldEqual, common.Code_OK)
 		c.So(rsp.Uri, c.ShouldNotBeEmpty)
@@ -151,7 +152,7 @@ func uploadParts(t *testing.T) {
 		}
 
 		sum := hasher.Sum(nil)
-		c.So(hex.EncodeToString(sum), c.ShouldEqual, tmp.sha256)
+		c.So(hex.EncodeToString(sum), c.ShouldEqual, tmpFile.sha256)
 	})
 }
 func download(t *testing.T) {
@@ -168,8 +169,29 @@ func download(t *testing.T) {
 		c.So(sha256Str, c.ShouldEqual, downloadedSha256)
 	})
 }
+func downloadParts(t *testing.T) {
+	c.Convey("test download parts file", t, func() {
+		apiClient := client.NewFilesAPI("http://127.0.0.1:12140", "NWkbCslfh9ea2LjVIUsKehJuopPb65fn", "oVPNllSR1DfizdmdSF7wLjgABYbexdt4FZ1HWrI81dD5BeNhsyXpXPDFoDEyiSVe")
+		tmp, err := os.CreateTemp("", "testfile-*.txt")
+		c.So(err, c.ShouldBeNil)
+		defer tmp.Close()
+		defer os.Remove(tmp.Name())
+		rsp, err := apiClient.DownloadMultiParts(context.Background(), "test/tmp.bin", tmp.Name(), "")
+		c.So(err, c.ShouldBeNil)
+		// c.So(rsp.StatusCode, c.ShouldEqual, common.Code_OK)
+		downloadedSha256, _ := sumFileSha256(tmp.Name())
+		t.Log(rsp.Sha256)
+		info,_:=tmp.Stat()
+		t.Log(rsp.Size)
+		t.Log(info.Size())
+		t.Log(downloadedSha256)
+		c.So(rsp.Sha256, c.ShouldEqual, downloadedSha256)
+
+
+	})}
 func TestFile(t *testing.T) {
-	// t.Run("upload", upload)
+	t.Run("upload", upload)
 	t.Run("download", download)
-	// t.Run("uploadParts", uploadParts)
+	t.Run("uploadParts", uploadParts)
+	t.Run("downloadParts", downloadParts)
 }

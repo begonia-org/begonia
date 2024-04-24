@@ -3,20 +3,20 @@ package gateway
 import (
 	"sync"
 
-	dp "github.com/begonia-org/dynamic-proto"
+	"github.com/begonia-org/begonia/transport"
 )
 
 var onceGW sync.Once
 
-var gateway *dp.GatewayServer
+var gateway *transport.GatewayServer
 
-func New(cfg *dp.GatewayConfig, opts *dp.GrpcServerOptions) *dp.GatewayServer {
+func New(cfg *transport.GatewayConfig, opts *transport.GrpcServerOptions) *transport.GatewayServer {
 	onceGW.Do(func() {
 
-		gateway = dp.NewGateway(cfg, opts)
+		gateway = transport.NewGateway(cfg, opts)
 	})
 	return gateway
 }
-func Get() *dp.GatewayServer {
+func Get() *transport.GatewayServer {
 	return gateway
 }

@@ -15,7 +15,7 @@ import (
 
 	"github.com/begonia-org/begonia/config"
 	"github.com/begonia-org/begonia/internal/pkg/logger"
-	dp "github.com/begonia-org/dynamic-proto"
+	"github.com/begonia-org/begonia/transport"
 	gosdk "github.com/begonia-org/go-sdk"
 	api "github.com/begonia-org/go-sdk/api/v1"
 	"github.com/begonia-org/go-sdk/example"
@@ -24,7 +24,7 @@ import (
 	"github.com/spark-lence/tiga/loadbalance"
 )
 
-var serverForTest *dp.GatewayServer
+var serverForTest *transport.GatewayServer
 var onceServer sync.Once
 
 func RunTestServer() {

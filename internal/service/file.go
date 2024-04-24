@@ -206,39 +206,45 @@ func (f *FileService) Metadata(ctx context.Context, in *api.FileMetadataRequest)
 	if identity == "" {
 		return nil, errors.New(errors.ErrIdentityMissing, int32(api.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
 	}
+	// defer func ()  {
+	// 	if r:=recover();r!=nil{
+	// 		log.Println("panic recover",r)
+	// 	}
+	// }()
 	rsp, err := f.biz.Metadata(ctx, in, identity)
 	if err != nil {
 		return nil, err
 
 	}
-	md, ok := metadata.FromIncomingContext(ctx)
-	if ok {
-		timestamp := time.UnixMilli(rsp.ModifyTime)
-		lastModified := timestamp.UTC().Format(time.RFC1123)
+	timestamp := time.UnixMilli(rsp.ModifyTime)
+	lastModified := timestamp.UTC().Format(time.RFC1123)
 
-		rspMd := metadata.Pairs(
-			gosdk.GetMetadataKey("X-File-Name"), rsp.Name,
-			gosdk.GetMetadataKey("content-type"), rsp.ContentType,
-			gosdk.GetMetadataKey("Etag"), rsp.Etag,
-			gosdk.GetMetadataKey("Last-Modified"), lastModified,
-			gosdk.GetMetadataKey("Aceept-Ranges"), "bytes",
-			gosdk.GetMetadataKey("Content-Length"), fmt.Sprintf("%d", rsp.Size),
-			gosdk.GetMetadataKey("X-File-Sha256"), rsp.Sha256,
-			gosdk.GetMetadataKey("Access-Control-Expose-Headers"), "Content-Length, Content-Range, Accept-Ranges, Last-Modified, ETag, Content-Type, X-File-name, X-File-Sha256",
-		)
-		// rspMd.Append(sdk.GetMetadataKey(), "Content-Length", "Content-Range", "Accept-Ranges", "Last-Modified", "ETag", "Content-Type", "x-file-name", "x-file-sha256")
-		err = grpc.SetHeader(ctx, rspMd)
-		if err != nil {
+	rspMd := metadata.Pairs(
+		gosdk.GetMetadataKey("X-File-Name"), rsp.Name,
+		gosdk.GetMetadataKey("content-type"), rsp.ContentType,
+		gosdk.GetMetadataKey("Etag"), rsp.Etag,
+		gosdk.GetMetadataKey("Last-Modified"), lastModified,
+		gosdk.GetMetadataKey("Accept-Ranges"), "bytes",
+		gosdk.GetMetadataKey("Content-Length"), fmt.Sprintf("%d", rsp.Size),
+		gosdk.GetMetadataKey("X-File-Sha256"), rsp.Sha256,
+		gosdk.GetMetadataKey("X-File-Version"), rsp.Version,
+		gosdk.GetMetadataKey("Access-Control-Expose-Headers"), "Content-Length, Content-Range, Accept-Ranges, Last-Modified, ETag, Content-Type, X-File-name, X-File-Sha256",
+	)
+	// rspMd.Append(sdk.GetMetadataKey(), "Content-Length", "Content-Range", "Accept-Ranges", "Last-Modified", "ETag", "Content-Type", "x-file-name", "x-file-sha256")
+	err = grpc.SendHeader(ctx, rspMd)
+	if err != nil {
 
-			return nil, errors.New(fmt.Errorf("非法的响应头,%w", err), int32(common.Code_UNKNOWN), codes.Internal, "send_header")
+		return nil, errors.New(fmt.Errorf("非法的响应头,%w", err), int32(common.Code_UNKNOWN), codes.Internal, "send_header")
 
+	}
+	if md, ok := metadata.FromIncomingContext(ctx); ok {
+		if httpMethod, ok := md["x-http-method"]; ok {
+			if strings.EqualFold(httpMethod[0], "HEAD") {
+				return nil, nil
+			}
 		}
 	}
-	if httpMethod, ok := md["x-http-method"]; ok {
-		if strings.EqualFold(httpMethod[0], "HEAD") {
-			return nil, nil
-		}
-	}
+
 	return rsp, err
 }
 func (f *FileService) Desc() *grpc.ServiceDesc {

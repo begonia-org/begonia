@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/begonia-org/begonia/internal/daemon"
-	dp "github.com/begonia-org/dynamic-proto"
+	"github.com/begonia-org/begonia/transport"
 )
 
 type GatewayWorker interface {
@@ -17,10 +17,10 @@ type GatewayWorkerImpl struct {
 	// data
 	daemon daemon.Daemon
 
-	server *dp.GatewayServer
+	server *transport.GatewayServer
 }
 
-func NewGatewayWorkerImpl(daemon daemon.Daemon, server *dp.GatewayServer) GatewayWorker {
+func NewGatewayWorkerImpl(daemon daemon.Daemon, server *transport.GatewayServer) GatewayWorker {
 	return &GatewayWorkerImpl{
 		daemon: daemon,
 		server: server,

@@ -12,7 +12,7 @@ import (
 	"github.com/begonia-org/begonia/internal/biz/file"
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/errors"
-	dp "github.com/begonia-org/dynamic-proto"
+	"github.com/begonia-org/begonia/transport"
 	loadbalance "github.com/begonia-org/go-loadbalancer"
 	api "github.com/begonia-org/go-sdk/api/v1"
 	common "github.com/begonia-org/go-sdk/common/api/v1"
@@ -106,7 +106,7 @@ func (e *EndpointUsecase) CreateEndpoint(ctx context.Context, endpoint *api.AddE
 
 		// 检查是否为目录且确保只获取一级子目录
 		if d.IsDir() && filepath.Dir(path) == destDir {
-			pd, err := dp.NewDescription(path)
+			pd, err := transport.NewDescription(path)
 			if err != nil {
 				return errors.New(fmt.Errorf("new description error: %w", err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "new_description")
 			}

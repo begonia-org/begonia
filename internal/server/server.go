@@ -14,7 +14,7 @@ import (
 	"github.com/begonia-org/begonia/internal/pkg/middleware/serialization"
 	"github.com/begonia-org/begonia/internal/pkg/routers"
 	"github.com/begonia-org/begonia/internal/service"
-	dp "github.com/begonia-org/dynamic-proto"
+	"github.com/begonia-org/begonia/transport"
 	loadbalance "github.com/begonia-org/go-loadbalancer"
 	common "github.com/begonia-org/go-sdk/common/api/v1"
 	"github.com/google/wire"
@@ -24,18 +24,18 @@ import (
 
 var ProviderSet = wire.NewSet(NewGatewayConfig, NewGateway)
 
-func NewGatewayConfig(gw string) *dp.GatewayConfig {
+func NewGatewayConfig(gw string) *transport.GatewayConfig {
 	_, port, _ := net.SplitHostPort(gw)
 	p, _ := strconv.Atoi(port)
-	return &dp.GatewayConfig{
+	return &transport.GatewayConfig{
 		GrpcProxyAddr: fmt.Sprintf(":%d", p+1),
 		GatewayAddr:   gw,
 	}
 }
-func NewGateway(cfg *dp.GatewayConfig, conf *config.Config, services []service.Service, pluginApply *middleware.PluginsApply) *dp.GatewayServer {
+func NewGateway(cfg *transport.GatewayConfig, conf *config.Config, services []service.Service, pluginApply *middleware.PluginsApply) *transport.GatewayServer {
 	// 参数选项
-	opts := &dp.GrpcServerOptions{
-		Middlewares:     make([]dp.GrpcProxyMiddleware, 0),
+	opts := &transport.GrpcServerOptions{
+		Middlewares:     make([]transport.GrpcProxyMiddleware, 0),
 		Options:         make([]grpc.ServerOption, 0),
 		PoolOptions:     make([]loadbalance.PoolOptionsBuildOption, 0),
 		HttpMiddlewares: make([]runtime.ServeMuxOption, 0),
@@ -65,7 +65,7 @@ func NewGateway(cfg *dp.GatewayConfig, conf *config.Config, services []service.S
 	runtime.WithMetadata(middleware.IncomingHeadersToMetadata)
 	gw := gateway.New(cfg, opts)
 	protos := conf.GetProtosDir()
-	pd, err := dp.NewDescription(protos)
+	pd, err := transport.NewDescription(protos)
 	if err != nil {
 		panic(err)
 	}

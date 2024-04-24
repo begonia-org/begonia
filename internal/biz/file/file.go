@@ -468,9 +468,9 @@ func (f *FileUsecase) DownloadForRange(ctx context.Context, in *api.DownloadRequ
 
 	var buf []byte
 	if end > 0 {
-		buf = make([]byte, end-start)
+		buf = make([]byte, end-start + 1)
 	} else {
-		buf = make([]byte, file.Size()-start)
+		buf = make([]byte, file.Size()-start + 1)
 	}
 	// log.Printf("start:%d,end:%d,bufsize:%d", start, end, len(buf))
 	_, err = file.ReadAt(buf, start)
@@ -483,6 +483,7 @@ func (f *FileUsecase) DownloadForRange(ctx context.Context, in *api.DownloadRequ
 }
 func (f *FileUsecase) Metadata(ctx context.Context, in *api.FileMetadataRequest, authorId string) (*api.FileMetadataResponse, error) {
 	key, err := f.checkIn(in.Key, authorId)
+	originKey := in.Key
 	if err != nil {
 		return nil, err
 	}
@@ -513,7 +514,13 @@ func (f *FileUsecase) Metadata(ctx context.Context, in *api.FileMetadataRequest,
 	if val := http.DetectContentType(buf); val != "" {
 		contentType = val
 	}
+	version := ""
+	if versionReader, ok := file.(FileVersionReader); ok {
+		version = versionReader.Version()
+	} else {
+		version, _ = f.Version(ctx, originKey, authorId)
 
+	}
 	return &api.FileMetadataResponse{
 		Size:        file.Size(),
 		ModifyTime:  file.ModifyTime(),
@@ -521,6 +528,7 @@ func (f *FileUsecase) Metadata(ctx context.Context, in *api.FileMetadataRequest,
 		Sha256:      sha256,
 		Name:        filepath.Base(in.Key),
 		Etag:        fmt.Sprintf("%d-%s", file.Size(), sha256),
+		Version:     version,
 	}, nil
 }
 
@@ -551,7 +559,22 @@ func (f *FileUsecase) getReader(key string, version string) (FileReader, error) 
 	return fileReader, nil
 
 }
-
+func (f *FileUsecase) Version(ctx context.Context, key, authorId string) (string, error) {
+	key, err := f.checkIn(key, authorId)
+	if err != nil {
+		return "", err
+	}
+	// fileDir := filepath.Join(f.config.GetUploadDir(), in.Key)
+	file, err := f.getReader(key, "latest")
+	if err == git.ErrRepositoryNotExists {
+		return "", errors.New(err, int32(common.Code_NOT_FOUND), codes.NotFound, "file_not_found")
+	}
+	if err != nil {
+		return "", errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "open_file")
+	}
+	defer file.Close()
+	return file.(FileVersionReader).Version(), nil
+}
 func (f *FileUsecase) Download(ctx context.Context, in *api.DownloadRequest, authorId string) ([]byte, error) {
 	// if in.Key == "" {
 	// 	return nil, errors.New(errors.ErrInvalidFileKey, int32(api.FileSvrStatus_FILE_INVAILDATE_KEY_ERR), codes.InvalidArgument, "invalid_key")
