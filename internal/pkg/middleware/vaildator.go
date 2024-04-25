@@ -2,221 +2,130 @@ package middleware
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"net/http"
-	"strings"
-	"time"
+	"sync"
 
-	"github.com/bsm/redislock"
-
-	api "github.com/begonia-org/begonia/api/v1"
-	"github.com/begonia-org/begonia/internal/biz"
-	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/errors"
-	"github.com/begonia-org/begonia/internal/pkg/routers"
-	"github.com/begonia-org/begonia/internal/pkg/web"
-	"github.com/google/uuid"
-	"github.com/sirupsen/logrus"
-	"github.com/spark-lence/tiga"
-	srvErr "github.com/spark-lence/tiga/errors"
+	gosdk "github.com/begonia-org/go-sdk"
+	common "github.com/begonia-org/go-sdk/common/api/v1"
+	"github.com/go-playground/validator/v10"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
 )
 
-type APIVildator struct {
-	biz     biz.UsersRepo
-	routers *routers.HttpURIRouteToSrvMethod
-	config  *config.Config
-	rdb     *tiga.RedisDao
-	log     *logrus.Logger
+type validatePluginStream struct {
+	grpc.ServerStream
+	// fullName string
+	// plugin   gosdk.RemotePlugin
+	ctx       context.Context
+	validator ParamsValidator
 }
 
-func NewAPIVildator(rdb *tiga.RedisDao, log *logrus.Logger, repo biz.UsersRepo, config *config.Config) *APIVildator {
-	routers := routers.NewHttpURIRouteToSrvMethod()
-	routers.LoadAllRouters()
-	return &APIVildator{
-		rdb:     rdb,
-		routers: routers,
-		config:  config,
-		log:     log,
-		biz:     repo,
-	}
+var validatePluginStreamPool = &sync.Pool{
+	New: func() interface{} {
+		return &validatePluginStream{
+			// validate: validator,
+		}
+	},
 }
 
-func (a *APIVildator) writeRsp(w http.ResponseWriter, requestId string, err error) {
-	w.Header().Set("x-request-id", requestId)
-	rsp, err := web.MakeResponse(nil, err)
-	data := []byte("")
+type ParamsValidator interface {
+	gosdk.LocalPlugin
+	ValidateParams(v interface{}) error
+}
+
+type ParamsValidatorImpl struct {
+	priority int
+}
+
+func (p *validatePluginStream) Context() context.Context {
+	return p.ctx
+}
+func (p *validatePluginStream) RecvMsg(m interface{}) error {
+	err := p.ServerStream.RecvMsg(m)
 	if err != nil {
-		a.log.Errorf("序列化响应失败,%s", err.Error())
-	} else {
-		data, _ = json.Marshal(rsp)
-
+		return err
 	}
-	w.WriteHeader(http.StatusUnauthorized)
-	_, _ = w.Write(data)
+	err = p.validator.ValidateParams(m)
+	return err
 
 }
-func (a *APIVildator) JWTLock(uid string) (*redislock.Lock, error) {
-	key := a.config.GetJWTLockKey(uid)
-	return a.rdb.Lock(context.Background(), key, time.Second*10)
-}
 
-func (a *APIVildator) checkJWTItem(ctx context.Context, payload *api.BasicAuth, token string) (bool, error) {
-	if payload.Expiration < time.Now().Unix() {
-		return false, srvErr.New(errors.ErrTokenExpired, "登陆状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_EXPIRE_ERR), "请重新登陆"))
-	}
-	if payload.NotBefore > time.Now().Unix() {
-		remain := payload.NotBefore - time.Now().Unix()
-		msg := fmt.Sprintf("请%d秒后重试", remain)
-		return false, srvErr.New(errors.ErrTokenNotActive, "登陆状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_NOT_ACTIVTE_ERR), msg))
-	}
-	if payload.Issuer != "gateway" {
-		return false, srvErr.New(errors.ErrTokenIssuer, "登陆状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_INVILDAT_ERR), "请重新登陆"))
-	}
-	if ok, err := a.biz.CheckInBlackList(ctx, token); ok || err != nil {
-		return false, srvErr.New(errors.ErrTokenBlackList, "登陆状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_INVILDAT_ERR), "非法的token"))
-	}
-	return true, nil
-}
+func (p *ParamsValidatorImpl) FiltersFields(v interface{}) []string {
+	fields := make([]string, 0)
+	if message, ok := v.(protoreflect.ProtoMessage); ok {
+		md := message.ProtoReflect().Descriptor()
 
-func (a *APIVildator) jwt2BasicAuth(authorization string) (*api.BasicAuth, error) {
-	// Typically JWT is in a header in the format "Bearer {token}"
-	strArr := strings.Split(authorization, " ")
-	token := ""
-	if len(strArr) == 2 {
-		token = strArr[1]
-	}
-	if token == "" {
-		return nil, srvErr.New(errors.ErrHeaderTokenFormat, "Token状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_INVILDAT_ERR), "缺少token"))
-	}
-	jwtInfo := strings.Split(token, ".")
-	if len(jwtInfo) != 3 {
-		return nil, srvErr.New(errors.ErrHeaderTokenFormat, "token状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_INVILDAT_ERR), "非法的token"))
-	}
-	// 生成signature
-	sig := fmt.Sprintf("%s.%s", jwtInfo[0], jwtInfo[1])
-	secret := a.config.GetJWTSecret()
+		// 遍历所有字段
+		for i := 0; i < md.Fields().Len(); i++ {
+			field := md.Fields().Get(i)
 
-	sig = tiga.ComputeHmacSha256(sig, secret)
-	if sig != jwtInfo[2] {
-		return nil, srvErr.New(errors.ErrTokenInvalid, "token状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_INVILDAT_ERR), "非法的token"))
-	}
-	payload := &api.BasicAuth{}
-	payloadBytes, err := tiga.Base64URL2Bytes(jwtInfo[1])
-	if err != nil {
-		return nil, srvErr.New(errors.ErrAuthDecrypt, "token状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_INVILDAT_ERR), "非法的token"))
-	}
-	err = json.Unmarshal(payloadBytes, payload)
-	if err != nil {
-		return nil, srvErr.New(errors.ErrDecode, "token状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_INVILDAT_ERR), "非法的token"))
-	}
-	return payload, nil
-}
+			// 检查字段是否是FieldMask类型
+			if field.Message() != nil && field.Message().FullName() == "google.protobuf.FieldMask" {
 
-// checkJWT 校验jwt
-// 提前刷新token
-func (a *APIVildator) checkJWT(authorization string, w http.ResponseWriter, r *http.Request) (bool, error) {
-	payload, err := a.jwt2BasicAuth(authorization)
-	if err != nil {
-		return false, err
-	}
-	strArr := strings.Split(authorization, " ")
-	token := strArr[1]
-	ok, err := a.checkJWTItem(context.Background(), payload, token)
-	if err != nil || !ok {
-		return false, err
-	}
-	// a.data.ch
-	// 15min快过期了，刷新token
-	left := payload.Expiration - time.Now().Unix()
-	if left <= 1*60*15 {
-		lock, err := a.JWTLock(payload.Uid)
-		defer func() {
-			if p := recover(); p != nil {
-				a.log.Errorf("刷新token失败,%s", p)
-			}
-			if lock != nil {
-				err := lock.Release(context.Background())
-				if err != nil {
-					a.log.Errorf("释放锁失败,%s", err.Error())
+				// 获取字段的值（确保它是FieldMask类型）
+				fieldValue := message.ProtoReflect().Get(field).Message()
+				mask := fieldValue.Interface().(*fieldmaskpb.FieldMask)
+				if mask == nil {
+					continue
 				}
-			}
-		}()
-		// 正在刷新token
-		if err == redislock.ErrNotObtained {
-			return true, nil
-		}
-
-		exp := time.Hour * 2
-		if payload.IsKeepLogin {
-			exp = time.Hour * 24 * 3
-		}
-		payload.Expiration = time.Now().Add(exp).Unix()
-		payload.NotBefore = time.Now().Unix()
-		payload.IssuedAt = time.Now().Unix()
-		secret := a.config.GetJWTSecret()
-		newToken, err := tiga.GenerateJWT(payload, secret)
-		if err != nil {
-			return false, srvErr.New(err, "刷新token")
-		}
-		// 旧token加入黑名单
-		_ = a.biz.CacheToken(context.Background(), a.config.GetUserBlackListKey(tiga.GetMd5(token)), "1", time.Hour*24*3)
-		w.Header().Set("Authorization", fmt.Sprintf("Bearer %s", newToken))
-		token = newToken
-
-	}
-	// 设置uid
-	r.Header.Set("x-token", token)
-	r.Header.Set("x-uid", payload.Uid)
-	return true, nil
-
-}
-func (a *APIVildator) Vildator(h http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		uri := r.RequestURI
-		router := a.routers.GetRoute(uri)
-		reqId := w.Header().Get("x-request-id")
-		if reqId == "" {
-			reqId = uuid.New().String()
-		}
-
-		defer func() {
-			a.log.WithFields(logrus.Fields{
-				"x-request-id": reqId,
-				"uri":          uri,
-				"method":       r.Method,
-				"remote_addr":  r.RemoteAddr,
-			}).Info("请求开始")
-		}()
-		if router != nil {
-
-			if router.AuthRequired {
-				logger := a.log.WithFields(logrus.Fields{
-					"x-request-id": reqId,
-					"uri":          uri,
-					"method":       r.Method,
-					"remote_addr":  r.RemoteAddr,
-					"status":       http.StatusUnauthorized,
-				})
-				if token, ok := r.Header[http.CanonicalHeaderKey("Authorization")]; ok {
-					// 校验token
-					ok, err := a.checkJWT(token[0], w, r)
-					if err != nil {
-						a.writeRsp(w, reqId, err)
-						return
+				for _, path := range mask.Paths {
+					if fd := message.ProtoReflect().Descriptor().Fields().ByJSONName(path); fd != nil {
+						fields = append(fields, string(fd.Name()))
 					}
-					if !ok {
-						logger.Warn("token校验失败")
-						a.writeRsp(w, reqId, err)
-						return
-					}
-				} else {
-					logger.Warn("请求头缺失Authorization")
-					a.writeRsp(w, reqId, srvErr.New(errors.ErrTokenMissing, "token状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_INVILDAT_ERR), "缺少token")))
-					return
+
 				}
 			}
 		}
-		h.ServeHTTP(w, r)
-	})
+		return fields
+	}
+	return nil
+}
+func (p *ParamsValidatorImpl) ValidateParams(v interface{}) error {
+	validate := validator.New()
+	err := validate.Struct(v)
+	filters := p.FiltersFields(v)
+	if len(filters) > 0 {
+		err = validate.StructPartial(v, filters...)
+	}
+	if errs, ok := err.(validator.ValidationErrors); ok {
+		clientMsg := fmt.Sprintf("params %s validation failed with %v,except %s", errs[0].Field(), errs[0].Value(), errs[0].ActualTag())
+		return errors.New(fmt.Errorf("params %s validation failed: %v", errs[0].Field(), errs[0].Value()), int32(common.Code_PARAMS_ERROR), codes.InvalidArgument, "params_validation", errors.WithClientMessage(clientMsg))
+	}
+	return nil
+}
+
+func (p *ParamsValidatorImpl) SetPriority(priority int) {
+	p.priority = priority
+}
+
+func (p *ParamsValidatorImpl) Priority() int {
+	return p.priority
+}
+func (p *ParamsValidatorImpl) Name() string {
+	return "ParamsValidator"
+}
+
+func (p *ParamsValidatorImpl) UnaryInterceptor(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
+	err = p.ValidateParams(req)
+	if err != nil {
+		return nil, err
+	}
+	return handler(ctx, req)
+}
+
+func (p *ParamsValidatorImpl) StreamInterceptor(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+	validateStream := validatePluginStreamPool.Get().(*validatePluginStream)
+	validateStream.ServerStream = ss
+	validateStream.validator = p
+	validateStream.ctx = ss.Context()
+	err := handler(srv, validateStream)
+	validatePluginStreamPool.Put(validateStream)
+	return err
+}
+
+func NewParamsValidator() ParamsValidator {
+	return &ParamsValidatorImpl{}
 }

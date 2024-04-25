@@ -1,40 +1,68 @@
 package routers
 
 import (
-	_ "github.com/begonia-org/begonia/api/v1"
-	_ "github.com/begonia-org/begonia/common/api/v1"
-	common "github.com/begonia-org/begonia/common/api/v1"
-	"github.com/begonia-org/begonia/internal/pkg/config"
+	"fmt"
+	"strings"
+	"sync"
+
+	"github.com/begonia-org/begonia/transport"
+	_ "github.com/begonia-org/go-sdk/api/v1"
+	_ "github.com/begonia-org/go-sdk/common/api/v1"
+	common "github.com/begonia-org/go-sdk/common/api/v1"
 	"google.golang.org/genproto/googleapis/api/annotations"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
-	"google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/types/descriptorpb"
 )
+
+var onceRouter sync.Once
+var httpURIRouteToSrvMethod *HttpURIRouteToSrvMethod
 
 type APIMethodDetails struct {
 	// 服务名
 	ServiceName string
 	// 方法名
-	MethodName    string
-	AuthRequired  bool
-	RequestMethod string
+	MethodName     string
+	AuthRequired   bool
+	RequestMethod  string
+	GrpcFullRouter string
 }
 type HttpURIRouteToSrvMethod struct {
-	routers map[string]*APIMethodDetails
+	routers    map[string]*APIMethodDetails
+	grpcRouter map[string]*APIMethodDetails
+	localSrv   map[string]bool
+	mux        sync.Mutex
 }
 
 func NewHttpURIRouteToSrvMethod() *HttpURIRouteToSrvMethod {
-	return &HttpURIRouteToSrvMethod{
-		routers: make(map[string]*APIMethodDetails),
-	}
+	onceRouter.Do(func() {
+		httpURIRouteToSrvMethod = &HttpURIRouteToSrvMethod{
+			routers:    make(map[string]*APIMethodDetails),
+			grpcRouter: make(map[string]*APIMethodDetails),
+			localSrv:   make(map[string]bool),
+			mux:        sync.Mutex{},
+		}
+	})
+	return httpURIRouteToSrvMethod
+}
+func Get() *HttpURIRouteToSrvMethod {
+	return NewHttpURIRouteToSrvMethod()
 }
 
 func (r *HttpURIRouteToSrvMethod) AddRoute(uri string, srvMethod *APIMethodDetails) {
 	r.routers[uri] = srvMethod
+	r.grpcRouter[srvMethod.GrpcFullRouter] = srvMethod
 }
+func (r *HttpURIRouteToSrvMethod) deleteRoute(uri string, grpcFullMethod string) {
+	delete(r.routers, uri)
+	delete(r.grpcRouter, grpcFullMethod)
+}
+
 func (r *HttpURIRouteToSrvMethod) GetRoute(uri string) *APIMethodDetails {
 	return r.routers[uri]
+}
+func (r *HttpURIRouteToSrvMethod) GetRouteByGrpcMethod(method string) *APIMethodDetails {
+	return r.grpcRouter[strings.ToUpper(method)]
 }
 func (r *HttpURIRouteToSrvMethod) GetAllRoutes() map[string]*APIMethodDetails {
 	return r.routers
@@ -54,8 +82,8 @@ func (r *HttpURIRouteToSrvMethod) getServiceOptions(service protoreflect.Service
 	return nil
 
 }
-func (r *HttpURIRouteToSrvMethod) getServiceOptionByExt(service protoreflect.ServiceDescriptor, ext protoreflect.ExtensionType) interface{} {
-	if options := r.getServiceOptions(service); options != nil {
+func (r *HttpURIRouteToSrvMethod) getServiceOptionByExt(service *descriptorpb.ServiceDescriptorProto, ext protoreflect.ExtensionType) interface{} {
+	if options := service.GetOptions(); options != nil {
 		if ext := proto.GetExtension(options, ext); ext != nil {
 			return ext
 		}
@@ -68,8 +96,8 @@ func (r *HttpURIRouteToSrvMethod) getMethodOptions(method protoreflect.MethodDes
 	}
 	return nil
 }
-func (r *HttpURIRouteToSrvMethod) getHttpRule(method protoreflect.MethodDescriptor) *annotations.HttpRule {
-	if options := r.getMethodOptions(method); options != nil {
+func (r *HttpURIRouteToSrvMethod) getHttpRule(method *descriptorpb.MethodDescriptorProto) *annotations.HttpRule {
+	if options := method.GetOptions(); options != nil {
 		if ext := proto.GetExtension(options, annotations.E_Http); ext != nil {
 			if httpRule, ok := ext.(*annotations.HttpRule); ok {
 				return httpRule
@@ -78,10 +106,17 @@ func (r *HttpURIRouteToSrvMethod) getHttpRule(method protoreflect.MethodDescript
 	}
 	return nil
 }
-func (r *HttpURIRouteToSrvMethod) addRouterDetails(serviceName string, authRequired bool, methodName protoreflect.MethodDescriptor) {
-	// 获取并打印 google.api.http 注解
-	if httpRule := r.getHttpRule(methodName); httpRule != nil {
-		var path, method string
+func (r *HttpURIRouteToSrvMethod) AddLocalSrv(fullMethod string) {
+	r.localSrv[strings.ToUpper(fullMethod)] = true
+}
+func (r *HttpURIRouteToSrvMethod) IsLocalSrv(fullMethod string) bool {
+	ret := r.localSrv[strings.ToUpper(fullMethod)]
+	return ret
+}
+func (h *HttpURIRouteToSrvMethod) getUri(methodName *descriptorpb.MethodDescriptorProto) (string, string) {
+	if httpRule := h.getHttpRule(methodName); httpRule != nil {
+		var path string
+		var method string
 		switch pattern := httpRule.Pattern.(type) {
 		case *annotations.HttpRule_Get:
 			path = pattern.Get
@@ -98,28 +133,46 @@ func (r *HttpURIRouteToSrvMethod) addRouterDetails(serviceName string, authRequi
 		case *annotations.HttpRule_Patch:
 			path = pattern.Patch
 			method = "PATCH"
-			// 可以继续处理其他情况，如 Custom 方法
+		// 可以继续处理其他情况，如 Custom 方法
+		case *annotations.HttpRule_Custom:
+			path = pattern.Custom.Path
+			method = pattern.Custom.Kind
 		}
-		if path != "" {
-			r.AddRoute(path, &APIMethodDetails{
-				ServiceName:   serviceName,
-				MethodName:    string(methodName.Name()),
-				AuthRequired:  authRequired,
-				RequestMethod: method,
-			})
-		}
+		return path, method
+	}
+	return "", ""
+
+}
+func (h *HttpURIRouteToSrvMethod) DeleteRouterDetails(fullMethod string, method *descriptorpb.MethodDescriptorProto) {
+	h.mux.Lock()
+	defer h.mux.Unlock()
+	uri, _ := h.getUri(method)
+	h.deleteRoute(uri, fullMethod)
+}
+func (r *HttpURIRouteToSrvMethod) addRouterDetails(serviceName string, authRequired bool, methodName *descriptorpb.MethodDescriptorProto) {
+	// 获取并打印 google.api.http 注解
+	if path, method := r.getUri(methodName); path != "" {
+
+		r.AddRoute(path, &APIMethodDetails{
+			ServiceName:    serviceName,
+			MethodName:     string(methodName.GetName()),
+			AuthRequired:   authRequired,
+			RequestMethod:  method,
+			GrpcFullRouter: serviceName,
+		})
+
 	}
 
 }
-func (r *HttpURIRouteToSrvMethod) LoadAllRouters() {
-	protoregistry.GlobalFiles.RangeFilesByPackage(protoreflect.FullName(config.APIPkg), func(fd protoreflect.FileDescriptor) bool {
-		// 遍历文件中的所有服务
-		services := fd.Services()
-		for i := 0; i < services.Len(); i++ {
-			service := services.Get(i)
-			srvOptions := r.getServiceOptions(service)
+func (r *HttpURIRouteToSrvMethod) LoadAllRouters(pd transport.ProtobufDescription) {
+	fds := pd.GetFileDescriptorSet()
+	r.mux.Lock()
+	defer r.mux.Unlock()
+	for _, fd := range fds.File {
+		for _, service := range fd.Service {
+			srvOptions := service.GetOptions()
 			if srvOptions == nil {
-				return true
+				continue
 			}
 			authRequired := false
 			// 获取并打印 pb.auth_reqiured 注解
@@ -127,15 +180,26 @@ func (r *HttpURIRouteToSrvMethod) LoadAllRouters() {
 				authRequired, _ = authRequiredExt.(bool)
 			}
 			// 遍历服务中的所有方法
-			methods := service.Methods()
-			for j := 0; j < methods.Len(); j++ {
-				methodName := methods.Get(j)
-				r.addRouterDetails(string(service.FullName()), authRequired, methodName)
+			for _, method := range service.GetMethod() {
+				key := fmt.Sprintf("/%s.%s/%s", fd.GetPackage(), service.GetName(), method.GetName())
+				r.addRouterDetails(strings.ToUpper(key), authRequired, method)
+			}
+
+		}
+	}
+
+}
+
+func (h *HttpURIRouteToSrvMethod) DeleteRouters(pd transport.ProtobufDescription) {
+	// h.mux.Lock()
+	// defer h.mux.Unlock()
+	fds := pd.GetFileDescriptorSet()
+	for _, fd := range fds.File {
+		for _, service := range fd.Service {
+			for _, method := range service.GetMethod() {
+				key := fmt.Sprintf("/%s.%s/%s", fd.GetPackage(), service.GetName(), method.GetName())
+				h.DeleteRouterDetails(strings.ToUpper(key), method)
 			}
 		}
-		return true
-	})
-	// if len(r.routers) == 0 {
-	// 	panic("没有找到任何路由")
-	// }
+	}
 }

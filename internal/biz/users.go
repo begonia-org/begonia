@@ -6,14 +6,16 @@ import (
 	"fmt"
 	"time"
 
-	api "github.com/begonia-org/begonia/api/v1"
-	common "github.com/begonia-org/begonia/common/api/v1"
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/crypto"
 	"github.com/begonia-org/begonia/internal/pkg/errors"
-	"github.com/sirupsen/logrus"
+	"github.com/begonia-org/begonia/internal/pkg/logger"
+	api "github.com/begonia-org/go-sdk/api/v1"
+	common "github.com/begonia-org/go-sdk/common/api/v1"
+	"github.com/redis/go-redis/v9"
 	"github.com/spark-lence/tiga"
 	srvErr "github.com/spark-lence/tiga/errors"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -23,22 +25,26 @@ type UsersRepo interface {
 	CreateUsers(ctx context.Context, Users []*api.Users) error
 	UpdateUsers(ctx context.Context, models []*api.Users) error
 	DeleteUsers(ctx context.Context, models []*api.Users) error
+	GetUser(ctx context.Context, conds ...interface{}) (*api.Users, error)
 
 	// redis
 
 	CacheToken(ctx context.Context, key, token string, exp time.Duration) error
 	DelToken(ctx context.Context, key string) error
 	CheckInBlackList(ctx context.Context, key string) (bool, error)
+	PutBlackList(ctx context.Context, token string) error
+
+	CacheUsers(ctx context.Context, prefix string, models []*api.Users, exp time.Duration, getValue func(user *api.Users) ([]byte, interface{})) redis.Pipeliner
 }
 
 type UsersUsecase struct {
 	repo       UsersRepo
-	log        *logrus.Logger
+	log        logger.Logger
 	authCrypto *crypto.UsersAuth
 	config     *config.Config
 }
 
-func NewUsersUsecase(repo UsersRepo, log *logrus.Logger, crypto *crypto.UsersAuth, config *config.Config) *UsersUsecase {
+func NewUsersUsecase(repo UsersRepo, log logger.Logger, crypto *crypto.UsersAuth, config *config.Config) *UsersUsecase {
 	return &UsersUsecase{repo: repo, log: log, authCrypto: crypto, config: config}
 }
 func (u *UsersUsecase) ListUsers(ctx context.Context, conds ...interface{}) ([]*api.Users, error) {
@@ -55,9 +61,6 @@ func (u *UsersUsecase) UpdateUsers(ctx context.Context, conditions interface{}, 
 func (u *UsersUsecase) DeleteUsers(ctx context.Context, model []*api.Users) error {
 	return u.repo.DeleteUsers(ctx, model)
 }
-func (u *UsersUsecase) CacheToken(ctx context.Context, key, token string, exp time.Duration) error {
-	return u.repo.CacheToken(ctx, key, token, exp)
-}
 func (u *UsersUsecase) DelToken(ctx context.Context, key string) error {
 	return u.repo.DelToken(ctx, key)
 }
@@ -70,20 +73,27 @@ func (u *UsersUsecase) AuthSeed(ctx context.Context, in *api.AuthLogAPIRequest) 
 	return token, nil
 
 }
+func (u *UsersUsecase) PutBlackList(ctx context.Context, token string) error {
+	return u.repo.PutBlackList(ctx, token)
+}
+func (u *UsersUsecase) CheckInBlackList(ctx context.Context, token string) (bool, error) {
+	return u.repo.CheckInBlackList(ctx, token)
+}
 func (u *UsersUsecase) getUserAuth(ctx context.Context, in *api.LoginAPIRequest) (*api.UserAuth, error) {
 
 	timestamp := in.Seed / 10000
 	now := time.Now().Unix()
 	if now-timestamp > 60 {
-		err := srvErr.New(errors.ErrTokenExpired, "token校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_EXPIRE_ERR.Number()), "token过期"))
-		return nil, err
+		// err := srvErr.New(errors.ErrTokenExpired, "token校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_EXPIRE_ERR.Number()), "token过期"))
+
+		return nil, errors.New(errors.ErrTokenExpired, int32(api.UserSvrCode_USER_TOKEN_EXPIRE_ERR.Number()), codes.InvalidArgument, "种子有效期校验")
 	}
 	auth := in.Auth
 	authBytes, err := u.authCrypto.RSADecrypt(auth)
 
 	if err != nil {
-		err := srvErr.New(errors.ErrAuthDecrypt, "登陆", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_AUTH_DECRYPT_ERR.Number()), "登录失败"))
-		return nil, err
+		// err := srvErr.New(errors.ErrAuthDecrypt, "登陆", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_AUTH_DECRYPT_ERR.Number()), "登录失败"))
+		return nil, errors.New(errors.ErrAuthDecrypt, int32(api.UserSvrCode_USER_AUTH_DECRYPT_ERR.Number()), codes.InvalidArgument, "登陆信息解密")
 	}
 	userAuth := &api.UserAuth{}
 	err = json.Unmarshal([]byte(authBytes), userAuth)
@@ -93,13 +103,13 @@ func (u *UsersUsecase) getUserAuth(ctx context.Context, in *api.LoginAPIRequest)
 	}
 	return userAuth, nil
 }
-func (u *UsersUsecase) generateJWT(ctx context.Context, user *api.Users, isKeepLogin bool) (string, error) {
-	exp := time.Hour * 2
+func (u *UsersUsecase) GenerateJWT(ctx context.Context, user *api.Users, isKeepLogin bool) (string, error) {
+	exp := time.Duration(u.config.GetJWTExpiration()) * time.Second
 	if isKeepLogin {
 		exp = time.Hour * 24 * 3
 	}
 	secret := u.config.GetString("auth.jwt_secret")
-	vildateToken := tiga.ComputeHmacSha256(fmt.Sprintf("%s:%d", user.Uid, time.Now().Unix()), secret)
+	validateToken := tiga.ComputeHmacSha256(fmt.Sprintf("%s:%d", user.Uid, time.Now().Unix()), secret)
 	payload := &api.BasicAuth{
 		Uid:         user.Uid,
 		Name:        user.Name,
@@ -110,7 +120,7 @@ func (u *UsersUsecase) generateJWT(ctx context.Context, user *api.Users, isKeepL
 		NotBefore:   time.Now().Unix(),
 		IssuedAt:    time.Now().Unix(),
 		IsKeepLogin: isKeepLogin,
-		Token:       vildateToken,
+		Token:       validateToken,
 	}
 	err := u.repo.DelToken(ctx, u.config.GetUserBlackListKey(user.Uid))
 	if err != nil {
@@ -130,33 +140,28 @@ func (u *UsersUsecase) Login(ctx context.Context, in *api.LoginAPIRequest) (*api
 	key, iv := u.config.GetAesConfig()
 	account, err := tiga.EncryptAES([]byte(key), userAuth.Account, iv)
 	if err != nil {
-		err := srvErr.New(errors.ErrEncrypt, "账号加密", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_ACCOUNT_ERR), "账号或密码错误"))
+		err := errors.New(errors.ErrEncrypt, int32(api.UserSvrCode_USER_ACCOUNT_ERR), codes.InvalidArgument, "accout_encrypt")
 		return nil, err
 	}
 	passwd, err := tiga.EncryptAES([]byte(key), userAuth.Password, iv)
 	if err != nil {
-		err := srvErr.New(errors.ErrEncrypt, "密码加密", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_PASSWORD_ERR), "账号或密码错误"))
+		err := errors.New(errors.ErrEncrypt, int32(api.UserSvrCode_USER_PASSWORD_ERR), codes.InvalidArgument, "password_encrypt")
 		return nil, err
 	}
-	user := &api.Users{}
-	users, err := u.repo.ListUsers(ctx, "(name = ? OR email = ? OR phone = ?) and password=(?)", account, account, account, passwd)
+
+	user, err := u.repo.GetUser(ctx, "(name = ? OR email = ? OR phone = ?) and password=(?)", account, account, account, passwd)
 	if err != nil {
-		err := srvErr.New(err, "查询用户", srvErr.WithMessage("账号或密码错误"))
+		err := errors.New(err, int32(api.UserSvrCode_USER_NOT_FOUND_ERR), codes.NotFound, "user_query")
 		return nil, err
 	}
-	if len(users) == 0 {
-		err := srvErr.New(errors.ErrUserNotFound, "查询用户", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_NOT_FOUND_ERR), "账号或密码错误"))
-		return nil, err
-	}
-	user = users[0]
 	user.Password = ""
 	err = tiga.DecryptStructAES([]byte(key), user, iv)
 	if err != nil {
-		err := srvErr.New(err, "用户信息解密")
+		err := errors.New(err, int32(api.UserSvrCode_USER_AUTH_DECRYPT_ERR), codes.NotFound, "user_decrypt")
 		return nil, err
 	}
 	// 生成jwt
-	token, err := u.generateJWT(ctx, user, in.IsKeepLogin)
+	token, err := u.GenerateJWT(ctx, user, in.IsKeepLogin)
 	if err != nil {
 		return nil, err
 	}

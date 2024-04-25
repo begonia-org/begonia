@@ -2,24 +2,62 @@ package data
 
 import (
 	"context"
+	"fmt"
+	"sync"
 	"time"
 
+	common "github.com/begonia-org/go-sdk/common/api/v1"
 	"github.com/bsm/redislock"
 	"github.com/cockroachdb/errors"
 	"github.com/google/wire"
+	"github.com/redis/go-redis/v9"
 	"github.com/spark-lence/tiga"
+	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
+	"gorm.io/gorm"
 )
 
-var ProviderSet = wire.NewSet(tiga.NewMySQLDao, tiga.NewRedisDao, NewData, NewLocalCache, NewUserRepo,NewFileRepoImpl)
+func GetRDBClient(rdb *tiga.RedisDao) *redis.Client {
+	return rdb.GetClient()
+}
+
+var onceRDB sync.Once
+var onceMySQL sync.Once
+var onceEtcd sync.Once
+var rdb *tiga.RedisDao
+var mysql *tiga.MySQLDao
+var etcd *tiga.EtcdDao
+
+func NewRDB(config *tiga.Configuration) *tiga.RedisDao {
+	onceRDB.Do(func() {
+		rdb = tiga.NewRedisDao(config)
+	})
+	return rdb
+}
+func NewMySQL(config *tiga.Configuration) *tiga.MySQLDao {
+	onceMySQL.Do(func() {
+		mysql = tiga.NewMySQLDao(config)
+		mysql.RegisterTimeSerializer()
+	})
+	return mysql
+
+}
+func NewEtcd(config *tiga.Configuration) *tiga.EtcdDao {
+	onceEtcd.Do(func() {
+		etcd = tiga.NewEtcdDao(config)
+	})
+	return etcd
+}
+
+var ProviderSet = wire.NewSet(NewMySQL, NewRDB, NewEtcd, GetRDBClient, NewData, NewLayeredCache, NewUserRepo, NewFileRepoImpl, NewEndpointRepoImpl, NewAppRepoImpl, NewDataOperatorRepo)
 
 type Data struct {
 	// mysql
 	db *tiga.MySQLDao
 	// redis
-	rdb *tiga.RedisDao
-	// etcd *tiga.EtcdDao
-
+	rdb  *tiga.RedisDao
+	etcd *tiga.EtcdDao
 }
 type SourceType interface {
 	// 获取数据源类型
@@ -28,10 +66,12 @@ type SourceType interface {
 	GetOwner() string
 }
 
-func NewData(mysql *tiga.MySQLDao, rdb *tiga.RedisDao) *Data {
-	return &Data{db: mysql, rdb: rdb}
+func NewData(mysql *tiga.MySQLDao, rdb *tiga.RedisDao, etcd *tiga.EtcdDao) *Data {
+	return &Data{db: mysql, rdb: rdb, etcd: etcd}
 }
-
+func (d *Data) Get(model interface{}, data interface{}, conds ...interface{}) error {
+	return d.db.GetModel(model).First(data, conds...).Error
+}
 func (d *Data) List(model interface{}, data interface{}, conds ...interface{}) error {
 	queryTag := tiga.QueryTags{}
 	query := queryTag.BuildConditions(d.db.GetModel(model), conds)
@@ -44,18 +84,57 @@ func (d *Data) List(model interface{}, data interface{}, conds ...interface{}) e
 		return nil
 	}
 }
+
+//	func (d *Data) Get(model interface{}, data interface{}, conds ...interface{}) error {
+//		return d.db.GetModel(model).First(data, conds...).Error
+//	}
 func (d *Data) Create(model interface{}) error {
 	return d.db.Create(model)
 }
 func (d *Data) CreateInBatches(models []SourceType) error {
-	db := d.db.Begin()
 
-	err := db.CreateInBatches(models, len(models)).Error
+	db, err := d.CreateInBatchesByTx(models)
 	if err != nil {
-		db.Rollback()
-		return errors.Wrap(err, "批量插入失败")
+		return err
 	}
 	return db.Commit().Error
+}
+func (d *Data) CreateInBatchesByTx(models interface{}) (*gorm.DB, error) {
+	db := d.db.Begin()
+	size, _ := tiga.GetElementCount(models)
+	if size == 0 {
+		return nil, fmt.Errorf("数据为空")
+	}
+	err := db.CreateInBatches(models, size).Error
+
+	if err != nil {
+		db.Rollback()
+		return nil, fmt.Errorf("批量插入数据失败: %w", err)
+	}
+	resources := make([]*common.Resource, 0)
+	sources := NewSourceTypeArray(models)
+	for _, item := range sources {
+		name, err := d.db.TableName(item)
+		if err != nil {
+			db.Rollback()
+			return nil, fmt.Errorf("获取表名失败: %w", err)
+		}
+		resources = append(resources, &common.Resource{
+			ResourceKey:  item.GetKey(),
+			ResourceName: name,
+			Uid:          item.GetOwner(),
+			CreatedAt:    timestamppb.New(time.Now()),
+			UpdatedAt:    timestamppb.New(time.Now()),
+		})
+	}
+	// logger.Logger.Infoln("resources", resources)
+	err = db.CreateInBatches(resources, len(resources)).Error
+	if err != nil {
+		db.Rollback()
+		return nil, fmt.Errorf("批量插入资源失败: %w", err)
+	}
+	return db, nil
+
 }
 func (d *Data) BatchUpdates(models []SourceType, dataModel interface{}) error {
 	size, err := tiga.GetElementCount(models)
@@ -102,6 +181,20 @@ func (d *Data) Cache(ctx context.Context, key string, value string, exp time.Dur
 func (d *Data) GetCache(ctx context.Context, key string) string {
 	return d.rdb.Get(ctx, key)
 }
+func (d *Data) BatchCacheByTx(ctx context.Context, exp time.Duration, kv ...interface{}) redis.Pipeliner {
+	pipe := d.rdb.GetClient().TxPipeline()
+	for i := 0; i < len(kv); i += 2 {
+		pipe.Set(ctx, kv[i].(string), kv[i+1], exp)
+	}
+	return pipe
+}
+func (d *Data) DelCacheByTx(ctx context.Context, keys ...string) redis.Pipeliner {
+	pipe := d.rdb.GetClient().TxPipeline()
+	for _, key := range keys {
+		pipe.Del(ctx, key)
+	}
+	return pipe
+}
 func (d *Data) DelCache(ctx context.Context, key string) error {
 	return d.rdb.Del(ctx, key)
 }
@@ -124,7 +217,12 @@ func (d *Data) BatchDelete(models []SourceType, dataModel interface{}) error {
 	}
 	return d.db.Delete(dataModel, "uid in ?", keys)
 }
-
+func (d *Data) EtcdPut(ctx context.Context, key string, value string, opts ...clientv3.OpOption) error {
+	return d.etcd.Put(ctx, key, value, opts...)
+}
+func (d *Data) PutEtcdWithTxn(ctx context.Context, ops []clientv3.Op) (bool, error) {
+	return d.etcd.BatchOps(ctx, ops)
+}
 func NewSourceTypeArray(models interface{}) []SourceType {
 	items := tiga.GetArrayOrSlice(models)
 	sources := make([]SourceType, 0)
@@ -132,4 +230,7 @@ func NewSourceTypeArray(models interface{}) []SourceType {
 		sources = append(sources, item.(SourceType))
 	}
 	return sources
+}
+func (d *Data) EtcdGet(ctx context.Context, key string) (string, error) {
+	return d.etcd.GetString(ctx, key)
 }

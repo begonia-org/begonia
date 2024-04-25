@@ -1,24 +1,84 @@
 package logger
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"sync"
 
-	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	common "github.com/begonia-org/go-sdk/common/api/v1"
 	"github.com/sirupsen/logrus"
-	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 type loggerFormatter struct{}
 
-var Logger *logrus.Logger = nil
+// var Logger logger.Logger = nil
 var onceLog sync.Once
 
+type errHook struct{}
+type Logger interface {
+	Error(err error)
+	Errorf(format string, args ...interface{})
+	Info(args ...interface{})
+	Infof(format string, args ...interface{})
+	Warn(args ...interface{})
+	Warnf(format string, args ...interface{})
+	Debug(args ...interface{})
+	Debugf(format string, args ...interface{})
+	WithFields(fields logrus.Fields) Logger
+	WithField(key string, value interface{}) Logger
+	SetReportCaller(reportCaller bool)
+	Logurs() *logrus.Logger
+}
+type LoggerImpl struct {
+	*logrus.Entry
+}
+
+var Log Logger
+
+
+func (l *LoggerImpl) WithField(key string, value interface{}) Logger {
+	return &LoggerImpl{Entry: l.Entry.WithField(key, value)}
+}
+func (l *LoggerImpl) SetReportCaller(reportCaller bool) {
+	l.Logger.SetReportCaller(reportCaller)
+}
+func (l *LoggerImpl) WithFields(fields logrus.Fields) Logger {
+	return &LoggerImpl{Entry: l.Entry.WithFields(fields)}
+}
+func (l *LoggerImpl) Logurs() *logrus.Logger {
+	return l.Logger
+}
+func (l *LoggerImpl) Info(args ...interface{}) {
+	l.Entry.Info(args...)
+}
+func (l *LoggerImpl) Error(err error) {
+	if st, ok := status.FromError(err); ok {
+		details := st.Details()
+		for _, detail := range details {
+			if anyType, ok := detail.(*anypb.Any); ok {
+				var errDetail common.Errors
+				if err := anyType.UnmarshalTo(&errDetail); err == nil {
+					rspCode := float64(errDetail.Code)
+					logger := l.Entry.WithFields(logrus.Fields{
+						"status": int(rspCode),
+						"file":   errDetail.File,
+						"line":   errDetail.Line,
+						"fn":     errDetail.Fn,
+					})
+					logger.Error(err)
+					return
+				}
+			}
+		}
+
+	}
+	l.Entry.Error(err)
+}
 func (f *loggerFormatter) getFormatterFields(data logrus.Fields) string {
 	fields := make([]string, 0)
-	entryKeys := []string{"name", "id", "x-request-id", "uri", "method", "remote_addr", "status"}
+	entryKeys := []string{"name", "x-uid", "x-request-id", "uri", "method", "remote_addr", "status", "elapsed", "file", "line", "fn"}
 	for _, v := range entryKeys {
 		if data[v] == nil {
 			continue
@@ -43,37 +103,14 @@ func (f *loggerFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 
 	return []byte(logMessage), nil
 }
-func LoggerFromContext(ctx context.Context) *logrus.Entry {
-	md, ok := metadata.FromOutgoingContext(ctx)
-	if !ok {
 
-		return Logger.WithFields(logrus.Fields{})
-	}
-	uri, _ := runtime.HTTPPathPattern(ctx)
-	method, _ := runtime.RPCMethod(ctx)
-	remoteAddr := ""
-	origin := ""
-
-	if val := md.Get("grpcgateway-origin"); len(val) > 0 {
-		origin = val[0]
-	}
-	if val := md.Get("grpcgateway-referer"); len(val) > 0 {
-		remoteAddr = val[0]
-	}
-	return Logger.WithFields(logrus.Fields{
-		"x-request-id": md.Get("x-request-id")[0],
-		"remote_addr":  remoteAddr,
-		"origin":       origin,
-		"uri":          uri,
-		"method":       method,
-	})
-}
 func init() {
 	onceLog.Do(
 		func() {
-			Logger = logrus.New()
-			Logger.SetFormatter(new(loggerFormatter))
-			Logger.SetReportCaller(true)
+			_logger := logrus.New()
+			_logger.SetFormatter(new(loggerFormatter))
+			_logger.SetReportCaller(true)
+			Log = &LoggerImpl{_logger.WithFields(logrus.Fields{})}
 		},
 	)
 }

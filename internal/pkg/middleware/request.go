@@ -5,31 +5,38 @@ import (
 	"net/http"
 	"strings"
 
+	gosdk "github.com/begonia-org/go-sdk"
 	"github.com/google/uuid"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
 
-func preflightHandler(w http.ResponseWriter, r *http.Request) {
-	headers := []string{"Content-Type", "Accept", "Authorization", "X-Token"}
-	w.Header().Set("Access-Control-Allow-Headers", strings.Join(headers, ","))
-	methods := []string{"GET", "HEAD", "POST", "PUT", "DELETE"}
-	w.Header().Set("Access-Control-Allow-Methods", strings.Join(methods, ","))
+func preflightHandler(w http.ResponseWriter, _ *http.Request) {
+	// headers := []string{"Content-Type", "Accept", "Authorization", "X-Token", "x-date", "x-access-key"}
+	w.Header().Set("Access-Control-Allow-Headers", "*")
+	// methods := []string{"GET", "HEAD", "POST", "PUT", "DELETE"}
+	w.Header().Set("Access-Control-Allow-Methods", "*")
+	w.Header().Set("Access-Control-Expose-Headers", "*")
 }
-func AllowCORS(h http.Handler, cors []string) http.Handler {
+
+type CorsMiddleware struct {
+	Cors []string
+}
+
+func (cors *CorsMiddleware) Handle(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if clientOrigin := r.Header.Get("Origin"); clientOrigin != "" {
 			var isAllowed bool
-			for _, origin := range cors {
+
+			for _, origin := range cors.Cors {
 				if origin == "*" || strings.HasSuffix(clientOrigin, origin) {
 					isAllowed = true
 					break
 				}
 			}
-			if !isAllowed {
+			if isAllowed {
 				w.Header().Set("Access-Control-Allow-Origin", clientOrigin)
-				if r.Method == "OPTIONS" && r.Header.Get("Access-Control-Request-Method") != "" {
+				if r.Method == "OPTIONS" {
 					preflightHandler(w, r)
 					return
 				}
@@ -53,32 +60,50 @@ func RequestIDMiddleware(ctx context.Context, r *http.Request) metadata.MD {
 func IncomingHeadersToMetadata(ctx context.Context, req *http.Request) metadata.MD {
 	// 创建一个新的 metadata.MD 实例
 	md := metadata.MD{}
-	// needs := []string{"x-uid", "authorization"}
+	invalidHeaders := []string{
+		"Connection", "Keep-Alive", "Proxy-Connection",
+		"Transfer-Encoding", "Upgrade", "TE",
+	}
+	for _, h := range invalidHeaders {
+		req.Header.Del(h)
 
-	// for _, need := range needs {
-	// 	if val := req.Header.Get(need); val != "" {
-	// 		md.Set(strings.ToLower(need), val)
-	// 	}
-	// }
+	}
 	for k, v := range req.Header {
-		if strings.ToLower(k) == "authorization" || strings.HasPrefix(strings.ToLower(k), "x-"){
+		if strings.HasPrefix(strings.ToLower(k), "sec-") {
+			continue
+		}
+		if strings.ToLower(k) == "pragma" {
+			continue
+		}
+
 		md.Set(strings.ToLower(k), v...)
 	}
-	}
-	md.Set("x-request-id", uuid.New().String())
+	// 设置一些默认的元数据
+	reqID := uuid.New().String()
+	md.Set("x-request-id", reqID)
 	md.Set("uri", req.RequestURI)
-	md.Set("method", req.Method)
+	md.Set("x-http-method", req.Method)
 	md.Set("remote_addr", req.RemoteAddr)
-	_ = grpc.SetHeader(ctx, metadata.Pairs("x-request-id", md.Get("x-request-id")[0]))
-	if val := md.Get("x-uid"); len(val) > 0 {
-		_ = grpc.SetHeader(ctx, metadata.Pairs("x-uid", val[0]))
+	md.Set("protocol", req.Proto)
+	md.Set(gosdk.GetMetadataKey("x-request-id"), reqID)
+
+	xuid := md.Get("x-uid")
+	accessKey := md.Get("x-access-key")
+	author := ""
+
+	if len(xuid) > 0 {
+		author = xuid[0]
 	}
-	uri := req.RequestURI
-	method := req.Method
-	remoteAddr := req.RemoteAddr
-	_ = grpc.SetHeader(ctx, metadata.Pairs("uri", uri))
-	_ = grpc.SetHeader(ctx, metadata.Pairs("method", method))
-	_ = grpc.SetHeader(ctx, metadata.Pairs("remote_addr", remoteAddr))
-	_ = grpc.SendHeader(ctx, md)
+	if len(accessKey) > 0 {
+		author = accessKey[0]
+	}
+	if author == "" {
+		return md
+	}
+	md.Set("x-identity", author)
+
 	return md
 }
+
+
+
