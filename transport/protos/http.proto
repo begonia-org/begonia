@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+option go_package = "github.com/begonia-org/dynamic-proto/api/v1";
+option java_multiple_files = true;
+option java_package = "io.grpc.dynamic.http";
+option java_outer_classname = "httpProto";
+option objc_class_prefix = "HLW";
+
+package http;
+
+
+message EventStream {
+    string event=1;
+    string data =2;
+    int64 id=3 ;
+    int32 retry=4;
+}
