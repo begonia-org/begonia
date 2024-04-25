@@ -18,6 +18,7 @@ type FileReader interface {
 	ModifyTime() int64
 	Close() error
 	ReadAt(p []byte, offset int64) (n int, err error)
+	Name() string
 }
 type FileVersionReader interface {
 	FileReader
@@ -48,6 +49,9 @@ func (f *FileReaderImpl) ReadAt(p []byte, offset int64) (n int, err error) {
 	return f.File.ReadAt(p, offset)
 
 }
+func (f *FileReaderImpl) Name() string {
+	return f.File.Name()
+}
 func NewFileReader(path string) (FileReader, error) {
 	file, err := os.Open(path)
 	if err != nil {
@@ -70,6 +74,7 @@ type fileVersionReaderImpl struct {
 	name    string
 	file    *object.File
 	commit  *object.Commit
+	path    string
 }
 
 func (f *fileVersionReaderImpl) Reader() (io.ReadCloser, error) {
@@ -122,6 +127,10 @@ func (f *fileVersionReaderImpl) Author() string {
 func (f *fileVersionReaderImpl) Close() error {
 	return nil
 }
+func (f *fileVersionReaderImpl) Name() string {
+	return f.path
+
+}
 func (f *fileVersionReaderImpl) ReadAt(p []byte, offset int64) (n int, err error) {
 	reader, err := f.Reader()
 	if err != nil {
@@ -150,7 +159,7 @@ func NewFileVersionReader(path string, version string) (FileVersionReader, error
 		return nil, err
 
 	}
-	if version == ""||version=="latest" {
+	if version == "" || version == "latest" {
 		ref, err := repo.Head()
 		if err != nil {
 			return nil, err
@@ -173,6 +182,6 @@ func NewFileVersionReader(path string, version string) (FileVersionReader, error
 		return nil, err
 
 	}
-	return &fileVersionReaderImpl{Repository: repo, version: version, name: fileName, file: file, commit: commit}, nil
+	return &fileVersionReaderImpl{Repository: repo, version: version, name: fileName, file: file, commit: commit, path: path}, nil
 	// return &fileVersionReaderImpl{Repository: repo, version: version, name: name}, nil
 }

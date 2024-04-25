@@ -70,7 +70,9 @@ type TmpFile struct {
 	path        string
 	content     []byte
 }
+
 var tmpFile *TmpFile
+
 func generateRandomFile(size int64) (*TmpFile, error) {
 	// 创建临时文件
 	tmp, err := os.CreateTemp("", "testfile-*.txt")
@@ -180,18 +182,33 @@ func downloadParts(t *testing.T) {
 		c.So(err, c.ShouldBeNil)
 		// c.So(rsp.StatusCode, c.ShouldEqual, common.Code_OK)
 		downloadedSha256, _ := sumFileSha256(tmp.Name())
-		t.Log(rsp.Sha256)
-		info,_:=tmp.Stat()
-		t.Log(rsp.Size)
-		t.Log(info.Size())
-		t.Log(downloadedSha256)
+		
 		c.So(rsp.Sha256, c.ShouldEqual, downloadedSha256)
 
+	})
+}
+func deleteFile(t *testing.T) {
+	c.Convey("test delete file", t, func() {
+		apiClient := client.NewFilesAPI("http://127.0.0.1:12140", "NWkbCslfh9ea2LjVIUsKehJuopPb65fn", "oVPNllSR1DfizdmdSF7wLjgABYbexdt4FZ1HWrI81dD5BeNhsyXpXPDFoDEyiSVe")
+		rsp, err := apiClient.DeleteFile(context.Background(), "test/helloworld.pb")
+		c.So(err, c.ShouldBeNil)
+		c.So(rsp.StatusCode, c.ShouldEqual, common.Code_OK)
+		conf := cfg.NewConfig(config.ReadConfig("dev"))
 
-	})}
+		saveDir := filepath.Join(conf.GetUploadDir(), "NWkbCslfh9ea2LjVIUsKehJuopPb65fn", filepath.Dir("test/helloworld.pb"))
+		filename := filepath.Base("test/helloworld.pb")
+		filePath := filepath.Join(saveDir, filename)
+
+		_, err = os.Stat(filePath)
+		// c.So(err, c.ShouldNotBeNil)
+		c.So(os.IsNotExist(err), c.ShouldBeTrue)
+
+	})
+}
 func TestFile(t *testing.T) {
 	t.Run("upload", upload)
 	t.Run("download", download)
 	t.Run("uploadParts", uploadParts)
 	t.Run("downloadParts", downloadParts)
+	t.Run("deleteFile", deleteFile)
 }

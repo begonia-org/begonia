@@ -468,9 +468,9 @@ func (f *FileUsecase) DownloadForRange(ctx context.Context, in *api.DownloadRequ
 
 	var buf []byte
 	if end > 0 {
-		buf = make([]byte, end-start + 1)
+		buf = make([]byte, end-start+1)
 	} else {
-		buf = make([]byte, file.Size()-start + 1)
+		buf = make([]byte, file.Size()-start+1)
 	}
 	// log.Printf("start:%d,end:%d,bufsize:%d", start, end, len(buf))
 	_, err = file.ReadAt(buf, start)
@@ -575,26 +575,26 @@ func (f *FileUsecase) Version(ctx context.Context, key, authorId string) (string
 	defer file.Close()
 	return file.(FileVersionReader).Version(), nil
 }
-func (f *FileUsecase) Download(ctx context.Context, in *api.DownloadRequest, authorId string) ([]byte, error) {
-	// if in.Key == "" {
-	// 	return nil, errors.New(errors.ErrInvalidFileKey, int32(api.FileSvrStatus_FILE_INVAILDATE_KEY_ERR), codes.InvalidArgument, "invalid_key")
+func (f *FileUsecase) checkStatusCode(err error) (int32, codes.Code) {
 
-	// }
+	switch err {
+	case git.ErrRepositoryNotExists, os.ErrNotExist:
+		return int32(common.Code_NOT_FOUND), codes.NotFound
+	default:
+		return int32(common.Code_INTERNAL_ERROR), codes.Internal
+	}
+}
+func (f *FileUsecase) Download(ctx context.Context, in *api.DownloadRequest, authorId string) ([]byte, error) {
+
 	key, err := f.checkIn(in.Key, authorId)
 	if err != nil {
 		return nil, err
 	}
 	in.Key = key
-	// fileDir := filepath.Join(f.config.GetUploadDir(), in.Key)
 	file, err := f.getReader(in.Key, in.Version)
-	if err == git.ErrRepositoryNotExists {
-		return nil, errors.New(err, int32(common.Code_NOT_FOUND), codes.NotFound, "file_not_found")
-	}
-	if err != nil && !os.IsNotExist(err) {
-		return nil, errors.New(os.ErrNotExist, int32(common.Code_INTERNAL_ERROR), codes.Internal, "open_file")
-	}
-	if os.IsNotExist(err) {
-		return nil, errors.New(err, int32(common.Code_NOT_FOUND), codes.NotFound, "file_not_found")
+	if err != nil {
+		code, httpCode := f.checkStatusCode(err)
+		return nil, errors.New(err, code, httpCode, "open_file")
 	}
 	buf := make([]byte, file.Size())
 	reader, err := file.Reader()
@@ -612,17 +612,28 @@ func (f *FileUsecase) Download(ctx context.Context, in *api.DownloadRequest, aut
 }
 
 func (f *FileUsecase) Delete(ctx context.Context, in *api.DeleteRequest, authorId string) (*api.DeleteResponse, error) {
-	subDir, filename, err := f.spiltKey(in.Key)
+	key, err := f.checkIn(in.Key, authorId)
 	if err != nil {
 		return nil, err
 	}
-	saveDir := filepath.Join(f.config.GetUploadDir(), subDir)
-	filePath := filepath.Join(saveDir, filename)
-	err = os.Remove(filePath)
-	if err != nil {
+	in.Key = key
+	file, err := f.getReader(in.Key, "")
+	if err != nil && !os.IsNotExist(err) {
 		return nil, errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "remove_file")
 
 	}
+	if file != nil {
+		defer file.Close()
+		os.Remove(file.Name())
+	}
+	versionFile, err := f.getReader(in.Key, "latest")
+	if err != nil {
+		code, rpcCode := f.checkStatusCode(err)
+		return nil, errors.New(err, code, rpcCode, "remove_file")
+	}
+	defer versionFile.Close()
+	os.Remove(versionFile.Name())
+
 	keyParts := f.getPersistenceKeyParts(in.Key, authorId)
 	err = os.RemoveAll(keyParts)
 	if err != nil {

@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/begonia-org/begonia/internal/pkg/logger"
@@ -87,7 +86,7 @@ func (log *LoggerMiddleware) logger(ctx context.Context, fullMethod string, err 
 			}
 
 		}
-		fmt.Println("发生错误", err)
+		// fmt.Println("发生错误", err)
 		logger.Error(err)
 	} else {
 		logger.Info("success")
