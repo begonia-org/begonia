@@ -10,18 +10,16 @@ import (
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/errors"
 	api "github.com/begonia-org/go-sdk/api/v1"
-	"github.com/redis/go-redis/v9"
 	"github.com/spark-lence/tiga"
 	"google.golang.org/grpc/codes"
-	"gorm.io/gorm"
 )
 
 type AppRepo interface {
-	AddApps(ctx context.Context, apps []*api.Apps) (*gorm.DB, error)
-	GetApps(ctx context.Context, keys []string) ([]*api.Apps, error)
-	CacheApps(ctx context.Context, prefix string, models []*api.Apps, exp time.Duration) redis.Pipeliner
-	DelAppsCache(ctx context.Context, prefix string, models []*api.Apps) error
-	ListApps(ctx context.Context, conds ...interface{}) ([]*api.Apps, error)
+	Add(ctx context.Context, apps *api.Apps) error
+	Get(ctx context.Context, key string) (*api.Apps, error)
+	Cache(ctx context.Context, prefix string, models *api.Apps, exp time.Duration) error
+	Del(ctx context.Context, prefix string, models *api.Apps) error
+	List(ctx context.Context, conds ...interface{}) ([]*api.Apps, error)
 }
 
 type AppUsecase struct {
@@ -55,7 +53,7 @@ func (a *AppUsecase) newApp() *api.Apps {
 	}
 
 }
-func (a *AppUsecase) CreateApp(ctx context.Context, in *api.CreateAppRequest) (*api.Apps, error) {
+func (a *AppUsecase) CreateApp(ctx context.Context, in *api.CreateAppRequest, owner string) (*api.Apps, error) {
 	// return a.repo.ListApps(ctx, conds...)
 	appid := a.generateAppid(ctx)
 	accessKey, err := a.generateAppAccessKey(ctx)
@@ -75,7 +73,7 @@ func (a *AppUsecase) CreateApp(ctx context.Context, in *api.CreateAppRequest) (*
 	app.Description = in.Description
 	app.Tags = in.Tags
 	app.Owner = in.Owner
-	err = a.AddApps(ctx, []*api.Apps{app})
+	err = a.Put(ctx, app, owner)
 	if err != nil {
 		return nil, err
 
@@ -94,7 +92,7 @@ func (a *AppUsecase) generateAppSecret(_ context.Context) (string, error) {
 }
 
 // AddApps 新增并缓存app
-func (a *AppUsecase) AddApps(ctx context.Context, apps []*api.Apps) (err error) {
+func (a *AppUsecase) Put(ctx context.Context, apps *api.Apps, owner string) (err error) {
 	defer func() {
 		if err != nil {
 			// log.Println(err)
@@ -106,35 +104,25 @@ func (a *AppUsecase) AddApps(ctx context.Context, apps []*api.Apps) (err error) 
 			}
 		}
 	}()
-	db, err := a.repo.AddApps(ctx, apps)
+	apps.Owner = owner
+	err = a.repo.Add(ctx, apps)
 	if err != nil {
 
 		return err
 	}
 	prefix := a.config.GetAPPAccessKeyPrefix()
-	pipe := a.repo.CacheApps(ctx, prefix, apps, time.Duration(0)*time.Second)
-	if _, err = pipe.Exec(ctx); err != nil {
-		db.Rollback()
-		return err
-	}
-	err = db.Commit().Error
-	if err != nil {
-		_ = a.repo.DelAppsCache(ctx, prefix, apps)
-
-		return err
-
-	}
-	return nil
+	err = a.repo.Cache(ctx, prefix, apps, time.Duration(0)*time.Second)
+	return err
 	// return a.repo.AddApps(ctx, apps)
 }
-func (a *AppUsecase) GetApps(ctx context.Context, keys []string) ([]*api.Apps, error) {
-	return a.repo.GetApps(ctx, keys)
+func (a *AppUsecase) Get(ctx context.Context, key string) (*api.Apps, error) {
+	return a.repo.Get(ctx, key)
 }
 
-func (a *AppUsecase) CacheApps(ctx context.Context, prefix string, models []*api.Apps, exp time.Duration) redis.Pipeliner {
-	return a.repo.CacheApps(ctx, prefix, models, exp)
+func (a *AppUsecase) Cache(ctx context.Context, prefix string, models *api.Apps, exp time.Duration) error {
+	return a.repo.Cache(ctx, prefix, models, exp)
 
 }
-func (a *AppUsecase) DelAppsCache(ctx context.Context, prefix string, models []*api.Apps) error {
-	return a.repo.DelAppsCache(ctx, prefix, models)
+func (a *AppUsecase) Del(ctx context.Context, prefix string, models *api.Apps) error {
+	return a.repo.Del(ctx, prefix, models)
 }

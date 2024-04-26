@@ -440,7 +440,7 @@ func (h *HttpEndpointImpl) RegisterHandlerClient(ctx context.Context, pd Protobu
 			}
 			if len(pathParams) > 0 {
 				params := make([]string, 0)
-				for key:= range pathParams {
+				for key := range pathParams {
 					params = append(params, key)
 				}
 				// fmt.Printf("params: %v\n", params)

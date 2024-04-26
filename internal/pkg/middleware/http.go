@@ -371,8 +371,6 @@ func (h *Http) Name() string {
 	return h.name
 }
 
-
-
 func HandleRoutingError(ctx context.Context, mux *runtime.ServeMux, marshaler runtime.Marshaler, w http.ResponseWriter, r *http.Request, httpStatus int) {
 	if httpStatus != http.StatusMethodNotAllowed {
 		runtime.DefaultRoutingErrorHandler(ctx, mux, marshaler, w, r, httpStatus)

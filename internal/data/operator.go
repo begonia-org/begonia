@@ -53,7 +53,7 @@ func (r *dataOperatorRepo) GetAllForbiddenUsersFromDB(ctx context.Context) ([]*a
 }
 
 func (r *dataOperatorRepo) GetAllAppsFromDB(ctx context.Context) ([]*api.Apps, error) {
-	apps, err := r.app.ListApps(ctx)
+	apps, err := r.app.List(ctx)
 	if err != nil {
 		return nil, err
 	}

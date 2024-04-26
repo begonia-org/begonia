@@ -12,14 +12,14 @@ require (
 	github.com/smartystreets/goconvey v1.8.1
 	github.com/spark-lence/tiga v0.0.0-20240227050256-74ab5fae9bec
 	github.com/spf13/cobra v1.8.0
-	google.golang.org/genproto/googleapis/api v0.0.0-20240325203815-454cdb8f5daa
-	google.golang.org/grpc v1.62.1
+	google.golang.org/genproto/googleapis/api v0.0.0-20240415180920-8c6c420018be
+	google.golang.org/grpc v1.63.2
 	google.golang.org/protobuf v1.33.0
 )
 
 require (
 	github.com/allegro/bigcache/v3 v3.1.0 // indirect
-	golang.org/x/net v0.22.0
+	golang.org/x/net v0.24.0
 )
 
 require (
@@ -68,7 +68,7 @@ require (
 	github.com/youmark/pkcs8 v0.0.0-20201027041543-1326539a0a0a // indirect
 	go.mongodb.org/mongo-driver v1.14.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/crypto v0.21.0 // indirect
+	golang.org/x/crypto v0.22.0 // indirect
 	golang.org/x/exp v0.0.0-20240222234643-814bf88cf225 // indirect
 	golang.org/x/sync v0.6.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
@@ -79,7 +79,7 @@ require (
 
 require (
 	github.com/begonia-org/go-loadbalancer v0.0.0-20240329014325-4a48bea6bec5
-	github.com/begonia-org/go-sdk v0.0.0-20240327074433-f18fef230058compiler
+	github.com/begonia-org/go-sdk v0.0.0-20240426063008-6d5d2b260212
 	github.com/go-git/go-git/v5 v5.11.0
 	github.com/go-playground/validator/v10 v10.19.0
 	github.com/golang/protobuf v1.5.4
@@ -128,22 +128,22 @@ require (
 	go.etcd.io/etcd/client/pkg/v3 v3.5.12 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/mod v0.16.0 // indirect
-	golang.org/x/sys v0.18.0 // indirect
+	golang.org/x/sys v0.19.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/tools v0.19.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240325203815-454cdb8f5daa // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240415180920-8c6c420018be // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 )
 
-replace github.com/spark-lence/tiga => /data/work/spark-lence/tiga
+// replace github.com/spark-lence/tiga => /data/work/spark-lence/tiga
 
-replace github.com/begonia-org/go-layered-cache => ../go-layered-cache
+// replace github.com/begonia-org/go-layered-cache => ../go-layered-cache
 
-replace github.com/begonia-org/go-sdk => ../begonia-go-sdk
+// replace github.com/begonia-org/go-sdk => ../begonia-go-sdk
 
-replace github.com/begonia-org/go-loadbalancer => ../go-loadbalancer
+// replace github.com/begonia-org/go-loadbalancer => ../go-loadbalancer
 
 // replace github.com/begonia-org/begonia/common => ./common
 replace github.com/grpc-ecosystem/grpc-gateway/v2 v2.19.1 => github.com/geebytes/grpc-gateway/v2 v2.0.0-20240330063207-392782282837
 
-replace github.com/geebytes/grpc-gateway/v2 => /data/work/geebytes/grpc-gateway
+// replace github.com/grpc-ecosystem/grpc-gateway/v2 => /data/work/grpc-ecosystem/grpc-gateway
