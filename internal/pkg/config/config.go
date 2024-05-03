@@ -160,6 +160,9 @@ func (c *Config) GetUploadDir() string {
 func (c *Config) GetProtosDir() string {
 	return c.GetString("file.protos.dir")
 }
+func (c *Config)GetLocalAPIDesc() string {
+	return c.GetString("file.protos.desc")
+}
 
 func (c *Config) GetPlugins() map[string]interface{} {
 	return c.GetStringMap(fmt.Sprintf("%s.gateway.plugins.local", c.GetEnv()))
@@ -204,7 +207,22 @@ func (c *Config) GetServiceNameKey(name string) string {
 	prefix := c.GetServiceNamePrefix()
 	return filepath.Join(prefix, name)
 }
-
+func (c *Config)GetAppKeyPrefix() string {
+	prefix := c.GetString("common.etcd.app.prefix")
+	return prefix
+}
+func (c *Config) GetAPPKey(id string) string {
+	prefix := c.GetAppKeyPrefix()
+	return filepath.Join(prefix, id)
+}
+func (c *Config) GetAPPTagsPrefix() string {
+	prefix := c.GetAppKeyPrefix()
+	return fmt.Sprintf("%s/tags", prefix)
+}
+func (c *Config) GetAppTagsKey(tag,key string) string {
+	prefix := c.GetAPPTagsPrefix()
+	return filepath.Join(prefix, tag, key)
+}
 func (c *Config) GetTagsKey(tag, id string) string {
 
 	prefix := c.GetServiceTagsPrefix()

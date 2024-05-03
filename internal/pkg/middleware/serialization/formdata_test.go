@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	api "github.com/begonia-org/go-sdk/api/v1"
+	api "github.com/begonia-org/go-sdk/api/example/v1"
 	c "github.com/smartystreets/goconvey/convey"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/dynamicpb"

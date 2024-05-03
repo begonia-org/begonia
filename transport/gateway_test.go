@@ -12,7 +12,7 @@ import (
 	"time"
 
 	loadbalance "github.com/begonia-org/go-loadbalancer"
-	v1 "github.com/begonia-org/go-sdk/api/v1"
+	v1 "github.com/begonia-org/go-sdk/api/example/v1"
 	"github.com/begonia-org/go-sdk/example"
 	c "github.com/smartystreets/goconvey/convey"
 	"google.golang.org/grpc"

@@ -3,7 +3,8 @@ package service
 import (
 	"context"
 
-	api "github.com/begonia-org/go-sdk/api/v1"
+	api "github.com/begonia-org/go-sdk/api/file/v1"
+	userAPI "github.com/begonia-org/go-sdk/api/user/v1"
 	"github.com/google/wire"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
@@ -32,8 +33,8 @@ func WithFileService(file *FileService, opts []grpc.DialOption) ServiceOptions {
 }
 func WithUserService(user *UsersService, opts []grpc.DialOption) ServiceOptions {
 	return func(server *grpc.Server, mux *runtime.ServeMux, endpoint string) error {
-		api.RegisterAuthServiceServer(server, user)
-		return api.RegisterAuthServiceHandlerFromEndpoint(context.Background(), mux, endpoint, opts)
+		userAPI.RegisterAuthServiceServer(server, user)
+		return userAPI.RegisterAuthServiceHandlerFromEndpoint(context.Background(), mux, endpoint, opts)
 	}
 }
 

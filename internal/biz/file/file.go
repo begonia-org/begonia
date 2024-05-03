@@ -14,7 +14,9 @@ import (
 
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/errors"
-	api "github.com/begonia-org/go-sdk/api/v1"
+	"github.com/begonia-org/go-iam/service"
+	api "github.com/begonia-org/go-sdk/api/file/v1"
+	user "github.com/begonia-org/go-sdk/api/user/v1"
 	common "github.com/begonia-org/go-sdk/common/api/v1"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
@@ -35,6 +37,7 @@ type FileUsecase struct {
 	repo      FileRepo
 	config    *config.Config
 	snowflake *tiga.Snowflake
+	iam       *service.ABACService
 }
 
 func NewFileUsecase(repo FileRepo, config *config.Config) *FileUsecase {
@@ -165,6 +168,9 @@ func (f *FileUsecase) getSaveDir(key string) (string, error) {
 	return saveDir, nil
 
 }
+func (f *FileUsecase) getResourceKey(authorId string) string {
+	return fmt.Sprintf("begonia:file:%s", filepath.Join(f.config.GetUploadDir(), authorId, "*"))
+}
 
 // checkIn checks the key and authorId.
 //
@@ -175,7 +181,7 @@ func (f *FileUsecase) checkIn(key string, authorId string) (string, error) {
 		return "", errors.New(errors.ErrInvalidFileKey, int32(api.FileSvrStatus_FILE_INVAILDATE_KEY_ERR), codes.InvalidArgument, "invalid_key")
 	}
 	if authorId == "" {
-		return "", errors.New(errors.ErrIdentityMissing, int32(api.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
+		return "", errors.New(errors.ErrIdentityMissing, int32(user.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
 	}
 	if !strings.HasPrefix(key, authorId) {
 		key = authorId + "/" + key
@@ -244,7 +250,7 @@ func (f *FileUsecase) Upload(ctx context.Context, in *api.UploadFileRequest, aut
 	return &api.UploadFileResponse{
 		Uri:     uri,
 		Version: commitId,
-	}, nil
+	}, err
 
 }
 func (f *FileUsecase) UploadMultipartFileFile(ctx context.Context, in *api.UploadMultipartFileRequest) (*api.UploadMultipartFileResponse, error) {
@@ -361,7 +367,7 @@ func (f *FileUsecase) getPersistenceKeyParts(key string, authorId string) string
 	return filepath.Join(f.config.GetUploadDir(), "parts", authorId, key)
 }
 func (f *FileUsecase) getUri(filePath string, authorId string) (string, error) {
-	uploadRootDir := filepath.Join(f.config.GetUploadDir(), authorId)
+	uploadRootDir := f.config.GetUploadDir()
 	// if useVersion {
 	// 	uploadRootDir = filepath.Join(f.config.GetUploadDir(), "versions", authorId)
 	// }
@@ -439,10 +445,11 @@ func (f *FileUsecase) CompleteMultipartUploadFile(ctx context.Context, in *api.C
 	}
 
 	os.RemoveAll(filepath.Join(f.config.GetUploadDir(), in.UploadId))
+
 	return &api.CompleteMultipartUploadResponse{
 		Uri:     uri,
 		Version: commit,
-	}, nil
+	}, err
 }
 
 func (f *FileUsecase) DownloadForRange(ctx context.Context, in *api.DownloadRequest, start int64, end int64, authorId string) ([]byte, int64, error) {

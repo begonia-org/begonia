@@ -8,8 +8,8 @@ import (
 
 	"github.com/begonia-org/begonia/config"
 	"github.com/begonia-org/begonia/internal"
-	"github.com/begonia-org/begonia/internal/pkg/logger"
 	example "github.com/begonia-org/go-sdk/example"
+	"github.com/begonia-org/begonia/internal/pkg/logger"
 )
 
 var onceExampleServer sync.Once

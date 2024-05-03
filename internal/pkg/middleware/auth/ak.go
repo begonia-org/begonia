@@ -9,10 +9,10 @@ import (
 	"github.com/begonia-org/begonia/internal/data"
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/errors"
-	"github.com/begonia-org/begonia/internal/pkg/logger"
 	"github.com/begonia-org/begonia/internal/pkg/routers"
 	gosdk "github.com/begonia-org/go-sdk"
-	api "github.com/begonia-org/go-sdk/api/v1"
+	api "github.com/begonia-org/go-sdk/api/app/v1"
+	"github.com/begonia-org/go-sdk/logger"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -110,13 +110,12 @@ func (a *AccessKeyAuth) getSecret(ctx context.Context, accessKey string) (string
 	secretBytes, err := a.localCache.Get(ctx, cacheKey)
 	secret := string(secretBytes)
 	if err != nil {
-		apps, err := a.app.GetApps(ctx, []string{accessKey})
+		apps, err := a.app.Get(ctx, accessKey)
 		if err != nil {
 			return "", err
 		}
-		if len(apps) > 0 {
-			secret = apps[0].Secret
-		}
+		secret = apps.Secret
+
 		// _ = a.rdb.Set(ctx, cacheKey, secret, time.Hour*24*3)
 		_ = a.localCache.Set(ctx, cacheKey, []byte(secret), time.Hour*24*3)
 	}

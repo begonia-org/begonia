@@ -9,7 +9,7 @@ import (
 
 	"github.com/begonia-org/begonia/internal/biz/gateway"
 	"github.com/begonia-org/begonia/internal/pkg/config"
-	api "github.com/begonia-org/go-sdk/api/v1"
+	api "github.com/begonia-org/go-sdk/api/endpoint/v1"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 

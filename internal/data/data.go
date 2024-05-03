@@ -175,6 +175,25 @@ func (d *Data) BatchUpdates(models []SourceType, dataModel interface{}) error {
 	}
 	return db.Commit().Error
 }
+func (d *Data) Update(ctx context.Context, model SourceType, dataModel interface{}) error {
+	paths := make([]string, 0)
+	updateMask := model.GetUpdateMask()
+	if updateMask != nil {
+		paths = updateMask.Paths
+		if !tiga.ArrayContainsString(paths, "updated_at") {
+			paths = append(paths, "updated_at")
+		}
+	}
+	query := d.db.GetModel(dataModel).Where("uid=?", model.GetKey())
+	if len(paths) > 0 {
+		query = query.Select(paths)
+	}
+	err := query.Updates(model).Error
+	if err != nil {
+		return errors.Wrap(err, "更新失败")
+	}
+	return nil
+}
 func (d *Data) Cache(ctx context.Context, key string, value string, exp time.Duration) error {
 	return d.rdb.Set(ctx, key, value, exp)
 }

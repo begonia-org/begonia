@@ -10,7 +10,7 @@ import (
 	"time"
 
 	goloadbalancer "github.com/begonia-org/go-loadbalancer"
-	api "github.com/begonia-org/go-sdk/api/v1"
+	api "github.com/begonia-org/go-sdk/api/endpoint/v1"
 	"github.com/begonia-org/go-sdk/client"
 	common "github.com/begonia-org/go-sdk/common/api/v1"
 	c "github.com/smartystreets/goconvey/convey"

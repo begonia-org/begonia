@@ -10,7 +10,7 @@ import (
 	goloadbalancer "github.com/begonia-org/go-loadbalancer"
 	lb "github.com/begonia-org/go-loadbalancer"
 	gosdk "github.com/begonia-org/go-sdk"
-	api "github.com/begonia-org/go-sdk/api/v1"
+	api "github.com/begonia-org/go-sdk/api/plugin/v1"
 	common "github.com/begonia-org/go-sdk/common/api/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"

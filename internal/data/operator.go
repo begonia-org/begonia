@@ -7,8 +7,9 @@ import (
 
 	"github.com/begonia-org/begonia/internal/biz"
 	"github.com/begonia-org/begonia/internal/biz/gateway"
-	"github.com/begonia-org/begonia/internal/pkg/logger"
-	api "github.com/begonia-org/go-sdk/api/v1"
+	app "github.com/begonia-org/go-sdk/api/app/v1"
+	api "github.com/begonia-org/go-sdk/api/user/v1"
+	"github.com/begonia-org/go-sdk/logger"
 	"github.com/redis/go-redis/v9"
 	"github.com/spark-lence/tiga"
 	"go.etcd.io/etcd/api/v3/mvccpb"
@@ -52,7 +53,7 @@ func (r *dataOperatorRepo) GetAllForbiddenUsersFromDB(ctx context.Context) ([]*a
 	return users, nil
 }
 
-func (r *dataOperatorRepo) GetAllAppsFromDB(ctx context.Context) ([]*api.Apps, error) {
+func (r *dataOperatorRepo) GetAllAppsFromDB(ctx context.Context) ([]*app.Apps, error) {
 	apps, err := r.app.List(ctx)
 	if err != nil {
 		return nil, err
@@ -60,7 +61,7 @@ func (r *dataOperatorRepo) GetAllAppsFromDB(ctx context.Context) ([]*api.Apps, e
 	return apps, nil
 }
 
-func (d *dataOperatorRepo) FlashAppsCache(ctx context.Context, prefix string, models []*api.Apps, exp time.Duration) error {
+func (d *dataOperatorRepo) FlashAppsCache(ctx context.Context, prefix string, models []*app.Apps, exp time.Duration) error {
 
 	kv := make([]interface{}, 0)
 	for _, model := range models {
@@ -85,7 +86,7 @@ func (d *dataOperatorRepo) FlashUsersCache(ctx context.Context, prefix string, m
 	_, err := pipe.Exec(ctx)
 	return err
 }
-func (d *dataOperatorRepo) LoadAppsLayeredCache(ctx context.Context, prefix string, models []*api.Apps, exp time.Duration) error {
+func (d *dataOperatorRepo) LoadAppsLayeredCache(ctx context.Context, prefix string, models []*app.Apps, exp time.Duration) error {
 	for _, model := range models {
 		key := fmt.Sprintf("%s:%s", prefix, model.Key)
 		if err := d.local.Set(ctx, key, []byte(model.Secret), exp); err != nil {

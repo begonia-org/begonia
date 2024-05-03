@@ -6,8 +6,8 @@ import (
 	sysRuntime "runtime"
 
 	"github.com/begonia-org/begonia/internal/pkg/errors"
-	"github.com/begonia-org/begonia/internal/pkg/logger"
 	common "github.com/begonia-org/go-sdk/common/api/v1"
+	"github.com/begonia-org/go-sdk/logger"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )

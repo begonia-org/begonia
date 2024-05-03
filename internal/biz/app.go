@@ -9,17 +9,20 @@ import (
 
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/errors"
-	api "github.com/begonia-org/go-sdk/api/v1"
+	api "github.com/begonia-org/go-sdk/api/app/v1"
+	common "github.com/begonia-org/go-sdk/common/api/v1"
 	"github.com/spark-lence/tiga"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type AppRepo interface {
 	Add(ctx context.Context, apps *api.Apps) error
 	Get(ctx context.Context, key string) (*api.Apps, error)
 	Cache(ctx context.Context, prefix string, models *api.Apps, exp time.Duration) error
-	Del(ctx context.Context, prefix string, models *api.Apps) error
+	Del(ctx context.Context, key string) error
 	List(ctx context.Context, conds ...interface{}) ([]*api.Apps, error)
+	Patch(ctx context.Context, model *api.Apps) error
 }
 
 type AppUsecase struct {
@@ -72,7 +75,7 @@ func (a *AppUsecase) CreateApp(ctx context.Context, in *api.CreateAppRequest, ow
 	app.Name = in.Name
 	app.Description = in.Description
 	app.Tags = in.Tags
-	app.Owner = in.Owner
+	app.Owner = owner
 	err = a.Put(ctx, app, owner)
 	if err != nil {
 		return nil, err
@@ -123,6 +126,22 @@ func (a *AppUsecase) Cache(ctx context.Context, prefix string, models *api.Apps,
 	return a.repo.Cache(ctx, prefix, models, exp)
 
 }
-func (a *AppUsecase) Del(ctx context.Context, prefix string, models *api.Apps) error {
-	return a.repo.Del(ctx, prefix, models)
+func (a *AppUsecase) Del(ctx context.Context, key string) error {
+	return a.repo.Del(ctx, key)
+}
+func (a *AppUsecase) Patch(ctx context.Context, in *api.AppsRequest, owner string) (*api.Apps, error) {
+	app, err := a.Get(ctx, in.Key)
+	if err != nil {
+		return nil, errors.New(err, int32(api.APPSvrCode_APP_NOT_FOUND_ERR), codes.NotFound, "get_app")
+	}
+	app.Name = in.Name
+	app.Description = in.Description
+	app.Tags = in.Tags
+	app.UpdatedAt = timestamppb.Now()
+	app.UpdateMask = in.UpdateMask
+	err = a.repo.Patch(ctx, app)
+	if err != nil {
+		return nil, errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "update_app")
+	}
+	return app, nil
 }

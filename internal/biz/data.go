@@ -10,8 +10,9 @@ import (
 
 	"github.com/begonia-org/begonia/internal/biz/gateway"
 	"github.com/begonia-org/begonia/internal/pkg/config"
-	"github.com/begonia-org/begonia/internal/pkg/logger"
-	api "github.com/begonia-org/go-sdk/api/v1"
+	api "github.com/begonia-org/go-sdk/api/app/v1"
+	u "github.com/begonia-org/go-sdk/api/user/v1"
+	"github.com/begonia-org/go-sdk/logger"
 	"github.com/bsm/redislock"
 	"go.etcd.io/etcd/api/v3/mvccpb"
 	"google.golang.org/grpc/status"
@@ -25,9 +26,9 @@ type DataLock interface {
 type DataOperatorRepo interface {
 	GetAllAppsFromDB(ctx context.Context) ([]*api.Apps, error)
 	FlashAppsCache(ctx context.Context, prefix string, models []*api.Apps, exp time.Duration) error
-	FlashUsersCache(ctx context.Context, prefix string, models []*api.Users, exp time.Duration) error
+	FlashUsersCache(ctx context.Context, prefix string, models []*u.Users, exp time.Duration) error
 	// LoadAppsLocalCache(ctx context.Context, prefix string, models []*api.Apps, exp time.Duration) error
-	GetAllForbiddenUsersFromDB(ctx context.Context) ([]*api.Users, error)
+	GetAllForbiddenUsersFromDB(ctx context.Context) ([]*u.Users, error)
 	// LoadUsersLocalCache(ctx context.Context, prefix string, models []*api.Users, exp time.Duration) error
 	Lock(ctx context.Context, key string, exp time.Duration) (DataLock, error)
 	LastUpdated(ctx context.Context, key string) (time.Time, error)

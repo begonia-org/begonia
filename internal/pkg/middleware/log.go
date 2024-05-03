@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/begonia-org/begonia/internal/pkg/logger"
 	common "github.com/begonia-org/go-sdk/common/api/v1"
+	"github.com/begonia-org/go-sdk/logger"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"

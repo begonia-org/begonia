@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/begonia-org/begonia/internal/pkg/config"
-	"github.com/begonia-org/begonia/internal/pkg/logger"
 	glc "github.com/begonia-org/go-layered-cache"
 	"github.com/begonia-org/go-layered-cache/gocuckoo"
 	"github.com/begonia-org/go-layered-cache/source"
+	"github.com/begonia-org/go-sdk/logger"
 )
 
 type LayeredCache struct {
