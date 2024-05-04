@@ -15,11 +15,11 @@ import (
 	"github.com/begonia-org/begonia/internal/data"
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/crypto"
-	"github.com/begonia-org/go-sdk/logger"
 	"github.com/begonia-org/begonia/internal/pkg/middleware"
 	"github.com/begonia-org/begonia/internal/pkg/migrate"
 	"github.com/begonia-org/begonia/internal/server"
 	"github.com/begonia-org/begonia/internal/service"
+	"github.com/begonia-org/go-sdk/logger"
 	"github.com/spark-lence/tiga"
 )
 
@@ -43,9 +43,9 @@ func New(config2 *tiga.Configuration, log logger.Logger, endpoint string) Gatewa
 	dataData := data.NewData(mySQLDao, redisDao, etcdDao)
 	contextContext := context.Background()
 	layeredCache := data.NewLayeredCache(contextContext, dataData, configConfig, log)
-	appRepo := data.NewAppRepoImpl(dataData, layeredCache)
-	usersRepo := data.NewUserRepo(dataData, log, layeredCache)
-	dataOperatorRepo := data.NewDataOperatorRepo(dataData, appRepo, usersRepo, layeredCache, log)
+	appRepo := data.NewAppRepoImpl(dataData, layeredCache, configConfig)
+	authzRepo := data.NewAuthzRepo(dataData, log, layeredCache)
+	dataOperatorRepo := data.NewDataOperatorRepo(dataData, appRepo, authzRepo, layeredCache, log)
 	endpointRepo := data.NewEndpointRepoImpl(dataData, configConfig)
 	gatewayWatcher := gateway.NewWatcher(configConfig, endpointRepo)
 	dataOperatorUsecase := biz.NewDataOperatorUsecase(dataOperatorRepo, configConfig, log, gatewayWatcher, endpointRepo)
@@ -55,15 +55,18 @@ func New(config2 *tiga.Configuration, log logger.Logger, endpoint string) Gatewa
 	fileUsecase := file.NewFileUsecase(fileRepo, configConfig)
 	fileService := service.NewFileService(fileUsecase, configConfig)
 	usersAuth := crypto.NewUsersAuth()
-	usersUsecase := biz.NewUsersUsecase(usersRepo, log, usersAuth, configConfig)
-	usersService := service.NewUserService(usersUsecase, log, usersAuth, configConfig)
+	authzUsecase := biz.NewAuthzUsecase(authzRepo, log, usersAuth, configConfig)
+	authzService := service.NewAuthzService(authzUsecase, log, usersAuth, configConfig)
 	endpointUsecase := gateway.NewEndpointUsecase(endpointRepo, fileUsecase, configConfig)
 	endpointsService := service.NewEndpointsService(endpointUsecase, log, configConfig)
 	appUsecase := biz.NewAppUsecase(appRepo, configConfig)
 	appService := service.NewAppService(appUsecase, log, configConfig)
 	sysService := service.NewSysService()
-	v := service.NewServices(fileService, usersService, endpointsService, appService, sysService)
-	pluginsApply := middleware.New(configConfig, redisDao, usersUsecase, log, appRepo, layeredCache)
+	userRepo := data.NewUserRepoImpl(dataData, layeredCache, configConfig)
+	userUsecase := biz.NewUserUsecase(userRepo, configConfig)
+	userService := service.NewUserService(userUsecase, log, configConfig)
+	v := service.NewServices(fileService, authzService, endpointsService, appService, sysService, userService)
+	pluginsApply := middleware.New(configConfig, redisDao, authzUsecase, log, appRepo, layeredCache)
 	gatewayServer := server.NewGateway(gatewayConfig, configConfig, v, pluginsApply)
 	gatewayWorker := NewGatewayWorkerImpl(daemonDaemon, gatewayServer)
 	return gatewayWorker

@@ -11,19 +11,19 @@ import (
 	"google.golang.org/grpc"
 )
 
-type UsersService struct {
-	biz    *biz.UsersUsecase
+type AuthzService struct {
+	biz    *biz.AuthzUsecase
 	log    logger.Logger
 	config *config.Config
 	api.UnimplementedAuthServiceServer
 	authCrypto *crypto.UsersAuth
 }
 
-func NewUserService(biz *biz.UsersUsecase, log logger.Logger, auth *crypto.UsersAuth, config *config.Config) *UsersService {
-	return &UsersService{biz: biz, log: log, authCrypto: auth, config: config}
+func NewAuthzService(biz *biz.AuthzUsecase, log logger.Logger, auth *crypto.UsersAuth, config *config.Config) *AuthzService {
+	return &AuthzService{biz: biz, log: log, authCrypto: auth, config: config}
 }
 
-func (u *UsersService) AuthSeed(ctx context.Context, in *api.AuthLogAPIRequest) (*api.AuthLogAPIResponse, error) {
+func (u *AuthzService) AuthSeed(ctx context.Context, in *api.AuthLogAPIRequest) (*api.AuthLogAPIResponse, error) {
 	token, err := u.biz.AuthSeed(ctx, in)
 	if err != nil {
 		return nil, err
@@ -36,13 +36,13 @@ func (u *UsersService) AuthSeed(ctx context.Context, in *api.AuthLogAPIRequest) 
 
 }
 
-func (u *UsersService) Login(ctx context.Context, in *api.LoginAPIRequest) (*api.LoginAPIResponse, error) {
+func (u *AuthzService) Login(ctx context.Context, in *api.LoginAPIRequest) (*api.LoginAPIResponse, error) {
 	rsp, err := u.biz.Login(ctx, in)
 
 	return rsp, err
 }
 
-func (u *UsersService) Logout(ctx context.Context, req *api.LogoutAPIRequest) (*api.LogoutAPIResponse, error) {
+func (u *AuthzService) Logout(ctx context.Context, req *api.LogoutAPIRequest) (*api.LogoutAPIResponse, error) {
 	err := u.biz.Logout(ctx, req)
 	if err != nil {
 		return nil, err
@@ -51,7 +51,7 @@ func (u *UsersService) Logout(ctx context.Context, req *api.LogoutAPIRequest) (*
 
 }
 
-func (u *UsersService) Account(ctx context.Context, req *api.AccountAPIRequest) (*api.AccountAPIResponse, error) {
+func (u *AuthzService) Account(ctx context.Context, req *api.AccountAPIRequest) (*api.AccountAPIResponse, error) {
 	rsp, err := u.biz.Account(ctx, req)
 	if err != nil {
 		return nil, err
@@ -60,10 +60,10 @@ func (u *UsersService) Account(ctx context.Context, req *api.AccountAPIRequest) 
 		Users: rsp,
 	}, nil
 }
-func (u *UsersService) Register(context.Context, *api.RegsiterAPIRequest) (*api.RegsiterAPIResponse, error) {
+func (u *AuthzService) Register(context.Context, *api.RegsiterAPIRequest) (*api.RegsiterAPIResponse, error) {
 	return nil, nil
 }
 
-func (u *UsersService) Desc() *grpc.ServiceDesc {
+func (u *AuthzService) Desc() *grpc.ServiceDesc {
 	return &api.AuthService_ServiceDesc
 }

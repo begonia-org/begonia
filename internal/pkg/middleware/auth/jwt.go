@@ -25,13 +25,13 @@ import (
 type JWTAuth struct {
 	config   *config.Config
 	rdb      *tiga.RedisDao
-	biz      *biz.UsersUsecase
+	biz      *biz.AuthzUsecase
 	log      logger.Logger
 	priority int
 	name     string
 }
 
-func NewJWTAuth(config *config.Config, rdb *tiga.RedisDao, biz *biz.UsersUsecase, log logger.Logger) *JWTAuth {
+func NewJWTAuth(config *config.Config, rdb *tiga.RedisDao, biz *biz.AuthzUsecase, log logger.Logger) *JWTAuth {
 	return &JWTAuth{
 		config: config,
 		rdb:    rdb,

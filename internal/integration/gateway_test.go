@@ -1,4 +1,4 @@
-package gateway_test
+package integration_test
 
 import (
 	"context"
@@ -18,11 +18,11 @@ import (
 )
 
 func postEndpoint(t *testing.T) {
-	apiClient := client.NewEndpointAPI("http://127.0.0.1:12140", "NWkbCslfh9ea2LjVIUsKehJuopPb65fn", "oVPNllSR1DfizdmdSF7wLjgABYbexdt4FZ1HWrI81dD5BeNhsyXpXPDFoDEyiSVe")
+	apiClient := client.NewEndpointAPI(apiAddr, accessKey, secret)
 
 	c.Convey("test create endpoint api", t, func() {
 		_, filename, _, _ := runtime.Caller(0)
-		pbFile := filepath.Join(filepath.Dir(filepath.Dir(filename)), "testdata", "helloworld.pb")
+		pbFile := filepath.Join(filepath.Dir(filename), "testdata", "helloworld.pb")
 		pb, err := os.ReadFile(pbFile)
 		c.So(err, c.ShouldBeNil)
 		endpoint := &api.EndpointSrvConfig{
@@ -66,7 +66,7 @@ func postEndpoint(t *testing.T) {
 
 func patchEndpoint(t *testing.T) {
 	c.Convey("test patch endpoint api", t, func() {
-		apiClient := client.NewEndpointAPI("http://127.0.0.1:12140", "NWkbCslfh9ea2LjVIUsKehJuopPb65fn", "oVPNllSR1DfizdmdSF7wLjgABYbexdt4FZ1HWrI81dD5BeNhsyXpXPDFoDEyiSVe")
+		apiClient := client.NewEndpointAPI(apiAddr, accessKey, secret)
 
 		patch := &api.EndpointSrvUpdateRequest{
 			UniqueKey:   shareEndpoint,
@@ -92,7 +92,7 @@ func patchEndpoint(t *testing.T) {
 }
 
 func getEndpoint(t *testing.T) {
-	apiClient := client.NewEndpointAPI("http://127.0.0.1:12140", "NWkbCslfh9ea2LjVIUsKehJuopPb65fn", "oVPNllSR1DfizdmdSF7wLjgABYbexdt4FZ1HWrI81dD5BeNhsyXpXPDFoDEyiSVe")
+	apiClient := client.NewEndpointAPI(apiAddr, accessKey, secret)
 
 	c.Convey("test get endpoint api", t, func() {
 		rsp, err := apiClient.GetEndpointDetails(context.Background(), shareEndpoint)
@@ -106,7 +106,7 @@ func getEndpoint(t *testing.T) {
 
 func delEndpoint(t *testing.T) {
 
-	apiClient := client.NewEndpointAPI("http://127.0.0.1:12140", "NWkbCslfh9ea2LjVIUsKehJuopPb65fn", "oVPNllSR1DfizdmdSF7wLjgABYbexdt4FZ1HWrI81dD5BeNhsyXpXPDFoDEyiSVe")
+	apiClient := client.NewEndpointAPI(apiAddr, accessKey, secret)
 	c.Convey("test delete endpoint api", t, func() {
 		rsp, err := apiClient.DeleteEndpointConfig(context.Background(), shareEndpoint)
 		c.So(err, c.ShouldBeNil)

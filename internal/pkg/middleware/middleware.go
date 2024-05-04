@@ -21,7 +21,7 @@ import (
 
 func New(config *config.Config,
 	rdb *tiga.RedisDao,
-	user *biz.UsersUsecase,
+	user *biz.AuthzUsecase,
 	log logger.Logger,
 	app biz.AppRepo,
 	local *data.LayeredCache) *PluginsApply {

@@ -11,7 +11,7 @@
       dir: /data/work/begonia-org/begonia/upload
     protos:
       dir: /data/work/begonia-org/begonia-go-sdk/protos
-      desc: /data/work/begonia-org/begonia-go-sdk/api.bin
+      desc: /data/work/begonia-org/begonia-go-sdk/protos/api.bin
   mysql:
     host: "127.0.0.1"
     port: 3306

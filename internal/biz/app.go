@@ -14,6 +14,7 @@ import (
 	"github.com/spark-lence/tiga"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"gorm.io/gorm"
 )
 
 type AppRepo interface {
@@ -56,7 +57,7 @@ func (a *AppUsecase) newApp() *api.Apps {
 	}
 
 }
-func (a *AppUsecase) CreateApp(ctx context.Context, in *api.CreateAppRequest, owner string) (*api.Apps, error) {
+func (a *AppUsecase) CreateApp(ctx context.Context, in *api.AppsRequest, owner string) (*api.Apps, error) {
 	// return a.repo.ListApps(ctx, conds...)
 	appid := a.generateAppid(ctx)
 	accessKey, err := a.generateAppAccessKey(ctx)
@@ -69,7 +70,7 @@ func (a *AppUsecase) CreateApp(ctx context.Context, in *api.CreateAppRequest, ow
 		return nil, errors.New(err, int32(api.APPSvrCode_APP_CREATE_ERR), codes.Internal, "generate_app_secret_key")
 	}
 	app := a.newApp()
-	app.Key = accessKey
+	app.AccessKey = accessKey
 	app.Secret = secret
 	app.Appid = appid
 	app.Name = in.Name
@@ -110,7 +111,6 @@ func (a *AppUsecase) Put(ctx context.Context, apps *api.Apps, owner string) (err
 	apps.Owner = owner
 	err = a.repo.Add(ctx, apps)
 	if err != nil {
-
 		return err
 	}
 	prefix := a.config.GetAPPAccessKeyPrefix()
@@ -119,7 +119,12 @@ func (a *AppUsecase) Put(ctx context.Context, apps *api.Apps, owner string) (err
 	// return a.repo.AddApps(ctx, apps)
 }
 func (a *AppUsecase) Get(ctx context.Context, key string) (*api.Apps, error) {
-	return a.repo.Get(ctx, key)
+	app, err := a.repo.Get(ctx, key)
+	if err != nil {
+		return nil, errors.New(err, int32(api.APPSvrCode_APP_NOT_FOUND_ERR), codes.NotFound, "get_app")
+
+	}
+	return app, nil
 }
 
 func (a *AppUsecase) Cache(ctx context.Context, prefix string, models *api.Apps, exp time.Duration) error {
@@ -127,10 +132,18 @@ func (a *AppUsecase) Cache(ctx context.Context, prefix string, models *api.Apps,
 
 }
 func (a *AppUsecase) Del(ctx context.Context, key string) error {
-	return a.repo.Del(ctx, key)
+	err := a.repo.Del(ctx, key)
+	if err != nil {
+		if strings.Contains(err.Error(), gorm.ErrRecordNotFound.Error()) {
+			return errors.New(err, int32(api.APPSvrCode_APP_NOT_FOUND_ERR), codes.NotFound, "delete_app")
+		}
+		return errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "delete_app")
+
+	}
+	return nil
 }
 func (a *AppUsecase) Patch(ctx context.Context, in *api.AppsRequest, owner string) (*api.Apps, error) {
-	app, err := a.Get(ctx, in.Key)
+	app, err := a.Get(ctx, in.Appid)
 	if err != nil {
 		return nil, errors.New(err, int32(api.APPSvrCode_APP_NOT_FOUND_ERR), codes.NotFound, "get_app")
 	}

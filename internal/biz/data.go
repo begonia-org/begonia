@@ -147,7 +147,7 @@ func (d *DataOperatorUsecase) loadApps(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	prefix := d.config.GetAPPAccessKeyPrefix()
+	prefix := d.config.GetAppPrefix()
 	exp := d.config.GetAPPAccessKeyExpiration()
 	return d.repo.FlashAppsCache(ctx, prefix, apps, time.Duration(exp)*time.Second)
 }
@@ -170,7 +170,7 @@ func (d *DataOperatorUsecase) OnStart(ctx context.Context) error {
 	for _, in := range endpoints {
 		bData, _ := json.Marshal(in)
 
-		err := d.endpointWatcher.Update(ctx, in.UniqueKey, string(bData))
+		err := d.endpointWatcher.Update(ctx, in.Key, string(bData))
 		if err != nil {
 			d.log.Errorf("init endpoints error,%s", err.Error())
 			continue

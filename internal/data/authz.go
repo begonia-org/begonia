@@ -17,7 +17,7 @@ type userRepo struct {
 	local *LayeredCache
 }
 
-func NewUserRepo(data *Data, log logger.Logger, local *LayeredCache) biz.UsersRepo {
+func NewAuthzRepo(data *Data, log logger.Logger, local *LayeredCache) biz.AuthzRepo {
 	return &userRepo{data: data, log: log, local: local}
 }
 
@@ -44,13 +44,13 @@ func (r *userRepo) CreateUsers(ctx context.Context, users []*api.Users) error {
 func (t *userRepo) UpdateUsers(ctx context.Context, models []*api.Users) error {
 	sources := NewSourceTypeArray(models)
 
-	return t.data.BatchUpdates(sources, &api.Users{})
+	return t.data.BatchUpdates(sources)
 }
 
 func (t *userRepo) DeleteUsers(ctx context.Context, models []*api.Users) error {
 	sources := NewSourceTypeArray(models)
 
-	return t.data.BatchDelete(sources, &api.Users{})
+	return t.data.BatchDelete(sources)
 }
 func (t *userRepo) CacheToken(ctx context.Context, key, token string, exp time.Duration) error {
 	return t.local.Set(ctx, key, []byte(token), exp)

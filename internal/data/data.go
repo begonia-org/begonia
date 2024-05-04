@@ -3,6 +3,8 @@ package data
 import (
 	"context"
 	"fmt"
+	"reflect"
+	"strings"
 	"sync"
 	"time"
 
@@ -38,8 +40,9 @@ func NewRDB(config *tiga.Configuration) *tiga.RedisDao {
 func NewMySQL(config *tiga.Configuration) *tiga.MySQLDao {
 	onceMySQL.Do(func() {
 		mysql = tiga.NewMySQLDao(config)
-		mysql.RegisterTimeSerializer()
 	})
+	mysql.RegisterTimeSerializer()
+
 	return mysql
 
 }
@@ -50,7 +53,19 @@ func NewEtcd(config *tiga.Configuration) *tiga.EtcdDao {
 	return etcd
 }
 
-var ProviderSet = wire.NewSet(NewMySQL, NewRDB, NewEtcd, GetRDBClient, NewData, NewLayeredCache, NewUserRepo, NewFileRepoImpl, NewEndpointRepoImpl, NewAppRepoImpl, NewDataOperatorRepo)
+var ProviderSet = wire.NewSet(NewMySQL, 
+	NewRDB, 
+	NewEtcd, 
+	GetRDBClient, 
+	NewData, 
+	NewLayeredCache, 
+
+	NewAuthzRepo, 
+	NewUserRepoImpl,
+	NewFileRepoImpl, 
+	NewEndpointRepoImpl, 
+	NewAppRepoImpl, 
+	NewDataOperatorRepo)
 
 type Data struct {
 	// mysql
@@ -62,15 +77,14 @@ type Data struct {
 type SourceType interface {
 	// 获取数据源类型
 	GetUpdateMask() *fieldmaskpb.FieldMask
-	GetKey() string
-	GetOwner() string
 }
 
 func NewData(mysql *tiga.MySQLDao, rdb *tiga.RedisDao, etcd *tiga.EtcdDao) *Data {
 	return &Data{db: mysql, rdb: rdb, etcd: etcd}
 }
 func (d *Data) Get(model interface{}, data interface{}, conds ...interface{}) error {
-	return d.db.GetModel(model).First(data, conds...).Error
+	ret := d.db.GetModel(model).First(data, conds...)
+	return ret.Error
 }
 func (d *Data) List(model interface{}, data interface{}, conds ...interface{}) error {
 	queryTag := tiga.QueryTags{}
@@ -99,6 +113,30 @@ func (d *Data) CreateInBatches(models []SourceType) error {
 	}
 	return db.Commit().Error
 }
+func (d *Data)newResource(model SourceType) (*common.Resource,error) {
+	name, err := d.db.TableName(model)
+	if err != nil {
+		return nil,fmt.Errorf("get table name failed: %w",err)
+	}
+	_,resourceKey,err:=getPrimaryColumnValue(model,"primary")
+	if err != nil||resourceKey==nil {
+		return nil,fmt.Errorf("get primary column value failed: %w",err)
+	
+	}
+	_,owner,err:=getPrimaryColumnValue(model,"owner")
+	if err != nil||owner==nil {
+		return nil,fmt.Errorf("get owner column value failed: %w",err)
+	
+	
+	}
+	return &common.Resource{
+		ResourceKey:  resourceKey.(string),
+		ResourceName: name,
+		Uid:          owner.(string),
+		CreatedAt:    timestamppb.New(time.Now()),
+		UpdatedAt:    timestamppb.New(time.Now()),
+	},nil
+}
 func (d *Data) CreateInBatchesByTx(models interface{}) (*gorm.DB, error) {
 	db := d.db.Begin()
 	size, _ := tiga.GetElementCount(models)
@@ -114,18 +152,16 @@ func (d *Data) CreateInBatchesByTx(models interface{}) (*gorm.DB, error) {
 	resources := make([]*common.Resource, 0)
 	sources := NewSourceTypeArray(models)
 	for _, item := range sources {
-		name, err := d.db.TableName(item)
+		_, err := d.db.TableName(item)
 		if err != nil {
 			db.Rollback()
 			return nil, fmt.Errorf("获取表名失败: %w", err)
 		}
-		resources = append(resources, &common.Resource{
-			ResourceKey:  item.GetKey(),
-			ResourceName: name,
-			Uid:          item.GetOwner(),
-			CreatedAt:    timestamppb.New(time.Now()),
-			UpdatedAt:    timestamppb.New(time.Now()),
-		})
+		resource,err:=d.newResource(item)
+		if err != nil {
+			return nil,fmt.Errorf("new resource failed: %w",err)
+		}
+		resources = append(resources, resource)
 	}
 	// logger.Logger.Infoln("resources", resources)
 	err = db.CreateInBatches(resources, len(resources)).Error
@@ -136,7 +172,7 @@ func (d *Data) CreateInBatchesByTx(models interface{}) (*gorm.DB, error) {
 	return db, nil
 
 }
-func (d *Data) BatchUpdates(models []SourceType, dataModel interface{}) error {
+func (d *Data) BatchUpdates(models []SourceType) error {
 	size, err := tiga.GetElementCount(models)
 	if err != nil {
 		return errors.Wrap(err, "获取元素数量失败")
@@ -163,11 +199,16 @@ func (d *Data) BatchUpdates(models []SourceType, dataModel interface{}) error {
 				paths = append(paths, "updated_at")
 			}
 		}
-		query := db.Model(dataModel).Where("uid=?", item.GetKey())
+		key,value,err:=getPrimaryColumnValue(item,"primary")
+		if err != nil {
+			db.Rollback()
+			return errors.Wrap(err, "get primary column value failed")
+		}
+		query := db.Model(item).Where(fmt.Sprintf("%s=?", key), value)
 		if len(paths) > 0 {
 			query = query.Select(paths)
 		}
-		err := query.Updates(item).Error
+		err = query.Updates(item).Error
 		if err != nil {
 			db.Rollback()
 			return errors.Wrap(err, "批量更新失败")
@@ -175,20 +216,54 @@ func (d *Data) BatchUpdates(models []SourceType, dataModel interface{}) error {
 	}
 	return db.Commit().Error
 }
-func (d *Data) Update(ctx context.Context, model SourceType, dataModel interface{}) error {
+func getPrimaryColumnValue(model interface{},tagName string) (string,interface{}, error) {
+	// 获取结构体类型
+	modelType := reflect.TypeOf(model)
+	modelVal:=reflect.ValueOf(model)
+	if modelType.Kind() == reflect.Ptr {
+		modelType = modelType.Elem()
+		modelVal=modelVal.Elem()
+
+	}
+	if modelType.Kind() != reflect.Struct {
+		return "","", fmt.Errorf("%s not a struct type", modelType.Kind().String())
+	}
+
+	// 遍历结构体的字段
+	for i := 0; i < modelType.NumField(); i++ {
+		field := modelType.Field(i)
+		// 检查字段名称是否匹配
+		if field.Tag.Get(tagName)!="" {
+			// 获取字段值
+			tag := field.Tag.Get("gorm")
+			// 	// 解析GORM标签
+				tagParts := strings.Split(tag, ";")
+				for _, part := range tagParts {
+					kv := strings.Split(part, ":")
+					if len(kv) == 2 && strings.TrimSpace(kv[0]) == "column" {
+						value:=modelVal.Field(i).Interface()
+						return strings.TrimSpace(kv[1]),value, nil
+					}
+				}			
+		}
+
+	}
+	return "", nil, fmt.Errorf("not found primary column")
+}
+
+func (d *Data) Update(ctx context.Context, model SourceType) error {
 	paths := make([]string, 0)
 	updateMask := model.GetUpdateMask()
 	if updateMask != nil {
 		paths = updateMask.Paths
-		if !tiga.ArrayContainsString(paths, "updated_at") {
-			paths = append(paths, "updated_at")
-		}
 	}
-	query := d.db.GetModel(dataModel).Where("uid=?", model.GetKey())
-	if len(paths) > 0 {
-		query = query.Select(paths)
+	key,val, err := getPrimaryColumnValue(model,"primary")
+	if err != nil {
+		return errors.Wrap(err, "get column value failed")
+
 	}
-	err := query.Updates(model).Error
+	err = d.db.UpdateSelectColumns(fmt.Sprintf("%s=%s", key, val), model, paths...)
+
 	if err != nil {
 		return errors.Wrap(err, "更新失败")
 	}
@@ -223,18 +298,29 @@ func (d *Data) ScanCache(ctx context.Context, cur uint64, prefix string, count i
 func (d *Data) Lock(ctx context.Context, key string, expiration time.Duration) (*redislock.Lock, error) {
 	return d.rdb.Lock(ctx, key, expiration)
 }
-func (d *Data) BatchDelete(models []SourceType, dataModel interface{}) error {
+func (d *Data) BatchDelete(models []SourceType) error {
 	if len(models) == 0 {
 		return nil
 	}
 	if len(models) == 1 {
-		return d.db.Delete(models[0], "uid=?", models[0].GetKey())
+		key,val,err:=getPrimaryColumnValue(models[0],"primary")
+		if err != nil {
+			return fmt.Errorf("get primary column value failed: %w",err)
+		}
+		return d.db.Delete(models[0], fmt.Sprintf("%s=?",key), val)
 	}
 	keys := make([]string, 0)
+	dataModel := models[0]
+	_in:="uid in ?"
 	for _, item := range models {
-		keys = append(keys, item.GetKey())
+		key,val,err:=getPrimaryColumnValue(item,"primary")
+		_in = fmt.Sprintf("%s in ?",key)
+		if err != nil {
+			return fmt.Errorf("get primary column value failed: %w",err)
+		}
+		keys = append(keys, val.(string))
 	}
-	return d.db.Delete(dataModel, "uid in ?", keys)
+	return d.db.Delete(dataModel, _in, keys)
 }
 func (d *Data) EtcdPut(ctx context.Context, key string, value string, opts ...clientv3.OpOption) error {
 	return d.etcd.Put(ctx, key, value, opts...)

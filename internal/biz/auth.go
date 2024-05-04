@@ -19,7 +19,7 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-type UsersRepo interface {
+type AuthzRepo interface {
 	// mysql
 	ListUsers(ctx context.Context, conds ...interface{}) ([]*api.Users, error)
 	CreateUsers(ctx context.Context, Users []*api.Users) error
@@ -37,35 +37,35 @@ type UsersRepo interface {
 	CacheUsers(ctx context.Context, prefix string, models []*api.Users, exp time.Duration, getValue func(user *api.Users) ([]byte, interface{})) redis.Pipeliner
 }
 
-type UsersUsecase struct {
-	repo       UsersRepo
+type AuthzUsecase struct {
+	repo       AuthzRepo
 	log        logger.Logger
 	authCrypto *crypto.UsersAuth
 	config     *config.Config
 }
 
-func NewUsersUsecase(repo UsersRepo, log logger.Logger, crypto *crypto.UsersAuth, config *config.Config) *UsersUsecase {
-	return &UsersUsecase{repo: repo, log: log, authCrypto: crypto, config: config}
+func NewAuthzUsecase(repo AuthzRepo, log logger.Logger, crypto *crypto.UsersAuth, config *config.Config) *AuthzUsecase {
+	return &AuthzUsecase{repo: repo, log: log, authCrypto: crypto, config: config}
 }
-func (u *UsersUsecase) ListUsers(ctx context.Context, conds ...interface{}) ([]*api.Users, error) {
+func (u *AuthzUsecase) ListUsers(ctx context.Context, conds ...interface{}) ([]*api.Users, error) {
 	return u.repo.ListUsers(ctx, conds...)
 }
 
-func (u *UsersUsecase) CreateUsers(ctx context.Context, Users []*api.Users) error {
+func (u *AuthzUsecase) CreateUsers(ctx context.Context, Users []*api.Users) error {
 	return u.repo.CreateUsers(ctx, Users)
 }
-func (u *UsersUsecase) UpdateUsers(ctx context.Context, conditions interface{}, model []*api.Users) error {
+func (u *AuthzUsecase) UpdateUsers(ctx context.Context, conditions interface{}, model []*api.Users) error {
 	return u.repo.UpdateUsers(ctx, model)
 }
 
-func (u *UsersUsecase) DeleteUsers(ctx context.Context, model []*api.Users) error {
+func (u *AuthzUsecase) DeleteUsers(ctx context.Context, model []*api.Users) error {
 	return u.repo.DeleteUsers(ctx, model)
 }
-func (u *UsersUsecase) DelToken(ctx context.Context, key string) error {
+func (u *AuthzUsecase) DelToken(ctx context.Context, key string) error {
 	return u.repo.DelToken(ctx, key)
 }
 
-func (u *UsersUsecase) AuthSeed(ctx context.Context, in *api.AuthLogAPIRequest) (string, error) {
+func (u *AuthzUsecase) AuthSeed(ctx context.Context, in *api.AuthLogAPIRequest) (string, error) {
 	token, err := u.authCrypto.GenerateAuthSeed(in.Timestamp)
 	if err != nil {
 		return "", srvErr.New(err, "auth seed生成错误", srvErr.WithMsgAndCode(int32(common.Code_INTERNAL_ERROR), "登陆失败"))
@@ -73,13 +73,13 @@ func (u *UsersUsecase) AuthSeed(ctx context.Context, in *api.AuthLogAPIRequest) 
 	return token, nil
 
 }
-func (u *UsersUsecase) PutBlackList(ctx context.Context, token string) error {
+func (u *AuthzUsecase) PutBlackList(ctx context.Context, token string) error {
 	return u.repo.PutBlackList(ctx, token)
 }
-func (u *UsersUsecase) CheckInBlackList(ctx context.Context, token string) (bool, error) {
+func (u *AuthzUsecase) CheckInBlackList(ctx context.Context, token string) (bool, error) {
 	return u.repo.CheckInBlackList(ctx, token)
 }
-func (u *UsersUsecase) getUserAuth(ctx context.Context, in *api.LoginAPIRequest) (*api.UserAuth, error) {
+func (u *AuthzUsecase) getUserAuth(_ context.Context, in *api.LoginAPIRequest) (*api.UserAuth, error) {
 
 	timestamp := in.Seed / 10000
 	now := time.Now().Unix()
@@ -103,7 +103,7 @@ func (u *UsersUsecase) getUserAuth(ctx context.Context, in *api.LoginAPIRequest)
 	}
 	return userAuth, nil
 }
-func (u *UsersUsecase) GenerateJWT(ctx context.Context, user *api.Users, isKeepLogin bool) (string, error) {
+func (u *AuthzUsecase) GenerateJWT(ctx context.Context, user *api.Users, isKeepLogin bool) (string, error) {
 	exp := time.Duration(u.config.GetJWTExpiration()) * time.Second
 	if isKeepLogin {
 		exp = time.Hour * 24 * 3
@@ -130,7 +130,7 @@ func (u *UsersUsecase) GenerateJWT(ctx context.Context, user *api.Users, isKeepL
 	return tiga.GenerateJWT(payload, secret)
 }
 
-func (u *UsersUsecase) Login(ctx context.Context, in *api.LoginAPIRequest) (*api.LoginAPIResponse, error) {
+func (u *AuthzUsecase) Login(ctx context.Context, in *api.LoginAPIRequest) (*api.LoginAPIResponse, error) {
 	// 解密账号密码
 	userAuth, err := u.getUserAuth(ctx, in)
 	if err != nil {
@@ -171,7 +171,7 @@ func (u *UsersUsecase) Login(ctx context.Context, in *api.LoginAPIRequest) (*api
 	}, nil
 }
 
-func (u *UsersUsecase) Logout(ctx context.Context, req *api.LogoutAPIRequest) error {
+func (u *AuthzUsecase) Logout(ctx context.Context, req *api.LogoutAPIRequest) error {
 
 	md, ok := metadata.FromIncomingContext(ctx)
 
@@ -194,7 +194,7 @@ func (u *UsersUsecase) Logout(ctx context.Context, req *api.LogoutAPIRequest) er
 
 }
 
-func (u *UsersUsecase) Account(ctx context.Context, req *api.AccountAPIRequest) ([]*api.Users, error) {
+func (u *AuthzUsecase) Account(ctx context.Context, req *api.AccountAPIRequest) ([]*api.Users, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 
 	if !ok {

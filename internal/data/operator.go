@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/begonia-org/begonia/internal/biz"
-	"github.com/begonia-org/begonia/internal/biz/gateway"
 	app "github.com/begonia-org/go-sdk/api/app/v1"
 	api "github.com/begonia-org/go-sdk/api/user/v1"
 	"github.com/begonia-org/go-sdk/logger"
@@ -18,15 +17,14 @@ import (
 )
 
 type dataOperatorRepo struct {
-	data     *Data
-	app      biz.AppRepo
-	user     biz.UsersRepo
-	local    *LayeredCache
-	log      logger.Logger
-	endpoint gateway.EndpointRepo
+	data  *Data
+	app   biz.AppRepo
+	user  biz.AuthzRepo
+	local *LayeredCache
+	log   logger.Logger
 }
 
-func NewDataOperatorRepo(data *Data, app biz.AppRepo, user biz.UsersRepo, local *LayeredCache, log logger.Logger) biz.DataOperatorRepo {
+func NewDataOperatorRepo(data *Data, app biz.AppRepo, user biz.AuthzRepo, local *LayeredCache, log logger.Logger) biz.DataOperatorRepo {
 	log.WithField("module", "dataOperatorRepo")
 	log.SetReportCaller(true)
 	return &dataOperatorRepo{data: data, app: app, user: user, local: local, log: log}
@@ -65,8 +63,20 @@ func (d *dataOperatorRepo) FlashAppsCache(ctx context.Context, prefix string, mo
 
 	kv := make([]interface{}, 0)
 	for _, model := range models {
-		key := fmt.Sprintf("%s:%s", prefix, model.Key)
+		key := fmt.Sprintf("%s:access_key:%s", prefix, model.AccessKey)
 		kv = append(kv, key, model.Secret)
+		kv = append(kv, fmt.Sprintf("%s:appid:%s", prefix, model.AccessKey), model.Appid)
+	}
+	pipe := d.data.BatchCacheByTx(ctx, exp, kv...)
+	_, err := pipe.Exec(ctx)
+	return err
+}
+func (d *dataOperatorRepo) FlashAppidCache(ctx context.Context, prefix string, models []*app.Apps, exp time.Duration) error {
+
+	kv := make([]interface{}, 0)
+	for _, model := range models {
+		key := fmt.Sprintf("%s:%s", prefix, model.AccessKey)
+		kv = append(kv, key, model.Appid)
 	}
 	pipe := d.data.BatchCacheByTx(ctx, exp, kv...)
 	_, err := pipe.Exec(ctx)
@@ -88,8 +98,12 @@ func (d *dataOperatorRepo) FlashUsersCache(ctx context.Context, prefix string, m
 }
 func (d *dataOperatorRepo) LoadAppsLayeredCache(ctx context.Context, prefix string, models []*app.Apps, exp time.Duration) error {
 	for _, model := range models {
-		key := fmt.Sprintf("%s:%s", prefix, model.Key)
+		key := fmt.Sprintf("%s:access_key:%s", prefix, model.AccessKey)
 		if err := d.local.Set(ctx, key, []byte(model.Secret), exp); err != nil {
+			return err
+		}
+		key = fmt.Sprintf("%s:appid:%s", prefix, model.AccessKey)
+		if err := d.local.Set(ctx, key, []byte(model.Appid), exp); err != nil {
 			return err
 		}
 	}

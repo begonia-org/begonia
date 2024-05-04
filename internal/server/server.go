@@ -82,13 +82,8 @@ func NewGateway(cfg *transport.GatewayConfig, conf *config.Config, services []se
 	opts.HttpHandlers = append(opts.HttpHandlers, cors.Handle)
 	runtime.WithMetadata(middleware.IncomingHeadersToMetadata)
 	gw := gateway.New(cfg, opts)
-	protos := conf.GetProtosDir()
 
-	pd, err := transport.NewDescription(protos)
-	if err != nil {
-		panic(err)
-	}
-	err = pd.SetHttpResponse(common.E_HttpResponse)
+	pd, err := readDesc(conf)
 	if err != nil {
 		panic(err)
 	}

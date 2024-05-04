@@ -154,7 +154,7 @@ func (e *EndpointUsecase) AddConfig(ctx context.Context, srvConfig *api.Endpoint
 		Version:       fmt.Sprintf("%d", time.Now().UnixMilli()),
 		CreatedAt:     timestamppb.New(time.Now()).AsTime().Format(time.RFC3339),
 		UpdatedAt:     timestamppb.New(time.Now()).AsTime().Format(time.RFC3339),
-		UniqueKey:     id,
+		Key:     id,
 		Endpoints:     srvConfig.Endpoints,
 		Balance:       srvConfig.Balance,
 		ServiceName:   srvConfig.ServiceName,

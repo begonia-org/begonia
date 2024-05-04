@@ -57,9 +57,9 @@ func (e *endpointRepoImpl) Del(ctx context.Context, id string) error {
 }
 func (e *endpointRepoImpl) Put(ctx context.Context, endpoint *api.Endpoints) error {
 	ops := make([]clientv3.Op, 0)
-	srvKey := e.cfg.GetServiceKey(endpoint.UniqueKey)
+	srvKey := e.cfg.GetServiceKey(endpoint.Key)
 	for _, tag := range endpoint.Tags {
-		tagKey := e.cfg.GetTagsKey(tag, endpoint.UniqueKey)
+		tagKey := e.cfg.GetTagsKey(tag, endpoint.Key)
 		ops = append(ops, clientv3.OpPut(tagKey, srvKey))
 	}
 

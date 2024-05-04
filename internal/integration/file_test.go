@@ -1,4 +1,4 @@
-package file
+package integration_test
 
 import (
 	"context"
@@ -38,10 +38,10 @@ func sumFileSha256(src string) (string, error) {
 func upload(t *testing.T) {
 	c.Convey("test upload file", t, func() {
 		// test upload file
-		apiClient := client.NewFilesAPI("http://127.0.0.1:12140", "NWkbCslfh9ea2LjVIUsKehJuopPb65fn", "oVPNllSR1DfizdmdSF7wLjgABYbexdt4FZ1HWrI81dD5BeNhsyXpXPDFoDEyiSVe")
+		apiClient := client.NewFilesAPI(apiAddr, accessKey, secret)
 		_, filename, _, _ := runtime.Caller(0)
 
-		pbFile := filepath.Join(filepath.Dir(filepath.Dir(filename)), "testdata", "helloworld.pb")
+		pbFile := filepath.Join(filepath.Dir(filename), "testdata", "helloworld.pb")
 		srcSha256, _ := sumFileSha256(pbFile)
 		rsp, err := apiClient.UploadFile(context.Background(), pbFile, "test/helloworld.pb", true)
 		c.So(err, c.ShouldBeNil)
@@ -49,7 +49,7 @@ func upload(t *testing.T) {
 		c.So(rsp.Uri, c.ShouldNotBeEmpty)
 		conf := cfg.NewConfig(config.ReadConfig("dev"))
 
-		saveDir := filepath.Join(conf.GetUploadDir(), "NWkbCslfh9ea2LjVIUsKehJuopPb65fn", filepath.Dir(rsp.Uri))
+		saveDir := filepath.Join(conf.GetUploadDir(), filepath.Dir(rsp.Uri))
 		filename = filepath.Base(rsp.Uri)
 		filePath := filepath.Join(saveDir, filename)
 
@@ -114,7 +114,7 @@ func generateRandomFile(size int64) (*TmpFile, error) {
 }
 func uploadParts(t *testing.T) {
 	c.Convey("test upload file", t, func() {
-		apiClient := client.NewFilesAPI("http://127.0.0.1:12140", "NWkbCslfh9ea2LjVIUsKehJuopPb65fn", "oVPNllSR1DfizdmdSF7wLjgABYbexdt4FZ1HWrI81dD5BeNhsyXpXPDFoDEyiSVe")
+		apiClient := client.NewFilesAPI(apiAddr, accessKey, secret)
 		var err error
 		tmpFile, err = generateRandomFile(1024 * 1024 * 20)
 		c.So(err, c.ShouldBeNil)
@@ -127,7 +127,7 @@ func uploadParts(t *testing.T) {
 		// c.So(rsp.Sha256,c.ShouldEqual,tmp.sha256)
 		conf := cfg.NewConfig(config.ReadConfig("dev"))
 
-		saveDir := filepath.Join(conf.GetUploadDir(), "NWkbCslfh9ea2LjVIUsKehJuopPb65fn", filepath.Dir(rsp.Uri))
+		saveDir := filepath.Join(conf.GetUploadDir(), filepath.Dir(rsp.Uri))
 		filename := filepath.Base(rsp.Uri)
 		filePath := filepath.Join(saveDir, filename)
 
@@ -159,7 +159,7 @@ func uploadParts(t *testing.T) {
 }
 func download(t *testing.T) {
 	c.Convey("test download file", t, func() {
-		apiClient := client.NewFilesAPI("http://127.0.0.1:12140", "NWkbCslfh9ea2LjVIUsKehJuopPb65fn", "oVPNllSR1DfizdmdSF7wLjgABYbexdt4FZ1HWrI81dD5BeNhsyXpXPDFoDEyiSVe")
+		apiClient := client.NewFilesAPI(apiAddr, accessKey, secret)
 		tmp, err := os.CreateTemp("", "testfile-*.txt")
 		c.So(err, c.ShouldBeNil)
 		defer tmp.Close()
@@ -173,7 +173,7 @@ func download(t *testing.T) {
 }
 func downloadParts(t *testing.T) {
 	c.Convey("test download parts file", t, func() {
-		apiClient := client.NewFilesAPI("http://127.0.0.1:12140", "NWkbCslfh9ea2LjVIUsKehJuopPb65fn", "oVPNllSR1DfizdmdSF7wLjgABYbexdt4FZ1HWrI81dD5BeNhsyXpXPDFoDEyiSVe")
+		apiClient := client.NewFilesAPI(apiAddr, accessKey, secret)
 		tmp, err := os.CreateTemp("", "testfile-*.txt")
 		c.So(err, c.ShouldBeNil)
 		defer tmp.Close()
@@ -189,13 +189,13 @@ func downloadParts(t *testing.T) {
 }
 func deleteFile(t *testing.T) {
 	c.Convey("test delete file", t, func() {
-		apiClient := client.NewFilesAPI("http://127.0.0.1:12140", "NWkbCslfh9ea2LjVIUsKehJuopPb65fn", "oVPNllSR1DfizdmdSF7wLjgABYbexdt4FZ1HWrI81dD5BeNhsyXpXPDFoDEyiSVe")
+		apiClient := client.NewFilesAPI(apiAddr, accessKey, secret)
 		rsp, err := apiClient.DeleteFile(context.Background(), "test/helloworld.pb")
 		c.So(err, c.ShouldBeNil)
 		c.So(rsp.StatusCode, c.ShouldEqual, common.Code_OK)
 		conf := cfg.NewConfig(config.ReadConfig("dev"))
 
-		saveDir := filepath.Join(conf.GetUploadDir(), "NWkbCslfh9ea2LjVIUsKehJuopPb65fn", filepath.Dir("test/helloworld.pb"))
+		saveDir := filepath.Join(conf.GetUploadDir(), filepath.Dir("test/helloworld.pb"))
 		filename := filepath.Base("test/helloworld.pb")
 		filePath := filepath.Join(saveDir, filename)
 

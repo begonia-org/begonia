@@ -1,4 +1,4 @@
-package gateway_test
+package integration_test
 
 import (
 	"log"
@@ -8,14 +8,17 @@ import (
 
 	"github.com/begonia-org/begonia/config"
 	"github.com/begonia-org/begonia/internal"
-	example "github.com/begonia-org/go-sdk/example"
 	"github.com/begonia-org/begonia/internal/pkg/logger"
+	example "github.com/begonia-org/go-sdk/example"
 )
 
 var onceExampleServer sync.Once
 var onceServer sync.Once
 var shareEndpoint = ""
-
+// "NWkbCslfh9ea2LjVIUsKehJuopPb65fn", "oVPNllSR1DfizdmdSF7wLjgABYbexdt4FZ1HWrI81dD5BeNhsyXpXPDFoDEyiSVe"
+var apiAddr = "http://127.0.0.1:12140"
+var accessKey = "NWkbCslfh9ea2LjVIUsKehJuopPb65fn"
+var secret="oVPNllSR1DfizdmdSF7wLjgABYbexdt4FZ1HWrI81dD5BeNhsyXpXPDFoDEyiSVe"
 func runExampleServer() {
 	onceExampleServer.Do(func() {
 		// run example server

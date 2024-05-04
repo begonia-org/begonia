@@ -17,7 +17,7 @@ type AppService struct {
 	config *config.Config
 }
 
-func (app *AppService) Put(ctx context.Context, in *api.CreateAppRequest) (*api.AddAppResponse, error) {
+func (app *AppService) Put(ctx context.Context, in *api.AppsRequest) (*api.AddAppResponse, error) {
 	owner := GetIdentity(ctx)
 
 	appInstance, err := app.biz.CreateApp(ctx, in, owner)
@@ -25,7 +25,7 @@ func (app *AppService) Put(ctx context.Context, in *api.CreateAppRequest) (*api.
 		// app.log.Errorf("CreateApp failed: %v", err)
 		return nil, err
 	}
-	return &api.AddAppResponse{Appid: appInstance.Appid, AccessKey: appInstance.Key, Secret: appInstance.Secret}, nil
+	return &api.AddAppResponse{Appid: appInstance.Appid, AccessKey: appInstance.AccessKey, Secret: appInstance.Secret}, nil
 }
 func (app *AppService) Get(ctx context.Context, in *api.GetAPPRequest) (*api.Apps, error) {
 	apps, err := app.biz.Get(ctx, in.Appid)
@@ -51,4 +51,11 @@ func (app *AppService) Patch(ctx context.Context, in *api.AppsRequest) (*api.App
 		return nil, err
 	}
 	return appInstance, nil
+}
+func (app *AppService) Delete(ctx context.Context, in *api.DeleteAppRequest) (*api.DeleteAppResponse, error) {
+	err := app.biz.Del(ctx, in.Appid)
+	if err != nil {
+		return nil, err
+	}
+	return &api.DeleteAppResponse{}, nil
 }
