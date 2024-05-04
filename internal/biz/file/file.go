@@ -14,7 +14,6 @@ import (
 
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/errors"
-	"github.com/begonia-org/go-iam/service"
 	api "github.com/begonia-org/go-sdk/api/file/v1"
 	user "github.com/begonia-org/go-sdk/api/user/v1"
 	common "github.com/begonia-org/go-sdk/common/api/v1"
@@ -37,7 +36,7 @@ type FileUsecase struct {
 	repo      FileRepo
 	config    *config.Config
 	snowflake *tiga.Snowflake
-	iam       *service.ABACService
+	// iam       *service.ABACService
 }
 
 func NewFileUsecase(repo FileRepo, config *config.Config) *FileUsecase {
@@ -168,9 +167,10 @@ func (f *FileUsecase) getSaveDir(key string) (string, error) {
 	return saveDir, nil
 
 }
-func (f *FileUsecase) getResourceKey(authorId string) string {
-	return fmt.Sprintf("begonia:file:%s", filepath.Join(f.config.GetUploadDir(), authorId, "*"))
-}
+
+// func (f *FileUsecase) getResourceKey(authorId string) string {
+// 	return fmt.Sprintf("begonia:file:%s", filepath.Join(f.config.GetUploadDir(), authorId, "*"))
+// }
 
 // checkIn checks the key and authorId.
 //
@@ -366,7 +366,7 @@ func (f *FileUsecase) getPersistenceKeyParts(key string, authorId string) string
 	}
 	return filepath.Join(f.config.GetUploadDir(), "parts", authorId, key)
 }
-func (f *FileUsecase) getUri(filePath string, authorId string) (string, error) {
+func (f *FileUsecase) getUri(filePath string, _ string) (string, error) {
 	uploadRootDir := f.config.GetUploadDir()
 	// if useVersion {
 	// 	uploadRootDir = filepath.Join(f.config.GetUploadDir(), "versions", authorId)
