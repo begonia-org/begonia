@@ -42,6 +42,7 @@ func New(config *config.Config,
 	pluginsApply := NewPluginsApply()
 	pluginsNeed := config.GetPlugins()
 	for pluginName, priority := range pluginsNeed {
+		log.Infof("plugin %s priority %d", pluginName, priority)
 		if plugin, ok := plugins[pluginName]; ok {
 			pluginsApply.Register(plugin, priority.(int))
 		} else {

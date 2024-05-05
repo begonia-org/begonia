@@ -121,6 +121,7 @@ func delEndpoint(t *testing.T) {
 	})
 
 }
+
 func TestEndpoint(t *testing.T) {
 	t.Run("post", postEndpoint)
 	t.Run("patch", patchEndpoint)

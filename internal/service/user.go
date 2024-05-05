@@ -44,13 +44,14 @@ func (u *UserService) Register(ctx context.Context, in *api.PostUserRequest) (*a
 	return user, nil
 }
 
-func (u *UserService) Update(ctx context.Context, in *api.PostUserRequest) (*api.Users, error) {
+func (u *UserService) Update(ctx context.Context, in *api.PatchUserRequest) (*api.Users, error) {
 	owner := GetIdentity(ctx)
 	if in.Owner != "" {
 		owner = in.Owner
 	
 	}
 	user := &api.Users{
+		Uid: 	  in.Uid,
 		Name:       in.Name,
 		Password:   in.Password,
 		Email:      in.Email,

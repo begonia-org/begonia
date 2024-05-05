@@ -57,12 +57,36 @@ func (u *UserUsecase) Add(ctx context.Context, users *api.Users) (err error) {
 
 }
 func (u *UserUsecase) Get(ctx context.Context, key string) (*api.Users, error) {
-	return u.repo.Get(ctx, key)
+	user, err := u.repo.Get(ctx, key)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			return nil, errors.New(err, int32(api.UserSvrCode_USER_NOT_FOUND_ERR), codes.NotFound, "get_user")
+
+		}
+		return nil, errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_user")
+	}
+	return user, nil
 }
 
 func (u *UserUsecase) Update(ctx context.Context, model *api.Users) error {
-	return u.repo.Patch(ctx, model)
+	err := u.repo.Patch(ctx, model)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			return errors.New(err, int32(api.UserSvrCode_USER_NOT_FOUND_ERR), codes.NotFound, "get_user")
+
+		}
+		return errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_user")
+	}
+	return nil
 }
 func (u *UserUsecase) Delete(ctx context.Context, uid string) error {
-	return u.repo.Del(ctx, uid)
+	err := u.repo.Del(ctx, uid)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			return errors.New(err, int32(api.UserSvrCode_USER_NOT_FOUND_ERR), codes.NotFound, "get_user")
+
+		}
+		return errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_user")
+	}
+	return nil
 }

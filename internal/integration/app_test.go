@@ -2,7 +2,9 @@ package integration_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
+	"time"
 
 	api "github.com/begonia-org/go-sdk/api/app/v1"
 	"github.com/begonia-org/go-sdk/client"
@@ -27,7 +29,7 @@ func addApp(t *testing.T) {
 		t,
 		func() {
 			apiClient := client.NewAppAPI(apiAddr, accessKey, secret)
-			rsp, err := apiClient.PostAppConfig(context.Background(), &api.AppsRequest{Name: "test01", Description: "test"})
+			rsp, err := apiClient.PostAppConfig(context.Background(), &api.AppsRequest{Name: fmt.Sprintf("app-%s",time.Now().Format("20060102150405")), Description: "test"})
 			c.So(err, c.ShouldBeNil)
 			c.So(rsp.StatusCode, c.ShouldEqual, common.Code_OK)
 			c.So(rsp.Appid, c.ShouldNotBeEmpty)

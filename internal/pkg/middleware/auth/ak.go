@@ -78,7 +78,12 @@ func (a *AccessKeyAuth) RequestBefore(ctx context.Context, info *grpc.UnaryServe
 		return ctx, err
 
 	}
-	ctx = metadata.NewIncomingContext(ctx, metadata.Pairs("x-identity", appid))
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		md =metadata.MD{}
+	}
+	md.Set("x-identity", appid)
+	ctx = metadata.NewIncomingContext(ctx, md)
 	return ctx, nil
 
 }
@@ -151,18 +156,18 @@ func (a *AccessKeyAuth) getSecret(ctx context.Context, accessKey string) (string
 func (a *AccessKeyAuth) getAppid(ctx context.Context, accessKey string) (string, error) {
 	cacheKey := a.config.GetAppidKey(accessKey)
 	secretBytes, err := a.localCache.Get(ctx, cacheKey)
-	secret := string(secretBytes)
+	appid := string(secretBytes)
 	if err != nil {
 		apps, err := a.app.Get(ctx, accessKey)
 		if err != nil {
 			return "", err
 		}
-		secret = apps.Secret
+		appid = apps.Appid
 
 		// _ = a.rdb.Set(ctx, cacheKey, secret, time.Hour*24*3)
-		_ = a.localCache.Set(ctx, cacheKey, []byte(secret), time.Hour*24*3)
+		_ = a.localCache.Set(ctx, cacheKey, []byte(appid), time.Hour*24*3)
 	}
-	return secret, nil
+	return appid, nil
 }
 func (a *AccessKeyAuth) getSignature(auth string) string {
 	strArr := strings.Split(auth, ",")
@@ -194,7 +199,12 @@ func (a *AccessKeyAuth) ValidateStream(ctx context.Context, req interface{}, ful
 		return ctx, err
 
 	}
-	ctx = metadata.NewIncomingContext(ctx, metadata.Pairs("x-identity", appid))
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		md =metadata.MD{}
+	}
+	md.Set("x-identity", appid)
+	ctx = metadata.NewIncomingContext(ctx, md)
 	return ctx, nil
 }
 func (a *AccessKeyAuth) StreamRequestBefore(ctx context.Context, ss grpc.ServerStream, info *grpc.StreamServerInfo, req interface{}) (grpc.ServerStream, error) {
