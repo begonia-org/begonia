@@ -32,7 +32,7 @@ func (m *UsersOperator) InitAdminUser(passwd string, aseKey, ivKey string, name,
 		uid := snk.GenerateID()
 		user := &api.Users{
 			Uid:  fmt.Sprintf("%d", uid),
-			Name: name, Password: passwd, Phone: phone, Email: email, Role: api.Role_ADMIN, Status: api.USER_STATUS_ACTIVTE, CreatedAt: timestamppb.New(time.Now()), UpdatedAt: timestamppb.New(time.Now())}
+			Name: name, Password: passwd, Phone: phone, Email: email, Role: api.Role_ADMIN, Status: api.USER_STATUS_ACTIVE, CreatedAt: timestamppb.New(time.Now()), UpdatedAt: timestamppb.New(time.Now())}
 
 		err = tiga.EncryptStructAES([]byte(aseKey), user, ivKey)
 		if err != nil {

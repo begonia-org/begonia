@@ -77,24 +77,3 @@ func (t *authzRepo) PutBlackList(ctx context.Context, token string) error {
 
 }
 
-// func (u *authzRepo) CacheUsers(ctx context.Context, prefix string, models []*api.Users, exp time.Duration, getValue func(user *api.Users) ([]byte, interface{})) redis.Pipeliner {
-// 	kv := make([]interface{}, 0)
-// 	for _, model := range models {
-// 		// status,_:=tiga.IntToBytes(int(model.Status))
-// 		valByte, val := getValue(model)
-// 		key := fmt.Sprintf("%s:%s", prefix, model.Uid)
-// 		if err := u.cacheUsers(ctx, prefix, model.Uid, valByte, exp); err != nil {
-// 			return nil
-// 		}
-// 		kv = append(kv, key, val)
-// 	}
-// 	return u.data.BatchCacheByTx(ctx, exp, kv...)
-// }
-// func (u *authzRepo) cacheUsers(ctx context.Context, prefix string, uid string, value []byte, exp time.Duration) error {
-// 	key := fmt.Sprintf("%s:%s", prefix, uid)
-// 	err := u.local.Set(ctx, key, value, exp)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	return nil
-// }

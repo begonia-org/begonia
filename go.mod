@@ -78,7 +78,6 @@ require (
 )
 
 require (
-	github.com/begonia-org/go-iam v0.0.0-00010101000000-000000000000
 	github.com/begonia-org/go-loadbalancer v0.0.0-20240408092223-42b5fab476ce
 	github.com/begonia-org/go-sdk v0.0.0-20240430091441-59ff6e0588f4
 	github.com/go-git/go-git/v5 v5.11.0
@@ -110,7 +109,6 @@ require (
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-redis/redismock/v9 v9.2.0 // indirect
-	github.com/gobwas/glob v0.2.3 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/gopherjs/gopherjs v1.17.2 // indirect

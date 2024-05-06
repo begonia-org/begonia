@@ -48,10 +48,10 @@ func (u *UserService) Update(ctx context.Context, in *api.PatchUserRequest) (*ap
 	owner := GetIdentity(ctx)
 	if in.Owner != "" {
 		owner = in.Owner
-	
+
 	}
 	user := &api.Users{
-		Uid: 	  in.Uid,
+		Uid:        in.Uid,
 		Name:       in.Name,
 		Password:   in.Password,
 		Email:      in.Email,

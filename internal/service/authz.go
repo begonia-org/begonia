@@ -30,7 +30,7 @@ func (u *AuthzService) AuthSeed(ctx context.Context, in *api.AuthLogAPIRequest) 
 	}
 	rsp := &api.AuthLogAPIResponse{
 		Msg:       token,
-		Timestamp: in.Timestamp,
+		Timestamp: in.Token,
 	}
 	return rsp, nil
 
@@ -51,18 +51,7 @@ func (u *AuthzService) Logout(ctx context.Context, req *api.LogoutAPIRequest) (*
 
 }
 
-// func (u *AuthzService) Account(ctx context.Context, req *api.AccountAPIRequest) (*api.AccountAPIResponse, error) {
-// 	rsp, err := u.biz.Account(ctx, req)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	return &api.AccountAPIResponse{
-// 		Users: rsp,
-// 	}, nil
-// }
-// func (u *AuthzService) Register(context.Context, *api.RegsiterAPIRequest) (*api.RegsiterAPIResponse, error) {
-// 	return nil, nil
-// }
+
 
 func (u *AuthzService) Desc() *grpc.ServiceDesc {
 	return &api.AuthService_ServiceDesc

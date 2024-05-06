@@ -188,11 +188,13 @@ func (a *JWTAuth) jwtValidator(ctx context.Context, fullName string, headers Hea
 	}
 
 	ok, err := a.checkJWT(ctx, token, headers, headers)
-	newCtx := metadata.NewIncomingContext(ctx, md)
-
-	if err != nil {
+	if err != nil||!ok {
 		return nil, status.Errorf(codes.Unauthenticated, "check token error,%v", err)
 	}
+	
+	newCtx := metadata.NewIncomingContext(ctx, md)
+
+
 	if !ok {
 		return nil, status.Errorf(codes.Unauthenticated, "token check failed")
 	}
@@ -212,11 +214,11 @@ func (a *JWTAuth) RequestBefore(ctx context.Context, info *grpc.UnaryServerInfo,
 	}
 	headers := NewGrpcHeader(in, ctx, out)
 	defer headers.Release()
-	newCtx, err := a.jwtValidator(ctx, info.FullMethod, headers)
+	_, err := a.jwtValidator(ctx, info.FullMethod, headers)
 	if err != nil {
 		return nil, err
 	}
-	return newCtx, nil
+	return headers.ctx, nil
 }
 
 func (a *JWTAuth) ValidateStream(ctx context.Context, req interface{}, fullName string, headers Header) (context.Context, error) {

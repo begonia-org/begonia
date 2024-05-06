@@ -27,9 +27,7 @@ type DataOperatorRepo interface {
 	GetAllApps(ctx context.Context) ([]*api.Apps, error)
 	FlashAppsCache(ctx context.Context, prefix string, models []*api.Apps, exp time.Duration) error
 	FlashUsersCache(ctx context.Context, prefix string, models []*u.Users, exp time.Duration) error
-	// LoadAppsLocalCache(ctx context.Context, prefix string, models []*api.Apps, exp time.Duration) error
 	GetAllForbiddenUsers(ctx context.Context) ([]*u.Users, error)
-	// LoadUsersLocalCache(ctx context.Context, prefix string, models []*api.Users, exp time.Duration) error
 	Lock(ctx context.Context, key string, exp time.Duration) (DataLock, error)
 	LastUpdated(ctx context.Context, key string) (time.Time, error)
 	Watcher(ctx context.Context, prefix string, handle func(ctx context.Context, op mvccpb.Event_EventType, key, value string) error) error

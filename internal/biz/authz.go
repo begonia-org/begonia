@@ -13,7 +13,6 @@ import (
 	common "github.com/begonia-org/go-sdk/common/api/v1"
 	"github.com/begonia-org/go-sdk/logger"
 	"github.com/spark-lence/tiga"
-	srvErr "github.com/spark-lence/tiga/errors"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 )
@@ -65,9 +64,9 @@ func (u *AuthzUsecase) DelToken(ctx context.Context, key string) error {
 }
 
 func (u *AuthzUsecase) AuthSeed(ctx context.Context, in *api.AuthLogAPIRequest) (string, error) {
-	token, err := u.authCrypto.GenerateAuthSeed(in.Timestamp)
+	token, err := u.authCrypto.GenerateAuthSeed(in.Token)
 	if err != nil {
-		return "", srvErr.New(err, "auth seed生成错误", srvErr.WithMsgAndCode(int32(common.Code_INTERNAL_ERROR), "登陆失败"))
+		return "", errors.New(fmt.Errorf("auth seed generate %w", err), int32(api.UserSvrCode_USER_LOGIN_ERR), codes.InvalidArgument, "generate_seed")
 	}
 	return token, nil
 
@@ -83,7 +82,6 @@ func (u *AuthzUsecase) getUserAuth(_ context.Context, in *api.LoginAPIRequest) (
 	timestamp := in.Seed / 10000
 	now := time.Now().Unix()
 	if now-timestamp > 60 {
-		// err := srvErr.New(errors.ErrTokenExpired, "token校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_EXPIRE_ERR.Number()), "token过期"))
 
 		return nil, errors.New(errors.ErrTokenExpired, int32(api.UserSvrCode_USER_TOKEN_EXPIRE_ERR.Number()), codes.InvalidArgument, "种子有效期校验")
 	}
@@ -91,14 +89,12 @@ func (u *AuthzUsecase) getUserAuth(_ context.Context, in *api.LoginAPIRequest) (
 	authBytes, err := u.authCrypto.RSADecrypt(auth)
 
 	if err != nil {
-		// err := srvErr.New(errors.ErrAuthDecrypt, "登陆", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_AUTH_DECRYPT_ERR.Number()), "登录失败"))
-		return nil, errors.New(errors.ErrAuthDecrypt, int32(api.UserSvrCode_USER_AUTH_DECRYPT_ERR.Number()), codes.InvalidArgument, "登陆信息解密")
+		return nil, errors.New(errors.ErrAuthDecrypt, int32(api.UserSvrCode_USER_AUTH_DECRYPT_ERR.Number()), codes.InvalidArgument, "login_info_rsa")
 	}
 	userAuth := &api.UserAuth{}
 	err = json.Unmarshal([]byte(authBytes), userAuth)
 	if err != nil {
-		err := srvErr.New(errors.ErrDecode, "登陆信息序列化", srvErr.WithMsgAndCode(int32(common.Code_AUTH_ERROR), "登录失败"))
-		return nil, err
+		return nil, errors.New(errors.ErrDecode, int32(common.Code_AUTH_ERROR), codes.InvalidArgument, "login_info_decode")
 	}
 	return userAuth, nil
 }
@@ -123,7 +119,7 @@ func (u *AuthzUsecase) GenerateJWT(ctx context.Context, user *api.Users, isKeepL
 	}
 	err := u.repo.DelToken(ctx, u.config.GetUserBlackListKey(user.Uid))
 	if err != nil {
-		return "", srvErr.New(errors.ErrRemoveBlackList, "生成新的JWT TOKEN", srvErr.WithMsgAndCode(int32(common.Code_AUTH_ERROR), "登录失败"))
+		return "", errors.New(errors.ErrRemoveBlackList, int32(common.Code_AUTH_ERROR), codes.Internal, "remove_black_list")
 	}
 
 	return tiga.GenerateJWT(payload, secret)
@@ -153,6 +149,11 @@ func (u *AuthzUsecase) Login(ctx context.Context, in *api.LoginAPIRequest) (*api
 		err := errors.New(err, int32(api.UserSvrCode_USER_NOT_FOUND_ERR), codes.NotFound, "user_query")
 		return nil, err
 	}
+	if user.Status != api.USER_STATUS_ACTIVE {
+		err := errors.New(errors.ErrUserDisabled, int32(api.UserSvrCode_USER_DISABLED_ERR), codes.Unauthenticated, "user_query")
+		return nil, err
+
+	}
 	user.Password = ""
 	err = tiga.DecryptStructAES([]byte(key), user, iv)
 	if err != nil {
@@ -175,53 +176,16 @@ func (u *AuthzUsecase) Logout(ctx context.Context, req *api.LogoutAPIRequest) er
 	md, ok := metadata.FromIncomingContext(ctx)
 
 	if !ok {
-		err := srvErr.New(errors.ErrNoMetadata, "登出账号", srvErr.WithMsgAndCode(int32(common.Code_METADATA_MISSING), "登出失败"))
-		return err
+		return errors.New(errors.ErrNoMetadata, int32(common.Code_METADATA_MISSING), codes.InvalidArgument, "metadata_missing")
 	}
 	token := md.Get("x-token")
 	if len(token) == 0 {
-		err := srvErr.New(errors.ErrTokenMissing, "登出账号", srvErr.WithMsgAndCode(int32(common.Code_TOKEN_NOT_FOUND), "登出失败"))
-		return err
+		return errors.New(errors.ErrTokenMissing, int32(common.Code_TOKEN_NOT_FOUND), codes.InvalidArgument, "token_missing")
 	}
-	key := u.config.GetUserBlackListKey(tiga.GetMd5(token[0]))
-	err := u.repo.CacheToken(ctx, key, "1", time.Hour*24*3)
+	err := u.repo.PutBlackList(ctx, tiga.GetMd5(token[0]))
 	if err != nil {
-		err = srvErr.New(err, "添加黑名单", srvErr.WithMessage("登出失败"))
-		return err
+		return errors.New(err, int32(common.Code_AUTH_ERROR), codes.Internal, "add_black_list")
 	}
 	return nil
 
 }
-
-// func (u *AuthzUsecase) Account(ctx context.Context, req *api.AccountAPIRequest) ([]*api.Users, error) {
-// 	md, ok := metadata.FromIncomingContext(ctx)
-
-// 	if !ok {
-// 		err := srvErr.New(errors.ErrNoMetadata, "账号信息", srvErr.WithMsgAndCode(int32(common.Code_METADATA_MISSING), "请重新登陆"))
-// 		return nil, err
-// 	}
-// 	token := md.Get("x-token")
-// 	if len(token) == 0 {
-// 		err := srvErr.New(errors.ErrTokenMissing, "账号信息", srvErr.WithMsgAndCode(int32(common.Code_TOKEN_NOT_FOUND), "请重新登陆"))
-// 		return nil, err
-// 	}
-// 	clientUids := md.Get("x-uid")
-// 	uid := ""
-
-// 	if len(clientUids) > 0 {
-// 		uid = clientUids[0]
-// 	}
-// 	if uid == "" {
-// 		err := srvErr.New(errors.ErrUidMissing, "账号信息", srvErr.WithMsgAndCode(int32(common.Code_TOKEN_NOT_FOUND), "请重新登陆"))
-// 		return nil, err
-// 	}
-// 	uids := req.Uids
-// 	users, err := u.repo.ListUsers(ctx, "uid in (?)", uids)
-// 	if err != nil {
-// 		return nil, srvErr.New(err, "获取用户信息", srvErr.WithMessage("没有找到用户信息"))
-// 	}
-// 	if len(users) == 0 {
-// 		return nil, srvErr.New(errors.ErrUserNotFound, "获取用户信息", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_NOT_FOUND_ERR.Number()), "没有找到用户信息"))
-// 	}
-// 	return users, nil
-// }
