@@ -12,7 +12,6 @@ import (
 	api "github.com/begonia-org/go-sdk/api/user/v1"
 	common "github.com/begonia-org/go-sdk/common/api/v1"
 	"github.com/begonia-org/go-sdk/logger"
-	"github.com/redis/go-redis/v9"
 	"github.com/spark-lence/tiga"
 	srvErr "github.com/spark-lence/tiga/errors"
 	"google.golang.org/grpc/codes"
@@ -21,7 +20,7 @@ import (
 
 type AuthzRepo interface {
 	// mysql
-	ListUsers(ctx context.Context, conds ...interface{}) ([]*api.Users, error)
+	ListUsers(ctx context.Context, page, pageSize int32, conds ...interface{}) ([]*api.Users, error)
 	CreateUsers(ctx context.Context, Users []*api.Users) error
 	UpdateUsers(ctx context.Context, models []*api.Users) error
 	DeleteUsers(ctx context.Context, models []*api.Users) error
@@ -34,7 +33,7 @@ type AuthzRepo interface {
 	CheckInBlackList(ctx context.Context, key string) (bool, error)
 	PutBlackList(ctx context.Context, token string) error
 
-	CacheUsers(ctx context.Context, prefix string, models []*api.Users, exp time.Duration, getValue func(user *api.Users) ([]byte, interface{})) redis.Pipeliner
+	// CacheUsers(ctx context.Context, prefix string, models []*api.Users, exp time.Duration, getValue func(user *api.Users) ([]byte, interface{})) redis.Pipeliner
 }
 
 type AuthzUsecase struct {
@@ -47,8 +46,8 @@ type AuthzUsecase struct {
 func NewAuthzUsecase(repo AuthzRepo, log logger.Logger, crypto *crypto.UsersAuth, config *config.Config) *AuthzUsecase {
 	return &AuthzUsecase{repo: repo, log: log, authCrypto: crypto, config: config}
 }
-func (u *AuthzUsecase) ListUsers(ctx context.Context, conds ...interface{}) ([]*api.Users, error) {
-	return u.repo.ListUsers(ctx, conds...)
+func (u *AuthzUsecase) ListUsers(ctx context.Context, page, pageSize int32, conds ...interface{}) ([]*api.Users, error) {
+	return u.repo.ListUsers(ctx, page, pageSize, conds...)
 }
 
 func (u *AuthzUsecase) CreateUsers(ctx context.Context, Users []*api.Users) error {
@@ -194,35 +193,35 @@ func (u *AuthzUsecase) Logout(ctx context.Context, req *api.LogoutAPIRequest) er
 
 }
 
-func (u *AuthzUsecase) Account(ctx context.Context, req *api.AccountAPIRequest) ([]*api.Users, error) {
-	md, ok := metadata.FromIncomingContext(ctx)
+// func (u *AuthzUsecase) Account(ctx context.Context, req *api.AccountAPIRequest) ([]*api.Users, error) {
+// 	md, ok := metadata.FromIncomingContext(ctx)
 
-	if !ok {
-		err := srvErr.New(errors.ErrNoMetadata, "账号信息", srvErr.WithMsgAndCode(int32(common.Code_METADATA_MISSING), "请重新登陆"))
-		return nil, err
-	}
-	token := md.Get("x-token")
-	if len(token) == 0 {
-		err := srvErr.New(errors.ErrTokenMissing, "账号信息", srvErr.WithMsgAndCode(int32(common.Code_TOKEN_NOT_FOUND), "请重新登陆"))
-		return nil, err
-	}
-	clientUids := md.Get("x-uid")
-	uid := ""
+// 	if !ok {
+// 		err := srvErr.New(errors.ErrNoMetadata, "账号信息", srvErr.WithMsgAndCode(int32(common.Code_METADATA_MISSING), "请重新登陆"))
+// 		return nil, err
+// 	}
+// 	token := md.Get("x-token")
+// 	if len(token) == 0 {
+// 		err := srvErr.New(errors.ErrTokenMissing, "账号信息", srvErr.WithMsgAndCode(int32(common.Code_TOKEN_NOT_FOUND), "请重新登陆"))
+// 		return nil, err
+// 	}
+// 	clientUids := md.Get("x-uid")
+// 	uid := ""
 
-	if len(clientUids) > 0 {
-		uid = clientUids[0]
-	}
-	if uid == "" {
-		err := srvErr.New(errors.ErrUidMissing, "账号信息", srvErr.WithMsgAndCode(int32(common.Code_TOKEN_NOT_FOUND), "请重新登陆"))
-		return nil, err
-	}
-	uids := req.Uids
-	users, err := u.repo.ListUsers(ctx, "uid in (?)", uids)
-	if err != nil {
-		return nil, srvErr.New(err, "获取用户信息", srvErr.WithMessage("没有找到用户信息"))
-	}
-	if len(users) == 0 {
-		return nil, srvErr.New(errors.ErrUserNotFound, "获取用户信息", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_NOT_FOUND_ERR.Number()), "没有找到用户信息"))
-	}
-	return users, nil
-}
+// 	if len(clientUids) > 0 {
+// 		uid = clientUids[0]
+// 	}
+// 	if uid == "" {
+// 		err := srvErr.New(errors.ErrUidMissing, "账号信息", srvErr.WithMsgAndCode(int32(common.Code_TOKEN_NOT_FOUND), "请重新登陆"))
+// 		return nil, err
+// 	}
+// 	uids := req.Uids
+// 	users, err := u.repo.ListUsers(ctx, "uid in (?)", uids)
+// 	if err != nil {
+// 		return nil, srvErr.New(err, "获取用户信息", srvErr.WithMessage("没有找到用户信息"))
+// 	}
+// 	if len(users) == 0 {
+// 		return nil, srvErr.New(errors.ErrUserNotFound, "获取用户信息", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_NOT_FOUND_ERR.Number()), "没有找到用户信息"))
+// 	}
+// 	return users, nil
+// }

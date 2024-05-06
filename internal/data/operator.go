@@ -3,6 +3,7 @@ package data
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/begonia-org/begonia/internal/biz"
@@ -14,20 +15,22 @@ import (
 	"go.etcd.io/etcd/api/v3/mvccpb"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/protobuf/encoding/protojson"
+	"gorm.io/gorm"
 )
 
 type dataOperatorRepo struct {
 	data  *Data
 	app   biz.AppRepo
-	user  biz.AuthzRepo
+	authz biz.AuthzRepo
+	user  biz.UserRepo
 	local *LayeredCache
 	log   logger.Logger
 }
 
-func NewDataOperatorRepo(data *Data, app biz.AppRepo, user biz.AuthzRepo, local *LayeredCache, log logger.Logger) biz.DataOperatorRepo {
+func NewDataOperatorRepo(data *Data, app biz.AppRepo,user biz.UserRepo, authz biz.AuthzRepo, local *LayeredCache, log logger.Logger) biz.DataOperatorRepo {
 	log.WithField("module", "dataOperatorRepo")
 	log.SetReportCaller(true)
-	return &dataOperatorRepo{data: data, app: app, user: user, local: local, log: log}
+	return &dataOperatorRepo{data: data, app: app, authz: authz,user: user, local: local, log: log}
 }
 
 // DistributedLock 分布式锁,拿到锁对象后需要调用DistributedUnlock释放锁
@@ -41,21 +44,48 @@ func (r *dataOperatorRepo) Lock(ctx context.Context, key string, exp time.Durati
 // }
 
 // GetAllForbiddenUsers 获取所有被禁用的用户
-func (r *dataOperatorRepo) GetAllForbiddenUsersFromDB(ctx context.Context) ([]*api.Users, error) {
-
+func (r *dataOperatorRepo) GetAllForbiddenUsers(ctx context.Context) ([]*api.Users, error) {
+	users := make([]*api.Users, 0)
 	// return r.data.Get(ctx, key)
-	users, err := r.user.ListUsers(ctx, "status in (?,?)", api.USER_STATUS_LOCKED, api.USER_STATUS_DELETED)
-	if err != nil {
-		return nil, err
+	page := int32(1)
+	for {
+		user, err := r.user.List(ctx, nil, []api.USER_STATUS{api.USER_STATUS_LOCKED, api.USER_STATUS_DELETED}, page, 100)
+		// users, err := r.user.ListUsers(ctx, "status in (?,?)", api.USER_STATUS_LOCKED, api.USER_STATUS_DELETED)
+		if err != nil {
+			if strings.Contains(err.Error(), gorm.ErrRecordNotFound.Error()) {
+				break
+			}
+			return users, err
+		}
+		if len(user) == 0 {
+			break
+		}
+		page++
+		users = append(users, user...)
 	}
+
 	return users, nil
 }
 
-func (r *dataOperatorRepo) GetAllAppsFromDB(ctx context.Context) ([]*app.Apps, error) {
-	apps, err := r.app.List(ctx)
-	if err != nil {
-		return nil, err
+func (r *dataOperatorRepo) GetAllApps(ctx context.Context) ([]*app.Apps, error) {
+	apps := make([]*app.Apps, 0)
+	page := int32(1)
+	for {
+		app, err := r.app.List(ctx, nil, nil, page, 100)
+		if err != nil {
+			if strings.Contains(err.Error(), gorm.ErrRecordNotFound.Error()) {
+				break
+			}
+			return apps, err
+		}
+		if len(app) == 0 {
+			break
+
+		}
+		apps = append(apps, app...)
+		page++
 	}
+
 	return apps, nil
 }
 
@@ -123,7 +153,7 @@ func (d *dataOperatorRepo) LoadUsersLayeredCache(ctx context.Context, prefix str
 
 func (r *dataOperatorRepo) CacheUsers(ctx context.Context, prefix string, models []*api.Users, exp time.Duration) error {
 
-	pipe := r.user.CacheUsers(ctx, prefix, models, exp, func(user *api.Users) ([]byte, interface{}) {
+	pipe := r.user.Cache(ctx, prefix, models, exp, func(user *api.Users) ([]byte, interface{}) {
 		val, _ := tiga.IntToBytes(int(user.Status))
 		return val, int(user.Status)
 	})

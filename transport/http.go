@@ -147,7 +147,7 @@ func NewHttpEndpoint(client HttpForwardGrpcEndpoint) (HttpEndpoint, error) {
 		client: client,
 	}, nil
 }
-func (h *HttpEndpointImpl) stream(ctx context.Context, item *HttpEndpointItem, marshaler runtime.Marshaler, req *http.Request, pathParams map[string]string) (StreamClient, runtime.ServerMetadata, error) {
+func (h *HttpEndpointImpl) stream(ctx context.Context, item *HttpEndpointItem, marshaler runtime.Marshaler, req *http.Request, _ map[string]string) (StreamClient, runtime.ServerMetadata, error) {
 	var metadata runtime.ServerMetadata
 	grpcReq := &GrpcRequestImpl{
 		Ctx:            ctx,

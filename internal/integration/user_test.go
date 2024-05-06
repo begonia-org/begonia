@@ -73,7 +73,7 @@ func patchUser(t *testing.T) {
 			apiClient := client.NewUsersAPI(apiAddr, accessKey, secret)
 			rsp, err := apiClient.PatchUser(context.Background(), uid, map[string]interface{}{
 				"password": "123456ecfasddccddd",
-				"email":    "begonia01@example.com"})
+				"email":    fmt.Sprintf("%s@example.com",time.Now().Format("20060102150405"))})
 			c.So(err, c.ShouldBeNil)
 			c.So(rsp.StatusCode, c.ShouldEqual, common.Code_OK)
 		})

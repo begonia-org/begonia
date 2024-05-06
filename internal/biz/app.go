@@ -22,7 +22,7 @@ type AppRepo interface {
 	Get(ctx context.Context, key string) (*api.Apps, error)
 	Cache(ctx context.Context, prefix string, models *api.Apps, exp time.Duration) error
 	Del(ctx context.Context, key string) error
-	List(ctx context.Context, conds ...interface{}) ([]*api.Apps, error)
+	List(ctx context.Context, tags []string,status []api.APPStatus,page,pageSize int32) ([]*api.Apps, error)
 	Patch(ctx context.Context, model *api.Apps) error
 }
 
@@ -157,4 +157,12 @@ func (a *AppUsecase) Patch(ctx context.Context, in *api.AppsRequest, owner strin
 		return nil, errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "update_app")
 	}
 	return app, nil
+}
+
+func (a *AppUsecase) List(ctx context.Context, in *api.AppsListRequest) ([]*api.Apps, error) {
+	apps, err := a.repo.List(ctx,in.Tags,in.Status,in.Page,in.PageSize )
+	if err != nil {
+		return nil, errors.New(err, int32(api.APPSvrCode_APP_NOT_FOUND_ERR), codes.NotFound, "list_app")
+	}
+	return apps, nil
 }

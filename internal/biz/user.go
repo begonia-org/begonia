@@ -3,11 +3,13 @@ package biz
 import (
 	"context"
 	"strings"
+	"time"
 
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/errors"
 	api "github.com/begonia-org/go-sdk/api/user/v1"
 	common "github.com/begonia-org/go-sdk/common/api/v1"
+	"github.com/redis/go-redis/v9"
 	"github.com/spark-lence/tiga"
 	"google.golang.org/grpc/codes"
 )
@@ -16,8 +18,9 @@ type UserRepo interface {
 	Add(ctx context.Context, apps *api.Users) error
 	Get(ctx context.Context, key string) (*api.Users, error)
 	Del(ctx context.Context, key string) error
-	List(ctx context.Context, conds ...interface{}) ([]*api.Users, error)
+	List(ctx context.Context, dept []string, status []api.USER_STATUS, page, pageSize int32) ([]*api.Users, error)
 	Patch(ctx context.Context, model *api.Users) error
+	Cache(ctx context.Context, prefix string, models []*api.Users, exp time.Duration, getValue func(user *api.Users) ([]byte, interface{})) redis.Pipeliner
 }
 
 type UserUsecase struct {
@@ -45,13 +48,7 @@ func (u *UserUsecase) Add(ctx context.Context, users *api.Users) (err error) {
 		}
 	}()
 	users.Uid = u.snowflake.GenerateIDString()
-	ivKey := u.config.GetAesIv()
-	aseKey := u.config.GetAesKey()
 
-	err = tiga.EncryptStructAES([]byte(aseKey), users, ivKey)
-	if err != nil {
-		return
-	}
 	err = u.repo.Add(ctx, users)
 	return
 

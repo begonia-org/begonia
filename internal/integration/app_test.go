@@ -70,6 +70,6 @@ func delApp(t *testing.T) {
 func TestApp(t *testing.T) {
 	t.Run("add app", addApp)
 	t.Run("get app", getApp)
-	// appid = "441648748842455040"
+	// appid = "442568851213783040"
 	t.Run("del app", delApp)
 }

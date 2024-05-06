@@ -1,6 +1,7 @@
 package migrate
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -37,7 +38,7 @@ func (m *UsersOperator) InitAdminUser(passwd string, aseKey, ivKey string, name,
 		if err != nil {
 			return err
 		}
-		err = m.mysql.Create(user)
+		err = m.mysql.Create(context.Background(),user)
 		return err
 	}
 	return nil
