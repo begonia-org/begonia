@@ -8,6 +8,7 @@ import (
 	api "github.com/begonia-org/go-sdk/api/user/v1"
 	"github.com/spark-lence/tiga"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"gorm.io/gorm"
 )
 
 type UsersOperator struct {
@@ -17,16 +18,16 @@ type UsersOperator struct {
 func NewUsersOperator(mysql *tiga.MySQLDao) *UsersOperator {
 	return &UsersOperator{mysql: mysql}
 }
-func (m *UsersOperator) InitAdminUser(passwd string, aseKey, ivKey string, name, email, phone string) error {
-	var count int64
-	count, err := m.mysql.Count(&api.Users{}, nil)
-	if err != nil {
-		return err
+func (m *UsersOperator) InitAdminUser(passwd string, aseKey, ivKey string, name, email, phone string) (string,error) {
+	userExist:=&api.Users{}
+	err := m.mysql.First(userExist,"role = ? and is_deleted=0 and status=?",api.Role_ADMIN,api.USER_STATUS_ACTIVE)
+	if err != nil && err!=gorm.ErrRecordNotFound {
+		return "", err
 	}
-	if count == 0 {
+	if userExist.Uid == ""{
 		snk, err := tiga.NewSnowflake(1)
 		if err != nil {
-			return err
+			return "", err
 		}
 		// 初始化数据
 		uid := snk.GenerateID()
@@ -36,10 +37,10 @@ func (m *UsersOperator) InitAdminUser(passwd string, aseKey, ivKey string, name,
 
 		err = tiga.EncryptStructAES([]byte(aseKey), user, ivKey)
 		if err != nil {
-			return err
+			return "", err
 		}
 		err = m.mysql.Create(context.Background(),user)
-		return err
+		return user.Uid, err
 	}
-	return nil
+	return userExist.Uid,nil
 }

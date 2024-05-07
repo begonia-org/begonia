@@ -10,7 +10,7 @@ require (
 	github.com/cockroachdb/errors v1.11.1
 	github.com/google/wire v0.6.0
 	github.com/smartystreets/goconvey v1.8.1
-	github.com/spark-lence/tiga v0.0.0-20240507014017-841a07242f34
+	github.com/spark-lence/tiga v0.0.0-20240507084821-4d0f2eb57803
 	github.com/spf13/cobra v1.8.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20240506185236-b8a5c65736ae
 	google.golang.org/grpc v1.63.2
@@ -82,7 +82,6 @@ require (
 	github.com/begonia-org/go-sdk v0.0.0-20240507014141-340c1958f4e2
 	github.com/go-git/go-git/v5 v5.11.0
 	github.com/go-playground/validator/v10 v10.19.0
-	github.com/golang/protobuf v1.5.4
 	github.com/gorilla/websocket v1.5.1
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.19.1
 	go.etcd.io/etcd/api/v3 v3.5.13
@@ -111,6 +110,7 @@ require (
 	github.com/go-redis/redismock/v9 v9.2.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
+	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/gopherjs/gopherjs v1.17.2 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect

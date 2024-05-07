@@ -22,6 +22,7 @@ func NewInitCmd() *cobra.Command {
 			env, _ := cmd.Flags().GetString("env")
 			config := config.ReadConfig(env)
 			operator := internal.InitOperatorApp(config)
+			log.Printf("init database")
 			err := operator.Init()
 			if err != nil {
 				log.Fatalf("failed to init database: %v", err)

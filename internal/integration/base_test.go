@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/begonia-org/begonia"
 	"github.com/begonia-org/begonia/config"
 	"github.com/begonia-org/begonia/internal"
 	"github.com/begonia-org/begonia/internal/pkg/logger"
@@ -15,10 +16,12 @@ import (
 var onceExampleServer sync.Once
 var onceServer sync.Once
 var shareEndpoint = ""
+
 // "NWkbCslfh9ea2LjVIUsKehJuopPb65fn", "oVPNllSR1DfizdmdSF7wLjgABYbexdt4FZ1HWrI81dD5BeNhsyXpXPDFoDEyiSVe"
 var apiAddr = "http://127.0.0.1:12140"
 var accessKey = "NWkbCslfh9ea2LjVIUsKehJuopPb65fn"
-var secret="oVPNllSR1DfizdmdSF7wLjgABYbexdt4FZ1HWrI81dD5BeNhsyXpXPDFoDEyiSVe"
+var secret = "oVPNllSR1DfizdmdSF7wLjgABYbexdt4FZ1HWrI81dD5BeNhsyXpXPDFoDEyiSVe"
+
 func runExampleServer() {
 	onceExampleServer.Do(func() {
 		// run example server
@@ -35,7 +38,12 @@ func runExampleServer() {
 func RunTestServer() {
 	log.Printf("run test server")
 	onceServer.Do(func() {
-		config := config.ReadConfig("dev")
+		env := "dev"
+		if begonia.Env != "" {
+			env = begonia.Env
+		}
+		log.Printf("env: %s", env)
+		config := config.ReadConfig(env)
 		go func() {
 
 			worker := internal.New(config, logger.Log, "0.0.0.0:12140")

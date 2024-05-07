@@ -30,8 +30,9 @@ func InitOperatorApp(config2 *tiga.Configuration) *migrate.InitOperator {
 	v := migrate.NewTableModels()
 	mySQLMigrate := migrate.NewMySQLMigrate(mySQLDao, v...)
 	usersOperator := migrate.NewUsersOperator(mySQLDao)
+	appOperator := migrate.NewAPPOperator(mySQLDao)
 	configConfig := config.NewConfig(config2)
-	initOperator := migrate.NewInitOperator(mySQLMigrate, usersOperator, configConfig)
+	initOperator := migrate.NewInitOperator(mySQLMigrate, usersOperator, appOperator, configConfig)
 	return initOperator
 }
 

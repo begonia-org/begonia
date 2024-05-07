@@ -427,7 +427,7 @@ func (h *HttpEndpointImpl) RegisterHandlerClient(ctx context.Context, pd Protobu
 	for _, item := range items {
 		item := item
 		mux.Handle(strings.ToUpper(item.HttpMethod), item.Pattern, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-			if req.Header.Get("accept") !=""{
+			if req.Header.Get("accept") == "" {
 				req.Header.Set("accept", "application/json")
 			}
 			ctx, cancel := context.WithCancel(req.Context())

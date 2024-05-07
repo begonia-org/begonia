@@ -193,12 +193,12 @@ func (g *GrpcProxy) UnaryProxyInterceptor(ctx context.Context, req interface{}, 
 	endpoint, err := g.lb.Select(fullMethodName, clientIP)
 	// log.Println("选择连接完成")
 	if err != nil {
-		return nil, status.Errorf(codes.Unavailable, "no endpoint available,%v", err)
+		return nil, status.Errorf(codes.Unavailable, "no endpoint available to select,%v", err)
 	}
 	// log.Printf("grpc 选择连接:%v", endpoint.Addr())
 	cn, err := endpoint.Get(ctx)
 	if err != nil {
-		return nil, status.Errorf(codes.Unavailable, "no endpoint available,%v", err)
+		return nil, status.Errorf(codes.Unavailable, "no endpoint available from endpoint,%v", err)
 	}
 	// 释放链接
 	defer endpoint.AfterTransform(ctx, cn.((loadbalance.Connection)))
@@ -241,11 +241,11 @@ func (g *GrpcProxy) Handler(srv interface{}, serverStream grpc.ServerStream) err
 	// 传入ip地址(一致性哈希负载均衡算法)和方法名，选择一个端点
 	endpoint, err := g.lb.Select(fullMethodName, clientIP)
 	if err != nil {
-		return status.Errorf(codes.Unavailable, "no endpoint available")
+		return status.Errorf(codes.Unavailable, "no endpoint available to select,%v", err)
 	}
 	cn, err := endpoint.Get(serverStream.Context())
 	if err != nil {
-		return status.Errorf(codes.Unavailable, "no endpoint available")
+		return status.Errorf(codes.Unavailable, "no endpoint available from endpoint,%v", err)
 	}
 	// 释放链接
 	defer endpoint.AfterTransform(serverStream.Context(), cn.((loadbalance.Connection)))

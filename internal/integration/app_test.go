@@ -14,15 +14,6 @@ import (
 
 var appid = ""
 
-// func TestMain(m *testing.M) {
-
-// 	integration.RunTestServer()
-// 	time.Sleep(5 * time.Second)
-
-// 	m.Run()
-
-// }
-
 func addApp(t *testing.T) {
 	c.Convey(
 		"test add app",

@@ -124,7 +124,7 @@ func (a *AccessKeyAuth) appValidator(ctx context.Context, req *gosdk.GatewayRequ
 	secret, err := a.getSecret(ctx, accessKey)
 	// a.log.Info("secret:", secret)
 	if err != nil {
-		return "", status.Errorf(codes.Unauthenticated, "get secret error,%v", err)
+		return "", errors.New(err, int32(api.APPSvrCode_APP_UNKONW), codes.Unauthenticated, "app_secret")
 	}
 	signer := gosdk.NewAppAuthSigner(accessKey, secret)
 	// a.log.Infof("req:%v,%v,%v,%v,%v", req.Headers, req.Host, req.Method, req.Host, req.URL.String())
