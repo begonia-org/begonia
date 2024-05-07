@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"log"
 
 	"github.com/begonia-org/begonia"
 	api "github.com/begonia-org/go-sdk/api/sys/v1"
