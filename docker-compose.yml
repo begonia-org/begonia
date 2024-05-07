@@ -30,7 +30,7 @@ services:
     container_name: etcd
 
   redis:
-    image: redis
+    image: redis/redis-stack-server:latest
     container_name: redis
     restart: always
     ports:
