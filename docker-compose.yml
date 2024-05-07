@@ -12,6 +12,12 @@ services:
       MYSQL_PASSWORD: test
     ports:
       - 3306:3306
+    # healthcheck:
+    #   test: ["executable", "arg"]
+    #   interval: 1m30s
+    #   timeout: 30s
+    #   retries: 5
+    #   start_period: 30s
   etcd:
     image: 'bitnami/etcd:latest'
     environment:
