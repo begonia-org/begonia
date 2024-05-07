@@ -147,7 +147,7 @@ func NewHttpEndpoint(client HttpForwardGrpcEndpoint) (HttpEndpoint, error) {
 		client: client,
 	}, nil
 }
-func (h *HttpEndpointImpl) stream(ctx context.Context, item *HttpEndpointItem, marshaler runtime.Marshaler, req *http.Request, pathParams map[string]string) (StreamClient, runtime.ServerMetadata, error) {
+func (h *HttpEndpointImpl) stream(ctx context.Context, item *HttpEndpointItem, marshaler runtime.Marshaler, req *http.Request, _ map[string]string) (StreamClient, runtime.ServerMetadata, error) {
 	var metadata runtime.ServerMetadata
 	grpcReq := &GrpcRequestImpl{
 		Ctx:            ctx,
@@ -427,6 +427,9 @@ func (h *HttpEndpointImpl) RegisterHandlerClient(ctx context.Context, pd Protobu
 	for _, item := range items {
 		item := item
 		mux.Handle(strings.ToUpper(item.HttpMethod), item.Pattern, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+			if req.Header.Get("accept") !=""{
+				req.Header.Set("accept", "application/json")
+			}
 			ctx, cancel := context.WithCancel(req.Context())
 			defer cancel()
 			inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
@@ -440,7 +443,7 @@ func (h *HttpEndpointImpl) RegisterHandlerClient(ctx context.Context, pd Protobu
 			}
 			if len(pathParams) > 0 {
 				params := make([]string, 0)
-				for key:= range pathParams {
+				for key := range pathParams {
 					params = append(params, key)
 				}
 				// fmt.Printf("params: %v\n", params)

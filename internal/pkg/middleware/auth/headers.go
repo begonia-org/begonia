@@ -50,7 +50,7 @@ func (g *GrpcHeader) Release() {
 	headerPool.Put(g)
 }
 func (g *GrpcHeader) Set(key, value string) {
-	g.in.Append(key, value)
+	g.in.Set(key, value)
 	newCtx := metadata.NewIncomingContext(g.ctx, g.in)
 	g.ctx = newCtx
 

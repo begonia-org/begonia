@@ -15,7 +15,7 @@ import (
 	cfg "github.com/begonia-org/begonia/config"
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/errors"
-	api "github.com/begonia-org/go-sdk/api/v1"
+	api "github.com/begonia-org/go-sdk/api/file/v1"
 	c "github.com/smartystreets/goconvey/convey"
 	"google.golang.org/grpc/metadata"
 )

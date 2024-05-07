@@ -26,6 +26,6 @@ func JSONCamelCase(s string) string {
 
 func IntToBytes(n int) []byte {
 	bytesBuffer := bytes.NewBuffer([]byte{})
-	binary.Write(bytesBuffer, binary.BigEndian, n)
+	_=binary.Write(bytesBuffer, binary.BigEndian, n)
 	return bytesBuffer.Bytes()
 }

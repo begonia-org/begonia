@@ -104,6 +104,3 @@ func IncomingHeadersToMetadata(ctx context.Context, req *http.Request) metadata.
 
 	return md
 }
-
-
-

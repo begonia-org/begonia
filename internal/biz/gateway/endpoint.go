@@ -14,7 +14,8 @@ import (
 	"github.com/begonia-org/begonia/internal/pkg/errors"
 	"github.com/begonia-org/begonia/transport"
 	loadbalance "github.com/begonia-org/go-loadbalancer"
-	api "github.com/begonia-org/go-sdk/api/v1"
+	api "github.com/begonia-org/go-sdk/api/endpoint/v1"
+	fapi "github.com/begonia-org/go-sdk/api/file/v1"
 	common "github.com/begonia-org/go-sdk/common/api/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -67,7 +68,7 @@ func (e *EndpointUsecase) CreateEndpoint(ctx context.Context, endpoint *api.AddE
 	// destDir := u.config.GetProtosDir()
 
 	// destDir = filepath.Join(destDir, "endpoints", endpoint.GetName(), endpoint.GetVersion())
-	protoFile, err := e.file.Download(ctx, &api.DownloadRequest{Key: endpoint.ProtoPath, Version: endpoint.ProtoVersion}, author)
+	protoFile, err := e.file.Download(ctx, &fapi.DownloadRequest{Key: endpoint.ProtoPath, Version: endpoint.ProtoVersion}, author)
 	if err != nil {
 		return "", err
 	}
@@ -153,7 +154,7 @@ func (e *EndpointUsecase) AddConfig(ctx context.Context, srvConfig *api.Endpoint
 		Version:       fmt.Sprintf("%d", time.Now().UnixMilli()),
 		CreatedAt:     timestamppb.New(time.Now()).AsTime().Format(time.RFC3339),
 		UpdatedAt:     timestamppb.New(time.Now()).AsTime().Format(time.RFC3339),
-		UniqueKey:     id,
+		Key:     id,
 		Endpoints:     srvConfig.Endpoints,
 		Balance:       srvConfig.Balance,
 		ServiceName:   srvConfig.ServiceName,

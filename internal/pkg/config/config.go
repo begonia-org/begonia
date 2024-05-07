@@ -134,11 +134,21 @@ func (c *Config) GetAPPAccessKey(access string) string {
 	prefix := c.GetAPPAccessKeyPrefix()
 	return fmt.Sprintf("%s:%s", prefix, access)
 }
+func (c *Config) GetAppidKey(accessKey string) string {
+	prefix := c.GetAppidPrefix()
+	return fmt.Sprintf("%s:%s", prefix, accessKey)
+}
+func (c *Config) GetAppPrefix() string {
+	return c.GetString("common.app_key_prefix")
+}
 func (c *Config) GetAPPAccessKeyPrefix() string {
 	prefix := c.GetString("common.app_key_prefix")
 	return fmt.Sprintf("%s:access_key", prefix)
 }
-
+func (c *Config) GetAppidPrefix() string {
+	prefix := c.GetString("common.app_key_prefix")
+	return fmt.Sprintf("%s:appid", prefix)
+}
 func (c *Config) GetAesConfig() (key string, iv string) {
 	key = c.GetString("auth.aes_key")
 	iv = c.GetString("auth.aes_iv")
@@ -159,6 +169,9 @@ func (c *Config) GetUploadDir() string {
 }
 func (c *Config) GetProtosDir() string {
 	return c.GetString("file.protos.dir")
+}
+func (c *Config)GetLocalAPIDesc() string {
+	return c.GetString("file.protos.desc")
 }
 
 func (c *Config) GetPlugins() map[string]interface{} {
@@ -204,7 +217,22 @@ func (c *Config) GetServiceNameKey(name string) string {
 	prefix := c.GetServiceNamePrefix()
 	return filepath.Join(prefix, name)
 }
-
+func (c *Config)GetAppKeyPrefix() string {
+	prefix := c.GetString("common.etcd.app.prefix")
+	return prefix
+}
+func (c *Config) GetAPPKey(id string) string {
+	prefix := c.GetAppKeyPrefix()
+	return filepath.Join(prefix, id)
+}
+func (c *Config) GetAPPTagsPrefix() string {
+	prefix := c.GetAppKeyPrefix()
+	return fmt.Sprintf("%s/tags", prefix)
+}
+func (c *Config) GetAppTagsKey(tag,key string) string {
+	prefix := c.GetAPPTagsPrefix()
+	return filepath.Join(prefix, tag, key)
+}
 func (c *Config) GetTagsKey(tag, id string) string {
 
 	prefix := c.GetServiceTagsPrefix()

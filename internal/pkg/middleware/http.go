@@ -8,11 +8,18 @@ import (
 	"strings"
 
 	"github.com/begonia-org/begonia/internal/pkg/errors"
-	"github.com/begonia-org/begonia/internal/pkg/logger"
 	"github.com/begonia-org/begonia/internal/pkg/routers"
 	gosdk "github.com/begonia-org/go-sdk"
-	_ "github.com/begonia-org/go-sdk/api/v1"
+	_ "github.com/begonia-org/go-sdk/api/app/v1"
+	_ "github.com/begonia-org/go-sdk/api/endpoint/v1"
+	_ "github.com/begonia-org/go-sdk/api/file/v1"
+	_ "github.com/begonia-org/go-sdk/api/iam/v1"
+	_ "github.com/begonia-org/go-sdk/api/plugin/v1"
+	_ "github.com/begonia-org/go-sdk/api/sys/v1"
+	_ "github.com/begonia-org/go-sdk/api/user/v1"
 	common "github.com/begonia-org/go-sdk/common/api/v1"
+	"github.com/begonia-org/go-sdk/logger"
+
 	"github.com/google/uuid"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/sirupsen/logrus"
@@ -370,8 +377,6 @@ func (h *Http) SetPriority(priority int) {
 func (h *Http) Name() string {
 	return h.name
 }
-
-
 
 func HandleRoutingError(ctx context.Context, mux *runtime.ServeMux, marshaler runtime.Marshaler, w http.ResponseWriter, r *http.Request, httpStatus int) {
 	if httpStatus != http.StatusMethodNotAllowed {

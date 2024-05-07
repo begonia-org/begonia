@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	common "github.com/begonia-org/go-sdk/common/api/v1"
+	"github.com/begonia-org/go-sdk/logger"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -17,34 +18,20 @@ type loggerFormatter struct{}
 var onceLog sync.Once
 
 type errHook struct{}
-type Logger interface {
-	Error(err error)
-	Errorf(format string, args ...interface{})
-	Info(args ...interface{})
-	Infof(format string, args ...interface{})
-	Warn(args ...interface{})
-	Warnf(format string, args ...interface{})
-	Debug(args ...interface{})
-	Debugf(format string, args ...interface{})
-	WithFields(fields logrus.Fields) Logger
-	WithField(key string, value interface{}) Logger
-	SetReportCaller(reportCaller bool)
-	Logurs() *logrus.Logger
-}
+
 type LoggerImpl struct {
 	*logrus.Entry
 }
 
-var Log Logger
+var Log logger.Logger
 
-
-func (l *LoggerImpl) WithField(key string, value interface{}) Logger {
+func (l *LoggerImpl) WithField(key string, value interface{}) logger.Logger {
 	return &LoggerImpl{Entry: l.Entry.WithField(key, value)}
 }
 func (l *LoggerImpl) SetReportCaller(reportCaller bool) {
 	l.Logger.SetReportCaller(reportCaller)
 }
-func (l *LoggerImpl) WithFields(fields logrus.Fields) Logger {
+func (l *LoggerImpl) WithFields(fields logrus.Fields) logger.Logger {
 	return &LoggerImpl{Entry: l.Entry.WithFields(fields)}
 }
 func (l *LoggerImpl) Logurs() *logrus.Logger {

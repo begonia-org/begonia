@@ -4,7 +4,15 @@ import (
 	"fmt"
 
 	"github.com/begonia-org/begonia/internal/pkg/config"
-	_ "github.com/begonia-org/go-sdk/api/v1"
+	_ "github.com/begonia-org/go-sdk/api/app/v1"
+	_ "github.com/begonia-org/go-sdk/api/example/v1"
+	_ "github.com/begonia-org/go-sdk/api/plugin/v1"
+	_ "github.com/begonia-org/go-sdk/api/endpoint/v1"
+	_ "github.com/begonia-org/go-sdk/api/user/v1"
+	_ "github.com/begonia-org/go-sdk/api/iam/v1"
+	_ "github.com/begonia-org/go-sdk/api/sys/v1"
+	_ "github.com/begonia-org/go-sdk/common/api/v1"
+	
 	common "github.com/begonia-org/go-sdk/common/api/v1"
 	"github.com/cockroachdb/errors"
 	"github.com/spark-lence/tiga"

@@ -10,8 +10,9 @@ import (
 
 	"github.com/begonia-org/begonia/internal/biz/gateway"
 	"github.com/begonia-org/begonia/internal/pkg/config"
-	"github.com/begonia-org/begonia/internal/pkg/logger"
-	api "github.com/begonia-org/go-sdk/api/v1"
+	api "github.com/begonia-org/go-sdk/api/app/v1"
+	u "github.com/begonia-org/go-sdk/api/user/v1"
+	"github.com/begonia-org/go-sdk/logger"
 	"github.com/bsm/redislock"
 	"go.etcd.io/etcd/api/v3/mvccpb"
 	"google.golang.org/grpc/status"
@@ -23,12 +24,10 @@ type DataLock interface {
 }
 
 type DataOperatorRepo interface {
-	GetAllAppsFromDB(ctx context.Context) ([]*api.Apps, error)
+	GetAllApps(ctx context.Context) ([]*api.Apps, error)
 	FlashAppsCache(ctx context.Context, prefix string, models []*api.Apps, exp time.Duration) error
-	FlashUsersCache(ctx context.Context, prefix string, models []*api.Users, exp time.Duration) error
-	// LoadAppsLocalCache(ctx context.Context, prefix string, models []*api.Apps, exp time.Duration) error
-	GetAllForbiddenUsersFromDB(ctx context.Context) ([]*api.Users, error)
-	// LoadUsersLocalCache(ctx context.Context, prefix string, models []*api.Users, exp time.Duration) error
+	FlashUsersCache(ctx context.Context, prefix string, models []*u.Users, exp time.Duration) error
+	GetAllForbiddenUsers(ctx context.Context) ([]*u.Users, error)
 	Lock(ctx context.Context, key string, exp time.Duration) (DataLock, error)
 	LastUpdated(ctx context.Context, key string) (time.Time, error)
 	Watcher(ctx context.Context, prefix string, handle func(ctx context.Context, op mvccpb.Event_EventType, key, value string) error) error
@@ -125,7 +124,7 @@ func (d *DataOperatorUsecase) loadUsersBlacklist(ctx context.Context) error {
 	// 直接加载远程缓存到本地
 	// lastUpdate ttl<exp,避免更新不到缓存的情况
 	if lastUpdate.IsZero() || time.Since(lastUpdate) < 3*time.Second {
-		users, err := d.repo.GetAllForbiddenUsersFromDB(ctx)
+		users, err := d.repo.GetAllForbiddenUsers(ctx)
 		if err != nil {
 			return err
 		}
@@ -142,11 +141,11 @@ func (d *DataOperatorUsecase) loadUsersBlacklist(ctx context.Context) error {
 
 // loadApps 加载可用的app信息
 func (d *DataOperatorUsecase) loadApps(ctx context.Context) error {
-	apps, err := d.repo.GetAllAppsFromDB(ctx)
+	apps, err := d.repo.GetAllApps(ctx)
 	if err != nil {
 		return err
 	}
-	prefix := d.config.GetAPPAccessKeyPrefix()
+	prefix := d.config.GetAppPrefix()
 	exp := d.config.GetAPPAccessKeyExpiration()
 	return d.repo.FlashAppsCache(ctx, prefix, apps, time.Duration(exp)*time.Second)
 }
@@ -169,7 +168,7 @@ func (d *DataOperatorUsecase) OnStart(ctx context.Context) error {
 	for _, in := range endpoints {
 		bData, _ := json.Marshal(in)
 
-		err := d.endpointWatcher.Update(ctx, in.UniqueKey, string(bData))
+		err := d.endpointWatcher.Update(ctx, in.Key, string(bData))
 		if err != nil {
 			d.log.Errorf("init endpoints error,%s", err.Error())
 			continue

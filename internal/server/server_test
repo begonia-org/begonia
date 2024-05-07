@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/begonia-org/begonia/config"
-	"github.com/begonia-org/begonia/internal/pkg/logger"
+	"github.com/begonia-org/go-sdk/logger"
 	"github.com/begonia-org/begonia/transport"
 	gosdk "github.com/begonia-org/go-sdk"
 	api "github.com/begonia-org/go-sdk/api/v1"

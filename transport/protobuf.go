@@ -287,7 +287,7 @@ func (p *HttpProtobufStreamImpl) Unmarshal(data []byte, value interface{}) error
 	// var msg = dynamicpb.NewMessage(protoType)
 	err := proto.Unmarshal(data, value.(proto.Message))
 	if err != nil {
-		return fmt.Errorf("failed to unmarshal message: %v", err)
+		return fmt.Errorf("failed to unmarshal message from HttpProtobufStreamImpl: %w", err)
 	}
 	return nil
 }

@@ -6,4 +6,10 @@ import (
 	"github.com/google/wire"
 )
 
-var ProviderSet = wire.NewSet(NewUsersUsecase, file.NewFileUsecase, gateway.NewEndpointUsecase, NewAppUsecase,gateway.NewWatcher,NewDataOperatorUsecase)
+var ProviderSet = wire.NewSet(NewAuthzUsecase, 
+	NewUserUsecase,
+	file.NewFileUsecase, 
+	gateway.NewEndpointUsecase, 
+	NewAppUsecase,
+	gateway.NewWatcher,
+	NewDataOperatorUsecase)

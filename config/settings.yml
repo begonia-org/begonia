@@ -11,6 +11,7 @@
       dir: /data/work/begonia-org/begonia/upload
     protos:
       dir: /data/work/begonia-org/begonia-go-sdk/protos
+      desc: /data/work/begonia-org/begonia-go-sdk/protos/api.bin
   mysql:
     host: "127.0.0.1"
     port: 3306
@@ -95,6 +96,8 @@ common:
   etcd:
     endpoint:
       prefix: "/begonia/endpoints"
+    app:
+      prefix: "/begonia/apps"
   gateway:
     descriptor:
       out_dir: "/data/work/begonia/descriptors"

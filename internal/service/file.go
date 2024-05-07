@@ -16,7 +16,8 @@ import (
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/errors"
 	gosdk "github.com/begonia-org/go-sdk"
-	api "github.com/begonia-org/go-sdk/api/v1"
+	api "github.com/begonia-org/go-sdk/api/file/v1"
+	user "github.com/begonia-org/go-sdk/api/user/v1"
 	common "github.com/begonia-org/go-sdk/common/api/v1"
 	"google.golang.org/genproto/googleapis/api/httpbody"
 	"google.golang.org/grpc"
@@ -41,7 +42,7 @@ func (f *FileService) Upload(ctx context.Context, in *api.UploadFileRequest) (*a
 	}
 	identity := md.Get("x-identity")
 	if len(identity) == 0 {
-		return nil, errors.New(errors.ErrIdentityMissing, int32(api.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
+		return nil, errors.New(errors.ErrIdentityMissing, int32(user.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
 	}
 	in.Key = identity[0] + "/" + in.Key
 	return f.biz.Upload(ctx, in, identity[0])
@@ -56,11 +57,11 @@ func (f *FileService) UploadMultipartFile(ctx context.Context, in *api.UploadMul
 func (f *FileService) CompleteMultipartUpload(ctx context.Context, in *api.CompleteMultipartUploadRequest) (*api.CompleteMultipartUploadResponse, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		return nil, errors.New(errors.ErrIdentityMissing, int32(api.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_metadata")
+		return nil, errors.New(errors.ErrIdentityMissing, int32(user.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_metadata")
 	}
 	identity := md.Get("x-identity")
 	if len(identity) == 0 {
-		return nil, errors.New(errors.ErrIdentityMissing, int32(api.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
+		return nil, errors.New(errors.ErrIdentityMissing, int32(user.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
 	}
 	in.Key = identity[0] + "/" + in.Key
 
@@ -76,7 +77,7 @@ func (f *FileService) Download(ctx context.Context, in *api.DownloadRequest) (*h
 	}
 	identity := md.Get("x-identity")
 	if len(identity) == 0 {
-		return nil, errors.New(errors.ErrIdentityMissing, int32(api.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
+		return nil, errors.New(errors.ErrIdentityMissing, int32(user.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
 	}
 	newKey, err := url.PathUnescape(in.Key)
 	if err != nil {
@@ -168,7 +169,7 @@ func (f *FileService) DownloadForRange(ctx context.Context, in *api.DownloadRequ
 	}
 	identity := GetIdentity(ctx)
 	if identity == "" {
-		return nil, errors.New(errors.ErrIdentityMissing, int32(api.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
+		return nil, errors.New(errors.ErrIdentityMissing, int32(user.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
 
 	}
 	data, fileSize, err := f.biz.DownloadForRange(ctx, in, start, end, identity)
@@ -197,14 +198,14 @@ func (f *FileService) DownloadForRange(ctx context.Context, in *api.DownloadRequ
 func (f *FileService) Delete(ctx context.Context, in *api.DeleteRequest) (*api.DeleteResponse, error) {
 	identity := GetIdentity(ctx)
 	if identity == "" {
-		return nil, errors.New(errors.ErrIdentityMissing, int32(api.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
+		return nil, errors.New(errors.ErrIdentityMissing, int32(user.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
 	}
 	return f.biz.Delete(ctx, in, identity)
 }
 func (f *FileService) Metadata(ctx context.Context, in *api.FileMetadataRequest) (*api.FileMetadataResponse, error) {
 	identity := GetIdentity(ctx)
 	if identity == "" {
-		return nil, errors.New(errors.ErrIdentityMissing, int32(api.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
+		return nil, errors.New(errors.ErrIdentityMissing, int32(user.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
 	}
 	// defer func ()  {
 	// 	if r:=recover();r!=nil{

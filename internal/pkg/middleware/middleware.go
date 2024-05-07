@@ -7,10 +7,10 @@ import (
 	"github.com/begonia-org/begonia/internal/biz"
 	"github.com/begonia-org/begonia/internal/data"
 	"github.com/begonia-org/begonia/internal/pkg/config"
-	"github.com/begonia-org/begonia/internal/pkg/logger"
 	"github.com/begonia-org/begonia/internal/pkg/middleware/auth"
 	goloadbalancer "github.com/begonia-org/go-loadbalancer"
 	gosdk "github.com/begonia-org/go-sdk"
+	"github.com/begonia-org/go-sdk/logger"
 	"github.com/spark-lence/tiga"
 	"google.golang.org/grpc"
 )
@@ -21,7 +21,7 @@ import (
 
 func New(config *config.Config,
 	rdb *tiga.RedisDao,
-	user *biz.UsersUsecase,
+	user *biz.AuthzUsecase,
 	log logger.Logger,
 	app biz.AppRepo,
 	local *data.LayeredCache) *PluginsApply {
@@ -42,6 +42,7 @@ func New(config *config.Config,
 	pluginsApply := NewPluginsApply()
 	pluginsNeed := config.GetPlugins()
 	for pluginName, priority := range pluginsNeed {
+		log.Infof("plugin %s priority %d", pluginName, priority)
 		if plugin, ok := plugins[pluginName]; ok {
 			pluginsApply.Register(plugin, priority.(int))
 		} else {

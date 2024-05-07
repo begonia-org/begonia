@@ -5,10 +5,8 @@ import (
 
 	"github.com/begonia-org/begonia/internal/biz"
 	"github.com/begonia-org/begonia/internal/pkg/config"
-	"github.com/begonia-org/begonia/internal/pkg/logger"
-	"github.com/begonia-org/begonia/internal/pkg/web"
-	api "github.com/begonia-org/go-sdk/api/v1"
-	common "github.com/begonia-org/go-sdk/common/api/v1"
+	api "github.com/begonia-org/go-sdk/api/app/v1"
+	"github.com/begonia-org/go-sdk/logger"
 	"google.golang.org/grpc"
 )
 
@@ -19,35 +17,23 @@ type AppService struct {
 	config *config.Config
 }
 
-func (app *AppService) CreateApp(ctx context.Context, in *api.CreateAppRequest) (*api.CreateAppResponse, error) {
-	appInstance, err := app.biz.CreateApp(ctx, in)
+func (app *AppService) Put(ctx context.Context, in *api.AppsRequest) (*api.AddAppResponse, error) {
+	owner := GetIdentity(ctx)
+
+	appInstance, err := app.biz.CreateApp(ctx, in, owner)
 	if err != nil {
 		// app.log.Errorf("CreateApp failed: %v", err)
 		return nil, err
 	}
-	return &api.CreateAppResponse{App: appInstance}, nil
+	return &api.AddAppResponse{Appid: appInstance.Appid, AccessKey: appInstance.AccessKey, Secret: appInstance.Secret}, nil
 }
-func (app *AppService) AddApps(ctx context.Context, in *api.AddAppsRequest) (*common.APIResponse, error) {
-	err := app.biz.AddApps(ctx, in.Apps)
-	if err != nil {
-		app.log.Errorf("AddApps failed: %v", err)
-		return web.MakeResponse(nil, err)
-
-	}
-	return web.MakeResponse(nil, nil)
-}
-func (app *AppService) GetApps(ctx context.Context, in *api.AppsListRequest) (*common.APIResponse, error) {
-	apps, err := app.biz.GetApps(ctx, in.AccessKey)
+func (app *AppService) Get(ctx context.Context, in *api.GetAPPRequest) (*api.Apps, error) {
+	apps, err := app.biz.Get(ctx, in.Appid)
 	if err != nil {
 		app.log.Errorf("GetApps failed: %v", err)
 		return nil, err
 	}
-	if apps == nil {
-		return web.MakeResponse(&api.AppsListResponse{
-			Apps: nil,
-		}, nil)
-	}
-	return web.MakeResponse(&api.AppsListResponse{Apps: apps}, nil)
+	return apps, nil
 }
 
 func (app *AppService) Desc() *grpc.ServiceDesc {
@@ -56,4 +42,20 @@ func (app *AppService) Desc() *grpc.ServiceDesc {
 
 func NewAppService(biz *biz.AppUsecase, log logger.Logger, config *config.Config) *AppService {
 	return &AppService{biz: biz, log: log, config: config}
+}
+func (app *AppService) Patch(ctx context.Context, in *api.AppsRequest) (*api.Apps, error) {
+	owner := GetIdentity(ctx)
+	appInstance, err := app.biz.Patch(ctx, in, owner)
+	if err != nil {
+		// app.log.Errorf("CreateApp failed: %v", err)
+		return nil, err
+	}
+	return appInstance, nil
+}
+func (app *AppService) Delete(ctx context.Context, in *api.DeleteAppRequest) (*api.DeleteAppResponse, error) {
+	err := app.biz.Del(ctx, in.Appid)
+	if err != nil {
+		return nil, err
+	}
+	return &api.DeleteAppResponse{}, nil
 }

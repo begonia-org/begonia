@@ -9,12 +9,13 @@ import (
 	"github.com/begonia-org/begonia/internal/data"
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/errors"
-	"github.com/begonia-org/begonia/internal/pkg/logger"
 	"github.com/begonia-org/begonia/internal/pkg/routers"
 	gosdk "github.com/begonia-org/go-sdk"
-	api "github.com/begonia-org/go-sdk/api/v1"
+	api "github.com/begonia-org/go-sdk/api/app/v1"
+	"github.com/begonia-org/go-sdk/logger"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
 
@@ -47,15 +48,46 @@ func IfNeedValidate(ctx context.Context, fullMethod string) bool {
 	return router.AuthRequired
 
 }
+func (a *AccessKeyAuth) getUid(ctx context.Context) string {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return ""
+	}
+	uid, ok := md["x-uid"]
+	if !ok {
+		return ""
+	}
+	return uid[0]
+
+}
 func (a *AccessKeyAuth) RequestBefore(ctx context.Context, info *grpc.UnaryServerInfo, req interface{}) (context.Context, error) {
 	gwRequest, err := gosdk.NewGatewayRequestFromGrpc(ctx, req, info.FullMethod)
 	if err != nil {
 		return ctx, status.Errorf(codes.InvalidArgument, "parse request error,%v", err)
 	}
-	return ctx, a.appValidator(ctx, gwRequest)
+	accessKey, err := a.appValidator(ctx, gwRequest)
+	if err != nil {
+		return ctx, err
+
+	}
+	if a.getUid(ctx) != "" {
+		return ctx, nil
+	}
+	appid, err := a.getAppid(ctx, accessKey)
+	if err != nil {
+		return ctx, err
+
+	}
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		md =metadata.MD{}
+	}
+	md.Set("x-identity", appid)
+	ctx = metadata.NewIncomingContext(ctx, md)
+	return ctx, nil
 
 }
-func (a *AccessKeyAuth) appValidator(ctx context.Context, req *gosdk.GatewayRequest) error {
+func (a *AccessKeyAuth) appValidator(ctx context.Context, req *gosdk.GatewayRequest) (string, error) {
 	xDate := ""
 	auth := ""
 	accessKey := ""
@@ -73,54 +105,69 @@ func (a *AccessKeyAuth) appValidator(ctx context.Context, req *gosdk.GatewayRequ
 		}
 	}
 	if xDate == "" {
-		return errors.New(errors.ErrAppXDateMissing, int32(api.APPSvrCode_APP_XDATE_MISSING_ERR), codes.Unauthenticated, "app_timestamp")
+		return "", errors.New(errors.ErrAppXDateMissing, int32(api.APPSvrCode_APP_XDATE_MISSING_ERR), codes.Unauthenticated, "app_timestamp")
 	}
 	if auth == "" {
-		return errors.New(errors.ErrAppSignatureMissing, int32(api.APPSvrCode_APP_AUTH_MISSING_ERR), codes.Unauthenticated, "app_signature")
+		return "", errors.New(errors.ErrAppSignatureMissing, int32(api.APPSvrCode_APP_AUTH_MISSING_ERR), codes.Unauthenticated, "app_signature")
 	}
 	if accessKey == "" {
-		return errors.New(errors.ErrAppAccessKeyMissing, int32(api.APPSvrCode_APP_ACCESS_KEY_MISSING_ERR), codes.Unauthenticated, "app_access_key")
+		return "", errors.New(errors.ErrAppAccessKeyMissing, int32(api.APPSvrCode_APP_ACCESS_KEY_MISSING_ERR), codes.Unauthenticated, "app_access_key")
 	}
 	t, err := time.Parse(gosdk.DateFormat, xDate)
 	if err != nil {
-		return status.Errorf(codes.Unauthenticated, "parse %s error,%v", gosdk.HeaderXDateTime, err)
+		return "", status.Errorf(codes.Unauthenticated, "parse %s error,%v", gosdk.HeaderXDateTime, err)
 	}
 	// check timestamp
 	if time.Since(t) > time.Minute*1 {
-		return errors.New(errors.ErrRequestExpired, int32(api.APPSvrCode_APP_REQUEST_EXPIRED_ERR), codes.DeadlineExceeded, "app_timestamp")
+		return "", errors.New(errors.ErrRequestExpired, int32(api.APPSvrCode_APP_REQUEST_EXPIRED_ERR), codes.DeadlineExceeded, "app_timestamp")
 	}
 	secret, err := a.getSecret(ctx, accessKey)
 	// a.log.Info("secret:", secret)
 	if err != nil {
-		return status.Errorf(codes.Unauthenticated, "get secret error,%v", err)
+		return "", status.Errorf(codes.Unauthenticated, "get secret error,%v", err)
 	}
 	signer := gosdk.NewAppAuthSigner(accessKey, secret)
 	// a.log.Infof("req:%v,%v,%v,%v,%v", req.Headers, req.Host, req.Method, req.Host, req.URL.String())
 	sign, err := signer.Sign(req)
 	if err != nil {
-		return status.Errorf(codes.Unauthenticated, "sign error,%v", err)
+		return "", status.Errorf(codes.Unauthenticated, "sign error,%v", err)
 	}
 	if sign != a.getSignature(auth) {
-		return errors.New(errors.ErrAppSignatureInvalid, int32(api.APPSvrCode_APP_SIGNATURE_ERR), codes.Unauthenticated, "app签名校验")
+		return "", errors.New(errors.ErrAppSignatureInvalid, int32(api.APPSvrCode_APP_SIGNATURE_ERR), codes.Unauthenticated, "app签名校验")
 	}
-	return nil
+	return accessKey, nil
 }
 func (a *AccessKeyAuth) getSecret(ctx context.Context, accessKey string) (string, error) {
 	cacheKey := a.config.GetAPPAccessKey(accessKey)
 	secretBytes, err := a.localCache.Get(ctx, cacheKey)
 	secret := string(secretBytes)
 	if err != nil {
-		apps, err := a.app.GetApps(ctx, []string{accessKey})
+		apps, err := a.app.Get(ctx, accessKey)
 		if err != nil {
 			return "", err
 		}
-		if len(apps) > 0 {
-			secret = apps[0].Secret
-		}
+		secret = apps.Secret
+
 		// _ = a.rdb.Set(ctx, cacheKey, secret, time.Hour*24*3)
 		_ = a.localCache.Set(ctx, cacheKey, []byte(secret), time.Hour*24*3)
 	}
 	return secret, nil
+}
+func (a *AccessKeyAuth) getAppid(ctx context.Context, accessKey string) (string, error) {
+	cacheKey := a.config.GetAppidKey(accessKey)
+	secretBytes, err := a.localCache.Get(ctx, cacheKey)
+	appid := string(secretBytes)
+	if err != nil {
+		apps, err := a.app.Get(ctx, accessKey)
+		if err != nil {
+			return "", err
+		}
+		appid = apps.Appid
+
+		// _ = a.rdb.Set(ctx, cacheKey, secret, time.Hour*24*3)
+		_ = a.localCache.Set(ctx, cacheKey, []byte(appid), time.Hour*24*3)
+	}
+	return appid, nil
 }
 func (a *AccessKeyAuth) getSignature(auth string) string {
 	strArr := strings.Split(auth, ",")
@@ -139,7 +186,26 @@ func (a *AccessKeyAuth) ValidateStream(ctx context.Context, req interface{}, ful
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "parse request error,%v", err)
 	}
-	return ctx, a.appValidator(ctx, gwRequest)
+	accessKey, err := a.appValidator(ctx, gwRequest)
+	if err != nil {
+		return ctx, err
+
+	}
+	if a.getUid(ctx) != "" {
+		return ctx, nil
+	}
+	appid, err := a.getAppid(ctx, accessKey)
+	if err != nil {
+		return ctx, err
+
+	}
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		md =metadata.MD{}
+	}
+	md.Set("x-identity", appid)
+	ctx = metadata.NewIncomingContext(ctx, md)
+	return ctx, nil
 }
 func (a *AccessKeyAuth) StreamRequestBefore(ctx context.Context, ss grpc.ServerStream, info *grpc.StreamServerInfo, req interface{}) (grpc.ServerStream, error) {
 	grpcStream := NewGrpcStream(ss, info.FullMethod, ss.Context(), a)

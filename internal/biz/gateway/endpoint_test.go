@@ -16,7 +16,8 @@ import (
 	"github.com/begonia-org/begonia/internal/pkg/gateway"
 	"github.com/begonia-org/begonia/transport"
 	loadbalance "github.com/begonia-org/go-loadbalancer"
-	api "github.com/begonia-org/go-sdk/api/v1"
+	endpointAPI "github.com/begonia-org/go-sdk/api/endpoint/v1"
+	api "github.com/begonia-org/go-sdk/api/file/v1"
 	c "github.com/smartystreets/goconvey/convey"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/reflect/protoregistry"
@@ -74,12 +75,12 @@ func TestCreateEndpoint(t *testing.T) {
 		}, "tester")
 		c.So(err, c.ShouldBeNil)
 		c.So(rsp, c.ShouldNotBeNil)
-		endpointRsp, err := endpoint.CreateEndpoint(ctx, &api.AddEndpointRequest{
+		endpointRsp, err := endpoint.CreateEndpoint(ctx, &endpointAPI.AddEndpointRequest{
 			Name:        "test",
 			ServiceName: "test",
 			Description: "test endpoint",
 			ProtoPath:   rsp.Uri,
-			Endpoints: []*api.EndpointMeta{
+			Endpoints: []*endpointAPI.EndpointMeta{
 				{
 					Addr: "127.0.0.1:8081",
 				},

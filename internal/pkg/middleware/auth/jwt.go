@@ -10,9 +10,9 @@ import (
 	"github.com/begonia-org/begonia/internal/biz"
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/errors"
-	"github.com/begonia-org/begonia/internal/pkg/logger"
 	"github.com/begonia-org/begonia/internal/pkg/routers"
-	api "github.com/begonia-org/go-sdk/api/v1"
+	api "github.com/begonia-org/go-sdk/api/user/v1"
+	"github.com/begonia-org/go-sdk/logger"
 	"github.com/bsm/redislock"
 	"github.com/spark-lence/tiga"
 	srvErr "github.com/spark-lence/tiga/errors"
@@ -25,13 +25,13 @@ import (
 type JWTAuth struct {
 	config   *config.Config
 	rdb      *tiga.RedisDao
-	biz      *biz.UsersUsecase
+	biz      *biz.AuthzUsecase
 	log      logger.Logger
 	priority int
 	name     string
 }
 
-func NewJWTAuth(config *config.Config, rdb *tiga.RedisDao, biz *biz.UsersUsecase, log logger.Logger) *JWTAuth {
+func NewJWTAuth(config *config.Config, rdb *tiga.RedisDao, biz *biz.AuthzUsecase, log logger.Logger) *JWTAuth {
 	return &JWTAuth{
 		config: config,
 		rdb:    rdb,
@@ -188,11 +188,13 @@ func (a *JWTAuth) jwtValidator(ctx context.Context, fullName string, headers Hea
 	}
 
 	ok, err := a.checkJWT(ctx, token, headers, headers)
-	newCtx := metadata.NewIncomingContext(ctx, md)
-
-	if err != nil {
+	if err != nil||!ok {
 		return nil, status.Errorf(codes.Unauthenticated, "check token error,%v", err)
 	}
+	
+	newCtx := metadata.NewIncomingContext(ctx, md)
+
+
 	if !ok {
 		return nil, status.Errorf(codes.Unauthenticated, "token check failed")
 	}
@@ -212,11 +214,11 @@ func (a *JWTAuth) RequestBefore(ctx context.Context, info *grpc.UnaryServerInfo,
 	}
 	headers := NewGrpcHeader(in, ctx, out)
 	defer headers.Release()
-	newCtx, err := a.jwtValidator(ctx, info.FullMethod, headers)
+	_, err := a.jwtValidator(ctx, info.FullMethod, headers)
 	if err != nil {
 		return nil, err
 	}
-	return newCtx, nil
+	return headers.ctx, nil
 }
 
 func (a *JWTAuth) ValidateStream(ctx context.Context, req interface{}, fullName string, headers Header) (context.Context, error) {

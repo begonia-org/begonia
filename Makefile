@@ -1,16 +1,8 @@
 OUTPUT_DIR=./bin
+version=$(shell git describe --tags --abbrev=0)
+commit=$(shell git rev-parse --short HEAD)
+build_time=$(shell date '+%Y%m%d%H%M%S')
+build:
+	go build -ldflags -X=github.com/begonia-org/begonia.Version=$(version)\ -X=github.com/begonia-org/begonia.BuildTime=$(build_time)\ -X=github.com/begonia-org/begonia.Commit=$(commit) -o $(OUTPUT_DIR)/begonia cmd/gateway/main.go
 
-create_output:
-	mkdir -p $(OUTPUT_DIR)
-
-make_proto:
-	@echo "Running make_proto..."
-	$(MAKE) -C protos go
-
-make_server:
-	@echo "Building the server..."
-	go build -o $(OUTPUT_DIR)/gateway ./main.go
-
-all: create_output make_proto make_server
-
-.DEFAULT_GOAL := all
+.DEFAULT_GOAL := build

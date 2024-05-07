@@ -6,7 +6,6 @@ import (
 	"github.com/begonia-org/begonia/config"
 	"github.com/begonia-org/begonia/internal"
 	"github.com/begonia-org/begonia/internal/pkg/logger"
-
 	"github.com/spf13/cobra"
 )
 

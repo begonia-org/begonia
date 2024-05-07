@@ -81,6 +81,7 @@ func (s *SrvError) Code() int32 {
 
 var (
 	ErrUserNotFound        = errors.New("用户不存在")
+	ErrUserDisabled        = errors.New("用户已禁用")
 	ErrTokenInvalid        = errors.New("token无效")
 	ErrTokenExpired        = fmt.Errorf("token过期")
 	ErrTokenMissing        = errors.New("authorization缺失")

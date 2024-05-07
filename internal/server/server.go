@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/gateway"
-	"github.com/begonia-org/begonia/internal/pkg/logger"
 	"github.com/begonia-org/begonia/internal/pkg/middleware"
 	"github.com/begonia-org/begonia/internal/pkg/middleware/serialization"
 	"github.com/begonia-org/begonia/internal/pkg/routers"
@@ -17,6 +18,7 @@ import (
 	"github.com/begonia-org/begonia/transport"
 	loadbalance "github.com/begonia-org/go-loadbalancer"
 	common "github.com/begonia-org/go-sdk/common/api/v1"
+	"github.com/begonia-org/begonia/internal/pkg/logger"
 	"github.com/google/wire"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
@@ -31,6 +33,22 @@ func NewGatewayConfig(gw string) *transport.GatewayConfig {
 		GrpcProxyAddr: fmt.Sprintf(":%d", p+1),
 		GatewayAddr:   gw,
 	}
+}
+func readDesc(conf *config.Config) (transport.ProtobufDescription, error) {
+	desc := conf.GetLocalAPIDesc()
+	bin, err := os.ReadFile(desc)
+	if err != nil {
+		return nil, fmt.Errorf("read desc file error:%w", err)
+	}
+	pd, err := transport.NewDescriptionFromBinary(bin,filepath.Dir(desc))
+	if err != nil {
+		return nil, err
+	}
+	err = pd.SetHttpResponse(common.E_HttpResponse)
+	if err != nil {
+		return nil, err
+	}
+	return pd, nil
 }
 func NewGateway(cfg *transport.GatewayConfig, conf *config.Config, services []service.Service, pluginApply *middleware.PluginsApply) *transport.GatewayServer {
 	// 参数选项
@@ -64,12 +82,8 @@ func NewGateway(cfg *transport.GatewayConfig, conf *config.Config, services []se
 	opts.HttpHandlers = append(opts.HttpHandlers, cors.Handle)
 	runtime.WithMetadata(middleware.IncomingHeadersToMetadata)
 	gw := gateway.New(cfg, opts)
-	protos := conf.GetProtosDir()
-	pd, err := transport.NewDescription(protos)
-	if err != nil {
-		panic(err)
-	}
-	err = pd.SetHttpResponse(common.E_HttpResponse)
+
+	pd, err := readDesc(conf)
 	if err != nil {
 		panic(err)
 	}

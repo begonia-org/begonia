@@ -3,7 +3,8 @@ package service
 import (
 	"context"
 
-	api "github.com/begonia-org/go-sdk/api/v1"
+	api "github.com/begonia-org/go-sdk/api/file/v1"
+	userAPI "github.com/begonia-org/go-sdk/api/user/v1"
 	"github.com/google/wire"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
@@ -14,14 +15,26 @@ type Service interface {
 	Desc() *grpc.ServiceDesc
 }
 
-var ProviderSet = wire.NewSet(NewUserService, NewFileService, NewServices, NewEndpointsService, NewAppService, NewSysService)
-var ServiceOptionsSet = wire.NewSet(WithFileService, WithUserService)
+var ProviderSet = wire.NewSet(NewAuthzService,NewUserService, 
+	NewFileService, 
+	NewServices, 
+	NewEndpointsService, 
+	NewAppService, 
+	NewSysService)
+var ServiceOptionsSet = wire.NewSet(WithFileService, WithAuthzService)
 
 type ServiceOptions func(*grpc.Server, *runtime.ServeMux, string) error
 
-func NewServices(file *FileService, user *UsersService, ep *EndpointsService, app *AppService, sys *SysService) []Service {
+func NewServices(file *FileService,
+	authz *AuthzService,
+	ep *EndpointsService,
+	app *AppService,
+	sys *SysService,
+	user *UserService,
+
+) []Service {
 	services := make([]Service, 0)
-	services = append(services, file, user, ep, app, sys)
+	services = append(services, file, authz, ep, app, sys,user)
 	return services
 }
 func WithFileService(file *FileService, opts []grpc.DialOption) ServiceOptions {
@@ -30,10 +43,10 @@ func WithFileService(file *FileService, opts []grpc.DialOption) ServiceOptions {
 		return api.RegisterFileServiceHandlerFromEndpoint(context.Background(), mux, endpoint, opts)
 	}
 }
-func WithUserService(user *UsersService, opts []grpc.DialOption) ServiceOptions {
+func WithAuthzService(authz *AuthzService, opts []grpc.DialOption) ServiceOptions {
 	return func(server *grpc.Server, mux *runtime.ServeMux, endpoint string) error {
-		api.RegisterAuthServiceServer(server, user)
-		return api.RegisterAuthServiceHandlerFromEndpoint(context.Background(), mux, endpoint, opts)
+		userAPI.RegisterAuthServiceServer(server, authz)
+		return userAPI.RegisterAuthServiceHandlerFromEndpoint(context.Background(), mux, endpoint, opts)
 	}
 }
 

@@ -6,8 +6,8 @@ import (
 
 	"github.com/begonia-org/begonia/internal/biz/gateway"
 	"github.com/begonia-org/begonia/internal/pkg/config"
-	"github.com/begonia-org/begonia/internal/pkg/logger"
-	api "github.com/begonia-org/go-sdk/api/v1"
+	api "github.com/begonia-org/go-sdk/api/endpoint/v1"
+	"github.com/begonia-org/go-sdk/logger"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
