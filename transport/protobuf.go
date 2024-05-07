@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/golang/protobuf/protoc-gen-go/descriptor"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway/register"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 
@@ -23,7 +22,7 @@ import (
 )
 
 type ProtobufDescription interface {
-	GetFileDescriptorSet() *descriptor.FileDescriptorSet
+	GetFileDescriptorSet() *descriptorpb.FileDescriptorSet
 	GetMessageTypeByName(pkg string, name string) protoreflect.MessageDescriptor
 	GetGatewayJsonSchema() string
 	SetHttpResponse(option protoreflect.ExtensionType) error
@@ -32,7 +31,7 @@ type ProtobufDescription interface {
 }
 
 type protobufDescription struct {
-	fileDescriptorSet *descriptor.FileDescriptorSet
+	fileDescriptorSet *descriptorpb.FileDescriptorSet
 	messages          map[string]protoreflect.MessageDescriptor
 	gatewayJsonSchema string
 	fs                *protoregistry.Files
@@ -137,7 +136,7 @@ func NewDescription(dir string) (ProtobufDescription, error) {
 		return nil, fmt.Errorf("Failed to read file: %w", err)
 	}
 	desc := &protobufDescription{
-		fileDescriptorSet: &descriptor.FileDescriptorSet{},
+		fileDescriptorSet: &descriptorpb.FileDescriptorSet{},
 		descriptions:      data,
 	}
 	// 解析描述文件
@@ -157,7 +156,7 @@ func (p *protobufDescription) GetDescription() []byte {
 }
 func NewDescriptionFromBinary(data []byte, outDir string) (ProtobufDescription, error) {
 	desc := &protobufDescription{
-		fileDescriptorSet: &descriptor.FileDescriptorSet{},
+		fileDescriptorSet: &descriptorpb.FileDescriptorSet{},
 		descriptions:      data,
 	}
 	// 解析描述文件
@@ -184,7 +183,7 @@ func NewDescriptionFromBinary(data []byte, outDir string) (ProtobufDescription, 
 	desc.gatewayJsonSchema = filepath.Join(outDir, "gateway.json")
 	return desc, nil
 }
-func (p *protobufDescription) GetFileDescriptorSet() *descriptor.FileDescriptorSet {
+func (p *protobufDescription) GetFileDescriptorSet() *descriptorpb.FileDescriptorSet {
 	return p.fileDescriptorSet
 }
 func (p *protobufDescription) GetMessageTypeByName(pkg string, name string) protoreflect.MessageDescriptor {
