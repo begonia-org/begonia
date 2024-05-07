@@ -15,6 +15,7 @@ import (
 
 	"github.com/begonia-org/go-sdk/client"
 	common "github.com/begonia-org/go-sdk/common/api/v1"
+	sys "github.com/begonia-org/go-sdk/api/sys/v1"
 	c "github.com/smartystreets/goconvey/convey"
 	"google.golang.org/protobuf/encoding/protojson"
 )
@@ -73,8 +74,16 @@ func loginTest(t *testing.T) {
 			apiRsp := &common.HttpResponse{}
 			data, _ := io.ReadAll(resp.Body)
 			err = protojson.Unmarshal(data, apiRsp)
+
 			c.So(err, c.ShouldBeNil)
 			c.So(apiRsp.Code, c.ShouldEqual, common.Code_OK)
+			bData,err:=apiRsp.Data.MarshalJSON()
+			c.So(err,c.ShouldBeNil)
+			info:= &sys.InfoResponse{}
+			err=protojson.Unmarshal(bData,info)
+			c.So(err,c.ShouldBeNil)
+			t.Log(info.Version,info.BuildTime,info.Commit)
+			// c.So(info.Name,c.ShouldEqual,"gateway")
 
 		})
 }
@@ -100,6 +109,7 @@ func testLogout(t *testing.T) {
 			apiRsp := &common.HttpResponse{}
 			data, _ := io.ReadAll(resp.Body)
 			err = protojson.Unmarshal(data, apiRsp)
+
 			c.So(err, c.ShouldBeNil)
 			c.So(apiRsp.Code, c.ShouldNotEqual, int32(common.Code_OK))
 		},

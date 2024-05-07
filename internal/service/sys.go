@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"log"
 
 	"github.com/begonia-org/begonia"
 	api "github.com/begonia-org/go-sdk/api/sys/v1"
@@ -21,6 +22,8 @@ func NewSysService() *SysService {
 }
 
 func (s *SysService) Get(ctx context.Context, in *api.InfoRequest) (*api.InfoResponse, error) {
+	log.Printf("Version: %v", begonia.Version)
+	log.Printf("commit: %v", begonia.Commit)
 	return &api.InfoResponse{
 		Version:   begonia.Version,
 		BuildTime: begonia.BuildTime,
