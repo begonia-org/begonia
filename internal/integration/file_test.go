@@ -126,7 +126,11 @@ func uploadParts(t *testing.T) {
 		c.So(rsp.Uri, c.ShouldNotBeEmpty)
 		c.So(rsp.Version, c.ShouldNotBeEmpty)
 		// c.So(rsp.Sha256,c.ShouldEqual,tmp.sha256)
-		conf := cfg.NewConfig(config.ReadConfig("dev"))
+		env:=begonia.Env
+		if env==""{
+			env="test"
+		}
+		conf := cfg.NewConfig(config.ReadConfig(env))
 
 		saveDir := filepath.Join(conf.GetUploadDir(), filepath.Dir(rsp.Uri))
 		filename := filepath.Base(rsp.Uri)

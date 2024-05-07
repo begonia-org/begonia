@@ -42,6 +42,7 @@ func RunTestServer() {
 		if begonia.Env != "" {
 			env = begonia.Env
 		}
+		log.Printf("env: %s", env)
 		config := config.ReadConfig(env)
 		go func() {
 
