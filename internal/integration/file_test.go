@@ -13,6 +13,7 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/begonia-org/begonia"
 	"github.com/begonia-org/begonia/config"
 	cfg "github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/go-sdk/client"
@@ -47,7 +48,7 @@ func upload(t *testing.T) {
 		c.So(err, c.ShouldBeNil)
 		c.So(rsp.StatusCode, c.ShouldEqual, common.Code_OK)
 		c.So(rsp.Uri, c.ShouldNotBeEmpty)
-		conf := cfg.NewConfig(config.ReadConfig("dev"))
+		conf := cfg.NewConfig(config.ReadConfig(begonia.Env))
 
 		saveDir := filepath.Join(conf.GetUploadDir(), filepath.Dir(rsp.Uri))
 		filename = filepath.Base(rsp.Uri)
