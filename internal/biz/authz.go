@@ -117,12 +117,14 @@ func (u *AuthzUsecase) GenerateJWT(ctx context.Context, user *api.Users, isKeepL
 		IsKeepLogin: isKeepLogin,
 		Token:       validateToken,
 	}
-	err := u.repo.DelToken(ctx, u.config.GetUserBlackListKey(user.Uid))
-	if err != nil {
-		return "", errors.New(errors.ErrRemoveBlackList, int32(common.Code_AUTH_ERROR), codes.Internal, "remove_black_list")
-	}
+	// err := u.repo.DelToken(ctx, u.config.GetUserBlackListKey(user.Uid))
 
-	return tiga.GenerateJWT(payload, secret)
+	token,err:= tiga.GenerateJWT(payload, secret)
+	if err != nil {
+		return "", errors.New(err, int32(api.UserSvrCode_USER_UNKNOWN), codes.Internal, "jwt_generate")
+	
+	}
+	return token, nil
 }
 
 func (u *AuthzUsecase) Login(ctx context.Context, in *api.LoginAPIRequest) (*api.LoginAPIResponse, error) {
