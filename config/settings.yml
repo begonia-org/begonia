@@ -82,6 +82,8 @@ gateway:
           timeout: 10
           min_idle_conns: 25
           max_active_conns: 20
+  descriptor:
+    out_dir: "/tmp/begonia/descriptors"
 test:
   file:
     upload:
@@ -103,6 +105,4 @@ common:
       prefix: "/begonia/endpoints"
     app:
       prefix: "/begonia/apps"
-  gateway:
-    descriptor:
-      out_dir: "/data/work/begonia/descriptors"
+
