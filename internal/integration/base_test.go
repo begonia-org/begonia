@@ -36,7 +36,7 @@ func runExampleServer() {
 func RunTestServer() {
 	log.Printf("run test server")
 	onceServer.Do(func() {
-		env:="dev"
+		env:="test"
 		if begonia.Env!=""{
 			env=begonia.Env
 		}

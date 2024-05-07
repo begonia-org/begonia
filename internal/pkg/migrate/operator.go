@@ -5,11 +5,12 @@ import "github.com/begonia-org/begonia/internal/pkg/config"
 type InitOperator struct {
 	migrate *MySQLMigrate
 	user    *UsersOperator
+	app    *APPOperator
 	config  *config.Config
 }
 
-func NewInitOperator(migrate *MySQLMigrate, user *UsersOperator, config *config.Config) *InitOperator {
-	return &InitOperator{migrate: migrate, user: user, config: config}
+func NewInitOperator(migrate *MySQLMigrate, user *UsersOperator,app *APPOperator, config *config.Config) *InitOperator {
+	return &InitOperator{migrate: migrate, user: user, config: config,app:app}
 }
 
 func (m *InitOperator) Init() error {
@@ -23,6 +24,10 @@ func (m *InitOperator) Init() error {
 	phone := m.config.GetDefaultAdminPhone()
 	aseKey := m.config.GetAesKey()
 	ivKey := m.config.GetAesIv()
-	err = m.user.InitAdminUser(adminPasswd, aseKey, ivKey, name, email, phone)
-	return err
+	uid,err := m.user.InitAdminUser(adminPasswd, aseKey, ivKey, name, email, phone)
+	if err != nil {
+		return err
+	}
+
+	return m.app.InitAdminAPP(uid)
 }

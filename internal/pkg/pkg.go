@@ -23,6 +23,7 @@ var ProviderSet = wire.NewSet(
 	migrate.NewUsersOperator,
 	migrate.NewTableModels,
 	migrate.NewInitOperator,
+	migrate.NewAPPOperator,
 
 	middleware.NewLoggerMiddleware,
 	middleware.New,

@@ -36,7 +36,7 @@ func NewAppUsecase(repo AppRepo, config *config.Config) *AppUsecase {
 	sn, _ := tiga.NewSnowflake(1)
 	return &AppUsecase{repo: repo, config: config, snowflake: sn}
 }
-func (a *AppUsecase) generateRandomString(n int) (string, error) {
+func GenerateRandomString(n int) (string, error) {
 	const lettersAndDigits = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	b := make([]byte, n)
 	if _, err := rand.Read(b); err != nil {
@@ -59,13 +59,13 @@ func (a *AppUsecase) newApp() *api.Apps {
 }
 func (a *AppUsecase) CreateApp(ctx context.Context, in *api.AppsRequest, owner string) (*api.Apps, error) {
 	// return a.repo.ListApps(ctx, conds...)
-	appid := a.generateAppid(ctx)
-	accessKey, err := a.generateAppAccessKey(ctx)
+	appid := GenerateAppid(ctx,a.snowflake)
+	accessKey, err := GenerateAppAccessKey(ctx)
 	if err != nil {
 		return nil, errors.New(err, int32(api.APPSvrCode_APP_CREATE_ERR), codes.Internal, "generate_app_access_key")
 
 	}
-	secret, err := a.generateAppSecret(ctx)
+	secret, err := GenerateAppSecret(ctx)
 	if err != nil {
 		return nil, errors.New(err, int32(api.APPSvrCode_APP_CREATE_ERR), codes.Internal, "generate_app_secret_key")
 	}
@@ -84,15 +84,15 @@ func (a *AppUsecase) CreateApp(ctx context.Context, in *api.AppsRequest, owner s
 	}
 	return app, nil
 }
-func (a *AppUsecase) generateAppid(_ context.Context) string {
-	appid := a.snowflake.GenerateIDString()
+func GenerateAppid(_ context.Context,snowflake *tiga.Snowflake) string {
+	appid := snowflake.GenerateIDString()
 	return appid
 }
-func (a *AppUsecase) generateAppAccessKey(_ context.Context) (string, error) {
-	return a.generateRandomString(32)
+func GenerateAppAccessKey(_ context.Context) (string, error) {
+	return GenerateRandomString(32)
 }
-func (a *AppUsecase) generateAppSecret(_ context.Context) (string, error) {
-	return a.generateRandomString(64)
+func GenerateAppSecret(_ context.Context) (string, error) {
+	return GenerateRandomString(64)
 }
 
 // AddApps 新增并缓存app
