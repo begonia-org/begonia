@@ -3,6 +3,7 @@ package migrate
 import (
 	"context"
 	"log"
+	"os"
 	"time"
 
 	"github.com/begonia-org/begonia/internal/biz"
@@ -36,9 +37,19 @@ func (m *APPOperator) InitAdminAPP(owner string) error {
 		if err != nil {
 			return err
 		}
+		ak := os.Getenv("APP_ACCESS_KEY")
+		if ak != "" {
+			accessKey = ak
+		}
+
 		secret, err := biz.GenerateAppSecret(context.TODO())
+
 		if err != nil {
 			return err
+		}
+		sk := os.Getenv("APP_SECRET")
+		if sk != "" {
+			secret = sk
 		}
 		app = &api.Apps{
 			Appid:       biz.GenerateAppid(context.TODO(), snk),

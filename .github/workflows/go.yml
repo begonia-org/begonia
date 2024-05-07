@@ -20,7 +20,10 @@ jobs:
       run: docker-compose up -d 
 
     - name: Init MySQL
-      run: go run ./cmd/gateway/main.go init -e dev
+      run: |
+        export APP_ACCESS_KEY=NWkbCslfh9ea2LjVIUsKehJuopPb65fn
+        export APP_SECRET=oVPNllSR1DfizdmdSF7wLjgABYbexdt4FZ1HWrI81dD5BeNhsyXpXPDFoDEyiSVe
+        go run ./cmd/gateway/main.go init -e dev
 
     - name: Type a temporary tag
       run: git tag test-$(date '+%Y%m%d%H%M%S') 
