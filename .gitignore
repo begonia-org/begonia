@@ -21,3 +21,5 @@
 go.work
 upload/
 ./upload
+bin
+./bin
