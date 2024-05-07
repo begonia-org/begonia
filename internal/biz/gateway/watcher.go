@@ -36,7 +36,7 @@ func (g *GatewayWatcher) Update(ctx context.Context, key string, value string) e
 	}
 	pd, err := getDescriptorSet(g.config, key, endpoint.DescriptorSet)
 	if err != nil {
-		logger.Log.Errorf("get descriptor set error: %w", err)
+		logger.Log.Errorf("get descriptor set error: %s", err.Error())
 		return errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_descriptor_set")
 	}
 	err = deleteAll(ctx, pd)
