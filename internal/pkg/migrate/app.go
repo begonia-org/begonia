@@ -9,6 +9,7 @@ import (
 	api "github.com/begonia-org/go-sdk/api/app/v1"
 	"github.com/spark-lence/tiga"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"gorm.io/gorm"
 )
 
 type APPOperator struct {
@@ -21,7 +22,7 @@ func NewAPPOperator(mysql *tiga.MySQLDao) *APPOperator {
 func (m *APPOperator) InitAdminAPP(owner string) error {
 	app := &api.Apps{}
 	err := m.mysql.First(app, "name = ?", "admin-app")
-	if err != nil {
+	if err != nil && err != gorm.ErrRecordNotFound {
 		return err
 	}
 	if app.Appid == "" {
@@ -55,9 +56,9 @@ func (m *APPOperator) InitAdminAPP(owner string) error {
 		return err
 	}
 	log.Print("########################################admin-app###############################")
-	log.Printf("Init appid:%s",app.Appid)
-	log.Printf("Init accessKey:%s",app.AccessKey)
-	log.Printf("Init secret:%s",app.Secret)
+	log.Printf("Init appid:%s", app.Appid)
+	log.Printf("Init accessKey:%s", app.AccessKey)
+	log.Printf("Init secret:%s", app.Secret)
 	log.Print("#################################################################################")
 	return nil
 }

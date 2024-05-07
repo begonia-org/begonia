@@ -8,6 +8,7 @@ import (
 	api "github.com/begonia-org/go-sdk/api/user/v1"
 	"github.com/spark-lence/tiga"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"gorm.io/gorm"
 )
 
 type UsersOperator struct {
@@ -20,7 +21,7 @@ func NewUsersOperator(mysql *tiga.MySQLDao) *UsersOperator {
 func (m *UsersOperator) InitAdminUser(passwd string, aseKey, ivKey string, name, email, phone string) (string,error) {
 	userExist:=&api.Users{}
 	err := m.mysql.First(userExist,"role = ? and is_deleted=0 and status=?",api.Role_ADMIN,api.USER_STATUS_ACTIVE)
-	if err != nil {
+	if err != nil && err!=gorm.ErrRecordNotFound {
 		return "", err
 	}
 	if userExist.Uid == ""{
