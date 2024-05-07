@@ -1,0 +1,35 @@
+name: Go
+
+on:
+  push:
+  pull_request:
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.20
+
+    - name: Start Docker Composer
+      run: docker-compose up -d 
+    
+    - name: Wait for MySQL
+      run: dockerize -wait tcp://127.0.0.1:3306 -timeout 30s
+
+    - name: Init MySQL
+      run: go run ./cmd/gateway/main.go init -e dev
+
+    - name: Type a temporary tag
+      run: git tag test-$(date '+%Y%m%d%H%M%S') 
+
+    - name: Test
+      run: go test -v -gcflags=-l -coverprofile=coverage.txt -covermode=atomic -ldflags -X=github.com/begonia-org/begonia.Version=$(git describe --tags --abbrev=0)\ -X=github.com/begonia-org/begonia.BuildTime=$(date '+%Y%m%d%H%M%S')\ -X=github.com/begonia-org/begonia.Commit=$(git rev-parse --short HEAD) ./internal/integration
+
+    - name: Upload coverage to Codecov
+      run: bash <(curl -s https://codecov.io/bash)
