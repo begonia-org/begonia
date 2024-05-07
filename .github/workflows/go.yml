@@ -30,7 +30,7 @@ jobs:
         mkdir -p /tmp/protos
         git clone https://github.com/begonia-org/protos.git /tmp/protos
     - name: Test
-      run: go test -v -gcflags=-l -coverprofile=coverage.txt -covermode=atomic -ldflags -X=github.com/begonia-org/begonia.Version=$(git describe --tags --abbrev=0)\ -X=github.com/begonia-org/begonia.BuildTime=$(date '+%Y%m%d%H%M%S')\ -X=github.com/begonia-org/begonia.Commit=$(git rev-parse --short HEAD) ./internal/integration
+      run: go test -v -gcflags=-l -coverprofile=coverage.txt -covermode=atomic -ldflags -X=github.com/begonia-org/begonia.Version=$(git describe --tags --abbrev=0)\ -X=github.com/begonia-org/begonia.BuildTime=$(date '+%Y%m%d%H%M%S')\ -X=github.com/begonia-org/begonia.Commit=$(git rev-parse --short HEAD)\ -X=github.com/begonia-org/begonia.Env=test ./internal/integration
 
     - name: Upload coverage to Codecov
       run: bash <(curl -s https://codecov.io/bash)
