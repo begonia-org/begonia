@@ -8,6 +8,7 @@ import (
 
 var ProviderSet = wire.NewSet(NewAuthzUsecase, 
 	NewUserUsecase,
+	NewAccessKeyAuth,
 	file.NewFileUsecase, 
 	gateway.NewEndpointUsecase, 
 	NewAppUsecase,

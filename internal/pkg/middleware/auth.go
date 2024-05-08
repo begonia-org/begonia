@@ -15,14 +15,14 @@ import (
 )
 
 type Auth struct {
-	ak       *auth.AccessKeyAuth
+	ak       *auth.AccessKeyAuthMiddleware
 	jwt      *auth.JWTAuth
 	apikey   auth.ApiKeyAuth
 	priority int
 	name     string
 }
 
-func NewAuth(ak *auth.AccessKeyAuth, jwt *auth.JWTAuth, apikey auth.ApiKeyAuth) gosdk.LocalPlugin {
+func NewAuth(ak *auth.AccessKeyAuthMiddleware, jwt *auth.JWTAuth, apikey auth.ApiKeyAuth) gosdk.LocalPlugin {
 	return &Auth{
 		ak:     ak,
 		jwt:    jwt,

@@ -6,6 +6,7 @@ import (
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/crypto"
 	"github.com/begonia-org/begonia/internal/pkg/middleware"
+	"github.com/begonia-org/begonia/internal/pkg/middleware/auth"
 	"github.com/begonia-org/begonia/internal/pkg/migrate"
 
 	"github.com/google/wire"
@@ -24,6 +25,7 @@ var ProviderSet = wire.NewSet(
 	migrate.NewTableModels,
 	migrate.NewInitOperator,
 	migrate.NewAPPOperator,
+	auth.NewAccessKeyAuth,
 
 	middleware.NewLoggerMiddleware,
 	middleware.New,

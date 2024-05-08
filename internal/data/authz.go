@@ -18,23 +18,6 @@ func NewAuthzRepoImpl(data *Data, log logger.Logger, local *LayeredCache) biz.Au
 	return &authzRepo{data: data, log: log, local: local}
 }
 
-// func (r *authzRepo) ListUsers(ctx context.Context, page, pageSize int32, conds ...interface{}) ([]*api.Users, error) {
-// 	users := make([]*api.Users, 0)
-// 	if err := r.data.List(&api.Users{}, &users, page, pageSize, conds...); err != nil {
-// 		return nil, err
-// 	}
-// 	return users, nil
-
-// }
-// func (r *authzRepo) GetUser(ctx context.Context, conds ...interface{}) (*api.Users, error) {
-// 	user := &api.Users{}
-// 	err := r.data.Get(user, user, conds...)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	return user, nil
-// }
-
 func (t *authzRepo) CacheToken(ctx context.Context, key, token string, exp time.Duration) error {
 	return t.local.Set(ctx, key, []byte(token), exp)
 }

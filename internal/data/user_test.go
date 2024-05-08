@@ -9,6 +9,7 @@ import (
 
 	"github.com/begonia-org/begonia"
 	cfg "github.com/begonia-org/begonia/config"
+	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/logger"
 	api "github.com/begonia-org/go-sdk/api/user/v1"
 	c "github.com/smartystreets/goconvey/convey"
@@ -90,13 +91,26 @@ func testGetUser(t *testing.T) {
 		if begonia.Env != "" {
 			env = begonia.Env
 		}
-		repo := NewUserRepo(cfg.ReadConfig(env), logger.Log)
+        conf:=cfg.ReadConfig(env)
+		repo := NewUserRepo(conf, logger.Log)
 		user, err := repo.Get(context.TODO(), uid)
-		t.Logf("user phone:%v", user.Phone)
 		c.So(err, c.ShouldBeNil)
 		c.So(user, c.ShouldNotBeNil)
 		c.So(user.Uid, c.ShouldEqual, uid)
 		c.So(user.Name, c.ShouldEqual, user1)
+
+        c.Convey("test user get by account", func() {
+            cnf:=config.NewConfig(conf)
+            key, iv := cnf.GetAesConfig()
+            account, err := tiga.EncryptAES([]byte(key), user.Name, iv)
+            t.Log("account:", account)
+            c.So(err, c.ShouldBeNil)
+            userByName, err := repo.Get(context.TODO(), account)
+            c.So(err, c.ShouldBeNil)
+            c.So(userByName, c.ShouldNotBeNil)
+            c.So(userByName.Uid, c.ShouldEqual, uid)
+            c.So(userByName.Name, c.ShouldEqual, user1)
+        })
 	})
 }
 

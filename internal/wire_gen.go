@@ -7,7 +7,6 @@
 package internal
 
 import (
-	"context"
 	"github.com/begonia-org/begonia/internal/biz"
 	"github.com/begonia-org/begonia/internal/biz/file"
 	"github.com/begonia-org/begonia/internal/biz/gateway"
@@ -43,22 +42,20 @@ func New(config2 *tiga.Configuration, log logger.Logger, endpoint string) Gatewa
 	etcdDao := data.NewEtcd(config2)
 	dataData := data.NewData(mySQLDao, redisDao, etcdDao)
 	curd := data.NewCurdImpl(mySQLDao, configConfig)
-	contextContext := context.Background()
-	layeredCache := data.NewLayeredCache(contextContext, dataData, configConfig, log)
+	layeredCache := data.NewLayeredCache(dataData, configConfig, log)
 	appRepo := data.NewAppRepoImpl(dataData, curd, layeredCache, configConfig)
 	userRepo := data.NewUserRepoImpl(dataData, layeredCache, curd, configConfig)
-	authzRepo := data.NewAuthzRepo(dataData, log, layeredCache)
+	authzRepo := data.NewAuthzRepoImpl(dataData, log, layeredCache)
 	dataOperatorRepo := data.NewDataOperatorRepo(dataData, appRepo, userRepo, authzRepo, layeredCache, log)
 	endpointRepo := data.NewEndpointRepoImpl(dataData, configConfig)
 	gatewayWatcher := gateway.NewWatcher(configConfig, endpointRepo)
 	dataOperatorUsecase := biz.NewDataOperatorUsecase(dataOperatorRepo, configConfig, log, gatewayWatcher, endpointRepo)
 	daemonDaemon := daemon.NewDaemonImpl(configConfig, dataOperatorUsecase)
 	gatewayConfig := server.NewGatewayConfig(endpoint)
-	fileRepo := data.NewFileRepoImpl(dataData)
-	fileUsecase := file.NewFileUsecase(fileRepo, configConfig)
+	fileUsecase := file.NewFileUsecase(configConfig)
 	fileService := service.NewFileService(fileUsecase, configConfig)
 	usersAuth := crypto.NewUsersAuth()
-	authzUsecase := biz.NewAuthzUsecase(authzRepo, log, usersAuth, configConfig)
+	authzUsecase := biz.NewAuthzUsecase(authzRepo, userRepo, log, usersAuth, configConfig)
 	authzService := service.NewAuthzService(authzUsecase, log, usersAuth, configConfig)
 	endpointUsecase := gateway.NewEndpointUsecase(endpointRepo, fileUsecase, configConfig)
 	endpointsService := service.NewEndpointsService(endpointUsecase, log, configConfig)
@@ -68,7 +65,8 @@ func New(config2 *tiga.Configuration, log logger.Logger, endpoint string) Gatewa
 	userUsecase := biz.NewUserUsecase(userRepo, configConfig)
 	userService := service.NewUserService(userUsecase, log, configConfig)
 	v := service.NewServices(fileService, authzService, endpointsService, appService, sysService, userService)
-	pluginsApply := middleware.New(configConfig, redisDao, authzUsecase, log, appRepo, layeredCache)
+	accessKeyAuth := biz.NewAccessKeyAuth(appRepo, configConfig, log)
+	pluginsApply := middleware.New(configConfig, redisDao, authzUsecase, log, accessKeyAuth, layeredCache)
 	gatewayServer := server.NewGateway(gatewayConfig, configConfig, v, pluginsApply)
 	gatewayWorker := NewGatewayWorkerImpl(daemonDaemon, gatewayServer)
 	return gatewayWorker

@@ -24,6 +24,8 @@ type AppRepo interface {
 	Del(ctx context.Context, key string) error
 	List(ctx context.Context, tags []string,status []api.APPStatus,page,pageSize int32) ([]*api.Apps, error)
 	Patch(ctx context.Context, model *api.Apps) error
+	GetSecret(ctx context.Context, accessKey string) (string, error)
+	GetAppid(ctx context.Context, accessKey string) (string, error)
 }
 
 type AppUsecase struct {

@@ -69,7 +69,7 @@ require (
 	go.mongodb.org/mongo-driver v1.15.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.23.0 // indirect
-	golang.org/x/exp v0.0.0-20240506185415-9bf2ced13842 // indirect
+	golang.org/x/exp v0.0.0-20240506185415-9bf2ced13842
 	golang.org/x/sync v0.7.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
@@ -78,6 +78,7 @@ require (
 )
 
 require (
+	github.com/agiledragon/gomonkey/v2 v2.11.0
 	github.com/begonia-org/go-loadbalancer v0.0.0-20240408092223-42b5fab476ce
 	github.com/begonia-org/go-sdk v0.0.0-20240507014141-340c1958f4e2
 	github.com/go-git/go-git/v5 v5.11.0
@@ -136,7 +137,7 @@ require (
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 )
 
-// replace github.com/spark-lence/tiga => /data/work/spark-lence/tiga
+replace github.com/spark-lence/tiga => /data/work/spark-lence/tiga
 
 // replace github.com/begonia-org/go-layered-cache => ../go-layered-cache
 

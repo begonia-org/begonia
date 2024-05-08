@@ -18,13 +18,13 @@ type UsersOperator struct {
 func NewUsersOperator(mysql *tiga.MySQLDao) *UsersOperator {
 	return &UsersOperator{mysql: mysql}
 }
-func (m *UsersOperator) InitAdminUser(passwd string, aseKey, ivKey string, name, email, phone string) (string,error) {
-	userExist:=&api.Users{}
-	err := m.mysql.First(userExist,"role = ? and is_deleted=0 and status=?",api.Role_ADMIN,api.USER_STATUS_ACTIVE)
-	if err != nil && err!=gorm.ErrRecordNotFound {
+func (m *UsersOperator) InitAdminUser(passwd string, aseKey, ivKey string, name, email, phone string) (string, error) {
+	userExist := &api.Users{}
+	err := m.mysql.First(context.TODO(), userExist, "role = ? and is_deleted=0 and status=?", api.Role_ADMIN, api.USER_STATUS_ACTIVE)
+	if err != nil && err != gorm.ErrRecordNotFound {
 		return "", err
 	}
-	if userExist.Uid == ""{
+	if userExist.Uid == "" {
 		snk, err := tiga.NewSnowflake(1)
 		if err != nil {
 			return "", err
@@ -32,15 +32,26 @@ func (m *UsersOperator) InitAdminUser(passwd string, aseKey, ivKey string, name,
 		// 初始化数据
 		uid := snk.GenerateID()
 		user := &api.Users{
-			Uid:  fmt.Sprintf("%d", uid),
-			Name: name, Password: passwd, Phone: phone, Email: email, Role: api.Role_ADMIN, Status: api.USER_STATUS_ACTIVE, CreatedAt: timestamppb.New(time.Now()), UpdatedAt: timestamppb.New(time.Now())}
+			Uid:      fmt.Sprintf("%d", uid),
+			Name:     name,
+			Password: passwd,
+			Phone:    phone,
+			Email:    email,
+			Role:     api.Role_ADMIN,
+			Dept:     "",
+			Avatar: "",
+			Status:    api.USER_STATUS_ACTIVE,
+			CreatedAt: timestamppb.New(time.Now()),
+			UpdatedAt: timestamppb.New(time.Now()),
+			IsDeleted: false,
+		}
 
 		err = tiga.EncryptStructAES([]byte(aseKey), user, ivKey)
 		if err != nil {
 			return "", err
 		}
-		err = m.mysql.Create(context.Background(),user)
+		err = m.mysql.Create(context.Background(), user)
 		return user.Uid, err
 	}
-	return userExist.Uid,nil
+	return userExist.Uid, nil
 }

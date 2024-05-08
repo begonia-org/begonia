@@ -18,21 +18,11 @@ import (
 )
 
 type AuthzRepo interface {
-	// mysql
-	ListUsers(ctx context.Context, page, pageSize int32, conds ...interface{}) ([]*api.Users, error)
-	CreateUsers(ctx context.Context, Users []*api.Users) error
-	UpdateUsers(ctx context.Context, models []*api.Users) error
-	DeleteUsers(ctx context.Context, models []*api.Users) error
-	GetUser(ctx context.Context, conds ...interface{}) (*api.Users, error)
-
-	// redis
-
 	CacheToken(ctx context.Context, key, token string, exp time.Duration) error
+	GetToken(ctx context.Context, key string) string
 	DelToken(ctx context.Context, key string) error
 	CheckInBlackList(ctx context.Context, key string) (bool, error)
 	PutBlackList(ctx context.Context, token string) error
-
-	// CacheUsers(ctx context.Context, prefix string, models []*api.Users, exp time.Duration, getValue func(user *api.Users) ([]byte, interface{})) redis.Pipeliner
 }
 
 type AuthzUsecase struct {
@@ -40,25 +30,13 @@ type AuthzUsecase struct {
 	log        logger.Logger
 	authCrypto *crypto.UsersAuth
 	config     *config.Config
+	user       UserRepo
 }
 
-func NewAuthzUsecase(repo AuthzRepo, log logger.Logger, crypto *crypto.UsersAuth, config *config.Config) *AuthzUsecase {
-	return &AuthzUsecase{repo: repo, log: log, authCrypto: crypto, config: config}
-}
-func (u *AuthzUsecase) ListUsers(ctx context.Context, page, pageSize int32, conds ...interface{}) ([]*api.Users, error) {
-	return u.repo.ListUsers(ctx, page, pageSize, conds...)
+func NewAuthzUsecase(repo AuthzRepo, user UserRepo, log logger.Logger, crypto *crypto.UsersAuth, config *config.Config) *AuthzUsecase {
+	return &AuthzUsecase{repo: repo, log: log, authCrypto: crypto, config: config,user: user}
 }
 
-func (u *AuthzUsecase) CreateUsers(ctx context.Context, Users []*api.Users) error {
-	return u.repo.CreateUsers(ctx, Users)
-}
-func (u *AuthzUsecase) UpdateUsers(ctx context.Context, conditions interface{}, model []*api.Users) error {
-	return u.repo.UpdateUsers(ctx, model)
-}
-
-func (u *AuthzUsecase) DeleteUsers(ctx context.Context, model []*api.Users) error {
-	return u.repo.DeleteUsers(ctx, model)
-}
 func (u *AuthzUsecase) DelToken(ctx context.Context, key string) error {
 	return u.repo.DelToken(ctx, key)
 }
@@ -119,10 +97,10 @@ func (u *AuthzUsecase) GenerateJWT(ctx context.Context, user *api.Users, isKeepL
 	}
 	// err := u.repo.DelToken(ctx, u.config.GetUserBlackListKey(user.Uid))
 
-	token,err:= tiga.GenerateJWT(payload, secret)
+	token, err := tiga.GenerateJWT(payload, secret)
 	if err != nil {
 		return "", errors.New(err, int32(api.UserSvrCode_USER_UNKNOWN), codes.Internal, "jwt_generate")
-	
+
 	}
 	return token, nil
 }
@@ -140,15 +118,17 @@ func (u *AuthzUsecase) Login(ctx context.Context, in *api.LoginAPIRequest) (*api
 		err := errors.New(errors.ErrEncrypt, int32(api.UserSvrCode_USER_ACCOUNT_ERR), codes.InvalidArgument, "accout_encrypt")
 		return nil, err
 	}
-	passwd, err := tiga.EncryptAES([]byte(key), userAuth.Password, iv)
-	if err != nil {
-		err := errors.New(errors.ErrEncrypt, int32(api.UserSvrCode_USER_PASSWORD_ERR), codes.InvalidArgument, "password_encrypt")
+
+	user, err := u.user.Get(ctx, account)
+	if err != nil || user == nil {
+		if err==nil{
+			err = errors.ErrUserNotFound
+		}
+		err := errors.New(err, int32(api.UserSvrCode_USER_NOT_FOUND_ERR), codes.NotFound, "user_query")
 		return nil, err
 	}
-
-	user, err := u.repo.GetUser(ctx, "(name = ? OR email = ? OR phone = ?) and password=(?)", account, account, account, passwd)
-	if err != nil {
-		err := errors.New(err, int32(api.UserSvrCode_USER_NOT_FOUND_ERR), codes.NotFound, "user_query")
+	if user.Password != userAuth.Password {
+		err := errors.New(errors.ErrUserPasswordInvalid, int32(api.UserSvrCode_USER_NOT_FOUND_ERR), codes.NotFound, "password_match")
 		return nil, err
 	}
 	if user.Status != api.USER_STATUS_ACTIVE {
@@ -157,11 +137,6 @@ func (u *AuthzUsecase) Login(ctx context.Context, in *api.LoginAPIRequest) (*api
 
 	}
 	user.Password = ""
-	err = tiga.DecryptStructAES([]byte(key), user, iv)
-	if err != nil {
-		err := errors.New(err, int32(api.UserSvrCode_USER_AUTH_DECRYPT_ERR), codes.NotFound, "user_decrypt")
-		return nil, err
-	}
 	// 生成jwt
 	token, err := u.GenerateJWT(ctx, user, in.IsKeepLogin)
 	if err != nil {

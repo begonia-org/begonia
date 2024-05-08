@@ -23,10 +23,10 @@ func New(config *config.Config,
 	rdb *tiga.RedisDao,
 	user *biz.AuthzUsecase,
 	log logger.Logger,
-	app biz.AppRepo,
+	authz *biz.AccessKeyAuth,
 	local *data.LayeredCache) *PluginsApply {
 	jwt := auth.NewJWTAuth(config, rdb, user, log)
-	ak := auth.NewAccessKeyAuth(app, config, local, log)
+	ak := auth.NewAccessKeyAuth(authz, config, log)
 	apiKey := auth.NewApiKeyAuth(config)
 	plugins := map[string]gosdk.LocalPlugin{
 		"onlyJWT":           jwt,
