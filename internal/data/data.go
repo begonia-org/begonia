@@ -27,6 +27,7 @@ func GetRDBClient(rdb *tiga.RedisDao) *redis.Client {
 var onceRDB sync.Once
 var onceMySQL sync.Once
 var onceEtcd sync.Once
+var onceLayered sync.Once
 var rdb *tiga.RedisDao
 var mysql *tiga.MySQLDao
 var etcd *tiga.EtcdDao
@@ -61,9 +62,9 @@ var ProviderSet = wire.NewSet(NewMySQL,
 	NewCurdImpl,
 	NewLayeredCache,
 
-	NewAuthzRepo,
+	NewAuthzRepoImpl,
 	NewUserRepoImpl,
-	NewFileRepoImpl,
+	// NewFileRepoImpl,
 	NewEndpointRepoImpl,
 	NewAppRepoImpl,
 	NewDataOperatorRepo)

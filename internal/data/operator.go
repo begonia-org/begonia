@@ -38,10 +38,6 @@ func (r *dataOperatorRepo) Lock(ctx context.Context, key string, exp time.Durati
 	return NewDataLock(r.data.rdb.GetClient(), key, exp, 3), nil
 }
 
-// DistributedUnlock 释放锁
-// func (r *dataOperatorRepo) DistributedUnlock(ctx context.Context, lock *redislock.Lock) error {
-// 	return lock.Release(ctx)
-// }
 
 // GetAllForbiddenUsers 获取所有被禁用的用户
 func (r *dataOperatorRepo) GetAllForbiddenUsers(ctx context.Context) ([]*api.Users, error) {
@@ -50,7 +46,6 @@ func (r *dataOperatorRepo) GetAllForbiddenUsers(ctx context.Context) ([]*api.Use
 	page := int32(1)
 	for {
 		user, err := r.user.List(ctx, nil, []api.USER_STATUS{api.USER_STATUS_LOCKED, api.USER_STATUS_DELETED}, page, 100)
-		// users, err := r.user.ListUsers(ctx, "status in (?,?)", api.USER_STATUS_LOCKED, api.USER_STATUS_DELETED)
 		if err != nil {
 			if strings.Contains(err.Error(), gorm.ErrRecordNotFound.Error()) {
 				break
@@ -164,9 +159,6 @@ func (r *dataOperatorRepo) PullBloom(ctx context.Context, key string) []byte {
 	return r.data.rdb.GetBytes(ctx, key)
 }
 
-// func (d *dataOperatorRepo) LoadLocalBloom(ctx context.Context, keys []*golayeredbloom.BloomConfig) error {
-// 	return d.local.filters.LoadFrom(ctx, keys)
-// }
 
 func (d *dataOperatorRepo) LastUpdated(ctx context.Context, key string) (time.Time, error) {
 	// return d.data.rdb.SetBytes(ctx, keys, exp)

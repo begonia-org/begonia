@@ -31,7 +31,7 @@ func (r *userRepoImpl) Add(ctx context.Context, user *api.Users) error {
 func (r *userRepoImpl) Get(ctx context.Context, key string) (*api.Users, error) {
 
     app := &api.Users{}
-    err := r.curd.Get(ctx, app, true, "uid = ?", key)
+    err := r.curd.Get(ctx, app, true, "uid= ? or phone=? or email=? or name=?", key,key,key,key)
     if err != nil||app.Uid=="" {
         return nil, fmt.Errorf("get user failed: %w", err)
     }

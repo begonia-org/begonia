@@ -21,41 +21,44 @@ type LayeredCache struct {
 	filters     glc.LayeredCuckooFilter
 	onceOnStart sync.Once
 }
+var layered *LayeredCache
 
-func NewLayeredCache(ctx context.Context, data *Data, config *config.Config, log logger.Logger) *LayeredCache {
-
-	kvWatcher := source.NewWatchOptions([]interface{}{config.GetKeyValuePubsubKey()})
-	strategy := glc.CacheReadStrategy(config.GetMultiCacheReadStrategy())
-	KvOptions := glc.LayeredBuildOptions{
-		RDB:       data.rdb.GetClient(),
-		Strategy:  glc.CacheReadStrategy(strategy),
-		Watcher:   kvWatcher,
-		Channel:   config.GetKeyValuePubsubKey(),
-		Log:       log.Logurs(),
-		KeyPrefix: config.GetKeyValuePrefix(),
-	}
-	kv, err := glc.NewKeyValueCache(ctx, KvOptions, 5*100*100)
-	if err != nil {
-		panic(err)
-
-	}
-	filterWatcher := source.NewWatchOptions([]interface{}{config.GetFilterPubsubKey()})
-	filterOptions := glc.LayeredBuildOptions{
-		RDB:       data.rdb.GetClient(),
-		Strategy:  glc.LocalOnly,
-		Watcher:   filterWatcher,
-		Channel:   config.GetFilterPubsubKey(),
-		Log:       log.Logurs(),
-		KeyPrefix: config.GetFilterPrefix(),
-	}
-	filter := glc.NewLayeredCuckoo(&filterOptions, gocuckoo.CuckooBuildOptions{
-		Entries:       100000,
-		BucketSize:    4,
-		MaxIterations: 20,
-		Expansion:     2,
+func NewLayeredCache(data *Data, config *config.Config, log logger.Logger) *LayeredCache {
+	onceLayered.Do(func() {
+		kvWatcher := source.NewWatchOptions([]interface{}{config.GetKeyValuePubsubKey()})
+		strategy := glc.CacheReadStrategy(config.GetMultiCacheReadStrategy())
+		KvOptions := glc.LayeredBuildOptions{
+			RDB:       data.rdb.GetClient(),
+			Strategy:  glc.CacheReadStrategy(strategy),
+			Watcher:   kvWatcher,
+			Channel:   config.GetKeyValuePubsubKey(),
+			Log:       log.Logurs(),
+			KeyPrefix: config.GetKeyValuePrefix(),
+		}
+		kv, err := glc.NewKeyValueCache(context.Background(), KvOptions, 5*100*100)
+		if err != nil {
+			panic(err)
+	
+		}
+		filterWatcher := source.NewWatchOptions([]interface{}{config.GetFilterPubsubKey()})
+		filterOptions := glc.LayeredBuildOptions{
+			RDB:       data.rdb.GetClient(),
+			Strategy:  glc.LocalOnly,
+			Watcher:   filterWatcher,
+			Channel:   config.GetFilterPubsubKey(),
+			Log:       log.Logurs(),
+			KeyPrefix: config.GetFilterPrefix(),
+		}
+		filter := glc.NewLayeredCuckoo(&filterOptions, gocuckoo.CuckooBuildOptions{
+			Entries:       100000,
+			BucketSize:    4,
+			MaxIterations: 20,
+			Expansion:     2,
+		})
+		layered= &LayeredCache{kv: kv, data: data, config: config, log: log, mux: sync.Mutex{}, onceOnStart: sync.Once{}, filters: filter}
 	})
-	local := &LayeredCache{kv: kv, data: data, config: config, log: log, mux: sync.Mutex{}, onceOnStart: sync.Once{}, filters: filter}
-	return local
+	return layered
+
 }
 func (l *LayeredCache) OnStart() {
 	l.onceOnStart.Do(func() {

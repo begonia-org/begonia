@@ -11,6 +11,7 @@ import (
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	api "github.com/begonia-org/go-sdk/api/endpoint/v1"
 	clientv3 "go.etcd.io/etcd/client/v3"
+	"golang.org/x/exp/slices"
 )
 
 type endpointRepoImpl struct {
@@ -22,10 +23,6 @@ func NewEndpointRepoImpl(data *Data, cfg *config.Config) gateway.EndpointRepo {
 	return &endpointRepoImpl{data: data, cfg: cfg}
 }
 
-func (r *endpointRepoImpl) AddEndpoint(ctx context.Context, endpoints []*api.Endpoints) error {
-	sources := NewSourceTypeArray(endpoints)
-	return r.data.CreateInBatches(sources)
-}
 
 func (r *endpointRepoImpl) Get(ctx context.Context, key string) (string, error) {
 	return r.data.etcd.GetString(ctx, key)
@@ -33,8 +30,6 @@ func (r *endpointRepoImpl) Get(ctx context.Context, key string) (string, error) 
 func (e *endpointRepoImpl) Del(ctx context.Context, id string) error {
 	srvKey := e.cfg.GetServiceKey(id)
 	ops := make([]clientv3.Op, 0)
-	// details := getDetailsKey(e.cfg, id)
-	// ops = append(ops, clientv3.OpDelete(details))
 	ops = append(ops, clientv3.OpDelete(srvKey))
 	kvs, err := e.data.etcd.GetWithPrefix(ctx, filepath.Join(e.cfg.GetEndpointsPrefix(), "tags"))
 	if err != nil {
@@ -67,7 +62,7 @@ func (e *endpointRepoImpl) Put(ctx context.Context, endpoint *api.Endpoints) err
 	ops = append(ops, clientv3.OpPut(srvKey, string(details)))
 	ok, err := e.data.PutEtcdWithTxn(ctx, ops)
 	if err != nil {
-		log.Printf("put endpoint fail: %v", err)
+		log.Printf("put endpoint fail: %s", err.Error())
 		return fmt.Errorf("put endpoint fail: %w", err)
 	}
 	if !ok {
@@ -121,7 +116,40 @@ func (e *endpointRepoImpl) List(ctx context.Context, keys []string) ([]*api.Endp
 	}
 	return endpoints, nil
 }
+func (e *endpointRepoImpl) patchTags(oldTags []interface{}, newTags []interface{}, id string) []clientv3.Op {
+	ops := make([]clientv3.Op, 0)
+	for _, tag := range oldTags {
+		if val, ok := tag.(string); ok {
+			// Del old tags if not in new tags
+			if !slices.Contains(newTags, tag) {
+				tagKey := e.cfg.GetTagsKey(val, id)
+				ops = append(ops, clientv3.OpDelete(tagKey))
+			}
+		}
 
+	}
+	for _, tag := range newTags {
+		if val, ok := tag.(string); ok {
+			tagKey := e.cfg.GetTagsKey(val, id)
+			ops = append(ops, clientv3.OpPut(tagKey, e.cfg.GetServiceKey(id)))
+		}
+
+	}
+	return ops
+}
+func (e *endpointRepoImpl) getTags(v interface{}) ([]interface{}, error) {
+	tags := make([]interface{}, 0)
+	if val, ok := v.([]interface{}); ok {
+		tags = val
+	} else if val, ok := v.([]string); ok {
+		for _, tag := range val {
+			tags = append(tags, tag)
+		}
+	} else {
+		return nil, fmt.Errorf("tags type error")
+	}
+	return tags, nil
+}
 func (e *endpointRepoImpl) Patch(ctx context.Context, id string, patch map[string]interface{}) error {
 	origin, err := e.Get(ctx, e.cfg.GetServiceKey(id))
 	if err != nil {
@@ -137,19 +165,18 @@ func (e *endpointRepoImpl) Patch(ctx context.Context, id string, patch map[strin
 	}
 	ops := make([]clientv3.Op, 0)
 	// 更新tags
-	if tags, ok := patch["tags"]; ok {
-		// 先删除原有tags
-		if originTags := originConfig["tags"]; originTags != nil {
-			for _, tag := range originTags.([]string) {
-				tagKey := e.cfg.GetTagsKey(tag, id)
-				ops = append(ops, clientv3.OpDelete(tagKey))
-			}
+	if tags, ok := patch["tags"]; ok && tags != nil {
+		oldTags,err := e.getTags(originConfig["tags"])
+		if err!=nil{
+			return fmt.Errorf("get old tags error: %w", err)
 		}
-		// 添加新tags
-		for _, tag := range tags.([]string) {
-			tagKey := e.cfg.GetTagsKey(tag, id)
-			ops = append(ops, clientv3.OpPut(tagKey, e.cfg.GetServiceKey(id)))
+		newTags,err := e.getTags(tags)
+		if err!=nil{
+			return fmt.Errorf("get new tags error: %w", err)
 		}
+
+
+		ops = append(ops, e.patchTags(oldTags, newTags, id)...)
 
 	}
 	for k, v := range patch {
@@ -185,26 +212,24 @@ func (e *endpointRepoImpl) PutTags(ctx context.Context, id string, tags []string
 	}
 
 	ops := make([]clientv3.Op, 0)
-	filters := make(map[string]bool)
-
-	// 先删除原有tags
-	for _, tag := range endpoint.Tags {
-		if _, ok := filters[tag]; ok {
-			continue
-		}
-		filters[tag] = true
-		tagKey := e.cfg.GetTagsKey(tag, id)
-		ops = append(ops, clientv3.OpDelete(tagKey))
-	}
 	srvKey := e.cfg.GetServiceKey(id)
-	for _, tag := range tags {
-		if _, ok := filters[tag]; ok {
-			continue
-		}
-		filters[tag] = true
-		tagKey := e.cfg.GetTagsKey(tag, id)
-		ops = append(ops, clientv3.OpPut(tagKey, srvKey))
+	oldTags := make([]interface{}, 0)
+	newTags := make([]interface{}, 0)
+	for _, tag := range endpoint.Tags {
+		oldTags = append(oldTags, tag)
 	}
+	for _, tag := range tags {
+		newTags = append(newTags, tag)
+
+	}
+	ops = append(ops, e.patchTags(oldTags, newTags, id)...)
+	endpoint.Tags = tags
+	updated, err := json.Marshal(endpoint)
+	if err != nil {
+		return fmt.Errorf("marshal endpoint fail when update  tags: %w", err)
+	}
+	ops = append(ops, clientv3.OpPut(srvKey, string(updated)))
+
 	ok, err := e.data.PutEtcdWithTxn(ctx, ops)
 	if err != nil {
 		return fmt.Errorf("put tags fail: %w", err)
