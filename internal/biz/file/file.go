@@ -33,15 +33,15 @@ type FileRepo interface {
 }
 
 type FileUsecase struct {
-	repo      FileRepo
+	// repo      FileRepo
 	config    *config.Config
 	snowflake *tiga.Snowflake
 	// iam       *service.ABACService
 }
 
-func NewFileUsecase(repo FileRepo, config *config.Config) *FileUsecase {
+func NewFileUsecase(config *config.Config) *FileUsecase {
 	snk, _ := tiga.NewSnowflake(1)
-	return &FileUsecase{repo: repo, config: config, snowflake: snk}
+	return &FileUsecase{config: config, snowflake: snk}
 }
 func (f *FileUsecase) getPartsDir(key string) string {
 	return filepath.Join(f.config.GetUploadDir(), key, "parts")
@@ -648,6 +648,4 @@ func (f *FileUsecase) Delete(ctx context.Context, in *api.DeleteRequest, authorI
 	}
 	return &api.DeleteResponse{}, nil
 }
-func (f *FileUsecase) AddFile(ctx context.Context, files []*common.Files) error {
-	return f.repo.UpdateFile(ctx, files)
-}
+

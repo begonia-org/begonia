@@ -85,6 +85,7 @@ var (
 	ErrTokenInvalid        = errors.New("token无效")
 	ErrTokenExpired        = fmt.Errorf("token过期")
 	ErrTokenMissing        = errors.New("authorization缺失")
+	ErrUserPasswordInvalid = errors.New("密码错误")
 	ErrTokenBlackList      = errors.New("token在黑名单中")
 	ErrNoMetadata          = errors.New("获取metadata失败")
 	ErrAuthDecrypt         = errors.New("解密失败")

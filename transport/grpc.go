@@ -94,7 +94,6 @@ func (g *GrpcLoadBalancer) Register(lb loadbalance.LoadBalance, pd ProtobufDescr
 			for _, method := range service.GetMethod() { // 遍历服务中的所有方法
 				key := fmt.Sprintf("/%s.%s/%s", file.GetPackage(), service.GetName(), method.GetName())
 				g.lb[strings.ToUpper(key)] = lb
-				log.Printf("register grpc method to loadbalance:%s", key)
 			}
 		}
 	}

@@ -46,8 +46,8 @@ func (log *LoggerMiddleware) logger(ctx context.Context, fullMethod string, err 
 	method := "Unkonwn"
 	uri := "Unkonwn"
 	xuid := "Unkonwn"
-	if len(md.Get("method")) > 0 {
-		method = md.Get("method")[0]
+	if len(md.Get("x-http-method")) > 0 {
+		method = md.Get("x-http-method")[0]
 	}
 	if len(md.Get("uri")) > 0 {
 		uri = md.Get("uri")[0]

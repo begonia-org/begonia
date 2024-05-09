@@ -10,7 +10,7 @@ require (
 	github.com/cockroachdb/errors v1.11.1
 	github.com/google/wire v0.6.0
 	github.com/smartystreets/goconvey v1.8.1
-	github.com/spark-lence/tiga v0.0.0-20240507084821-4d0f2eb57803
+	github.com/spark-lence/tiga v0.0.0-20240509013147-dc01ba9576c1
 	github.com/spf13/cobra v1.8.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20240506185236-b8a5c65736ae
 	google.golang.org/grpc v1.63.2
@@ -69,7 +69,7 @@ require (
 	go.mongodb.org/mongo-driver v1.15.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.23.0 // indirect
-	golang.org/x/exp v0.0.0-20240506185415-9bf2ced13842 // indirect
+	golang.org/x/exp v0.0.0-20240506185415-9bf2ced13842
 	golang.org/x/sync v0.7.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
@@ -78,6 +78,7 @@ require (
 )
 
 require (
+	github.com/agiledragon/gomonkey/v2 v2.11.0
 	github.com/begonia-org/go-loadbalancer v0.0.0-20240408092223-42b5fab476ce
 	github.com/begonia-org/go-sdk v0.0.0-20240507014141-340c1958f4e2
 	github.com/go-git/go-git/v5 v5.11.0
