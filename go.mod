@@ -10,7 +10,7 @@ require (
 	github.com/cockroachdb/errors v1.11.1
 	github.com/google/wire v0.6.0
 	github.com/smartystreets/goconvey v1.8.1
-	github.com/spark-lence/tiga v0.0.0-20240507084821-4d0f2eb57803
+	github.com/spark-lence/tiga v0.0.0-20240509013147-dc01ba9576c1
 	github.com/spf13/cobra v1.8.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20240506185236-b8a5c65736ae
 	google.golang.org/grpc v1.63.2
@@ -137,7 +137,7 @@ require (
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 )
 
-replace github.com/spark-lence/tiga => /data/work/spark-lence/tiga
+// replace github.com/spark-lence/tiga => /data/work/spark-lence/tiga
 
 // replace github.com/begonia-org/go-layered-cache => ../go-layered-cache
 
