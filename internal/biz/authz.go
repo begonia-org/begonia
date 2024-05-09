@@ -34,7 +34,7 @@ type AuthzUsecase struct {
 }
 
 func NewAuthzUsecase(repo AuthzRepo, user UserRepo, log logger.Logger, crypto *crypto.UsersAuth, config *config.Config) *AuthzUsecase {
-	return &AuthzUsecase{repo: repo, log: log, authCrypto: crypto, config: config,user: user}
+	return &AuthzUsecase{repo: repo, log: log, authCrypto: crypto, config: config, user: user}
 }
 
 func (u *AuthzUsecase) DelToken(ctx context.Context, key string) error {
@@ -121,7 +121,7 @@ func (u *AuthzUsecase) Login(ctx context.Context, in *api.LoginAPIRequest) (*api
 
 	user, err := u.user.Get(ctx, account)
 	if err != nil || user == nil {
-		if err==nil{
+		if err == nil {
 			err = errors.ErrUserNotFound
 		}
 		err := errors.New(err, int32(api.UserSvrCode_USER_NOT_FOUND_ERR), codes.NotFound, "user_query")

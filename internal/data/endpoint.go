@@ -123,7 +123,6 @@ func (e *endpointRepoImpl) patchTags(oldTags []interface{}, newTags []interface{
             // Del old tags if not in new tags
             if !slices.Contains(newTags, tag) {
                 tagKey := e.cfg.GetTagsKey(val, id)
-                log.Printf("delete tag key: %s", tagKey)
                 ops = append(ops, clientv3.OpDelete(tagKey))
             }
         }
@@ -132,7 +131,6 @@ func (e *endpointRepoImpl) patchTags(oldTags []interface{}, newTags []interface{
     for _, tag := range newTags {
         if val, ok := tag.(string); ok {
             tagKey := e.cfg.GetTagsKey(val, id)
-            log.Printf("put tag key: %s", tagKey)
             ops = append(ops, clientv3.OpPut(tagKey, e.cfg.GetServiceKey(id)))
         }
 
