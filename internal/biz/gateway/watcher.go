@@ -56,8 +56,8 @@ func (g *GatewayWatcher) Update(ctx context.Context, key string, value string) e
 	if err != nil {
 		return errors.New(fmt.Errorf("register service error: %w", err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "register_service")
 	}
-	err = g.repo.PutTags(ctx, endpoint.Key, endpoint.Tags)
-	return err
+	// err = g.repo.PutTags(ctx, endpoint.Key, endpoint.Tags)
+	return nil
 }
 func (g *GatewayWatcher) del(ctx context.Context, key string, value string) error {
 	endpoint := &api.Endpoints{}

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
+	"log"
 	"os"
 	"path/filepath"
 	"time"
@@ -160,6 +161,7 @@ func (e *EndpointUsecase) AddConfig(ctx context.Context, srvConfig *api.Endpoint
 		ServiceName:   srvConfig.ServiceName,
 		DescriptorSet: srvConfig.DescriptorSet,
 	}
+	log.Printf("endpoint add tags :%v", srvConfig.Tags)
 	err := e.repo.Put(ctx, endpoint)
 	if err != nil {
 		return "", errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "put_endpoint")

@@ -22,7 +22,7 @@ import (
 )
 
 var endpointId = ""
-var tag = fmt.Sprintf("test-%s", time.Now().Format("20060102150405"))
+var tag = fmt.Sprintf("test-data-%s", time.Now().Format("20060102150405"))
 var tag3 = fmt.Sprintf("test3-%s", time.Now().Format("20060102150405"))
 func putTest(t *testing.T) {
 	c.Convey("test app add success", t, func() {
@@ -114,7 +114,7 @@ func patchEndpointTest(t *testing.T) {
 		repo := NewEndpointRepo(conf, logger.Log)
 		cnf := config.NewConfig(conf)
 		endpointKey := cnf.GetServiceKey(endpointId)
-		tag1:=fmt.Sprintf("test-patch-%s", time.Now().Format("20060102150405"))
+		tag1:=fmt.Sprintf("test-data-patch-%s", time.Now().Format("20060102150405"))
 		err := repo.Patch(context.Background(), endpointId, map[string]interface{}{
 			"description": "test description",
 			"balance":     string(goloadbalancer.WRRBalanceType),
@@ -132,11 +132,14 @@ func patchEndpointTest(t *testing.T) {
 		c.So(updated.Balance, c.ShouldEqual, string(goloadbalancer.WRRBalanceType))
 		c.So(updated.Name, c.ShouldEqual, "test")
 		// Tags should be updated
+		c.So(updated.Tags, c.ShouldNotContain, tag)
+		c.So(updated.Tags, c.ShouldContain, tag1)
 		keys, err := repo.GetKeysByTags(context.Background(), []string{tag})
 		c.So(err, c.ShouldBeNil)
 		c.So(keys, c.ShouldBeEmpty)
 		keys, err = repo.GetKeysByTags(context.Background(), []string{tag1})
 		c.So(err, c.ShouldBeNil)
+		t.Logf("keys:%v", keys)
 		c.So(keys, c.ShouldContain, endpointKey)
 
 	})
@@ -176,7 +179,7 @@ func putTagsTest(t *testing.T){
 		repo := NewEndpointRepo(conf, logger.Log)
 		cnf := config.NewConfig(conf)
 		endpointKey := cnf.GetServiceKey(endpointId)
-		tag1:=fmt.Sprintf("test1-%s", time.Now().Format("20060102150405"))
+		tag1:=fmt.Sprintf("test1-data-%s", time.Now().Format("20060102150405"))
 		tag2:=fmt.Sprintf("test2-%s", time.Now().Format("20060102150405"))
 		err := repo.PutTags(context.Background(), endpointId, []string{tag1,tag2,tag3})
 		c.So(err, c.ShouldBeNil)

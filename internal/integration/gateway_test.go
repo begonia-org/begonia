@@ -111,7 +111,7 @@ func delEndpoint(t *testing.T) {
 		rsp, err := apiClient.DeleteEndpointConfig(context.Background(), shareEndpoint)
 		c.So(err, c.ShouldBeNil)
 		c.So(rsp.StatusCode, c.ShouldEqual, common.Code_OK)
-		time.Sleep(3 * time.Second)
+		time.Sleep(5 * time.Second)
 		req, err := http.NewRequest("GET", "http://127.0.0.1:12140/api/v1/example/helloworld", nil)
 		c.So(err, c.ShouldBeNil)
 		req.Header.Set("accept", "application/json")
