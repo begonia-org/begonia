@@ -168,9 +168,6 @@ func (f *FileUsecase) getSaveDir(key string) (string, error) {
 
 }
 
-// func (f *FileUsecase) getResourceKey(authorId string) string {
-// 	return fmt.Sprintf("begonia:file:%s", filepath.Join(f.config.GetUploadDir(), authorId, "*"))
-// }
 
 // checkIn checks the key and authorId.
 //

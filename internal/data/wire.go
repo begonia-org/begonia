@@ -16,9 +16,7 @@ func NewAppRepo(cfg *tiga.Configuration,log logger.Logger) biz.AppRepo {
 	panic(wire.Build(ProviderSet, config.NewConfig))
 	// return &appRepoImpl{data: data, curd: curd, local: local, cfg: cfg}
 }
-// func NewFileRepo(cfg *tiga.Configuration,log logger.Logger) file.FileRepo {
-// 	panic(wire.Build(ProviderSet))
-// }
+
 func NewEndpointRepo(cfg *tiga.Configuration,log logger.Logger) gateway.EndpointRepo {
 	panic(wire.Build(ProviderSet, config.NewConfig))
 }
@@ -33,6 +31,6 @@ func NewLayered(cfg *tiga.Configuration,log logger.Logger) *LayeredCache {
 	panic(wire.Build(ProviderSet,config.NewConfig))
 }
 
-func NewOperator(cfg *tiga.Configuration,log logger.Logger) *LayeredCache {
+func NewOperator(cfg *tiga.Configuration,log logger.Logger) biz.DataOperatorRepo {
 	panic(wire.Build(ProviderSet,config.NewConfig))
 }

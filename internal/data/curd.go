@@ -18,6 +18,7 @@ import (
 type curdImpl struct {
 	db   *tiga.MySQLDao
 	conf *config.Config
+	// cache *LayeredCache
 }
 
 
@@ -177,7 +178,6 @@ func (c *curdImpl) Del(ctx context.Context, model interface{}, needEncrypt bool)
 	} else {
 		return c.db.Delete(model, fmt.Sprintf("%s=?", key), val)
 	}
-
 }
 func (c *curdImpl) List(ctx context.Context, models interface{}, pagination *tiga.Pagination) error {
 	if _, ok := models.(biz.DeleteModel); ok {
@@ -185,3 +185,5 @@ func (c *curdImpl) List(ctx context.Context, models interface{}, pagination *tig
 	}
 	return c.db.Pagination(ctx,models, pagination)
 }
+
+

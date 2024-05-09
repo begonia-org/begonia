@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/begonia-org/begonia/internal/biz"
@@ -11,7 +12,6 @@ import (
 	api "github.com/begonia-org/go-sdk/api/user/v1"
 	"github.com/begonia-org/go-sdk/logger"
 	"github.com/redis/go-redis/v9"
-	"github.com/spark-lence/tiga"
 	"go.etcd.io/etcd/api/v3/mvccpb"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -19,18 +19,26 @@ import (
 )
 
 type dataOperatorRepo struct {
-	data  *Data
-	app   biz.AppRepo
-	authz biz.AuthzRepo
-	user  biz.UserRepo
-	local *LayeredCache
-	log   logger.Logger
+	data        *Data
+	app         biz.AppRepo
+	authz       biz.AuthzRepo
+	user        biz.UserRepo
+	local       *LayeredCache
+	log         logger.Logger
+	onceOnStart sync.Once
 }
 
-func NewDataOperatorRepo(data *Data, app biz.AppRepo,user biz.UserRepo, authz biz.AuthzRepo, local *LayeredCache, log logger.Logger) biz.DataOperatorRepo {
+func NewDataOperatorRepo(data *Data, app biz.AppRepo, user biz.UserRepo, authz biz.AuthzRepo, local *LayeredCache, log logger.Logger) biz.DataOperatorRepo {
 	log.WithField("module", "dataOperatorRepo")
 	log.SetReportCaller(true)
-	return &dataOperatorRepo{data: data, app: app, authz: authz,user: user, local: local, log: log}
+	return &dataOperatorRepo{data: data,
+		app:         app,
+		authz:       authz,
+		user:        user,
+		local:       local,
+		log:         log,
+		onceOnStart: sync.Once{},
+	}
 }
 
 // DistributedLock 分布式锁,拿到锁对象后需要调用DistributedUnlock释放锁
@@ -38,14 +46,12 @@ func (r *dataOperatorRepo) Lock(ctx context.Context, key string, exp time.Durati
 	return NewDataLock(r.data.rdb.GetClient(), key, exp, 3), nil
 }
 
-
 // GetAllForbiddenUsers 获取所有被禁用的用户
 func (r *dataOperatorRepo) GetAllForbiddenUsers(ctx context.Context) ([]*api.Users, error) {
 	users := make([]*api.Users, 0)
-	// return r.data.Get(ctx, key)
 	page := int32(1)
 	for {
-		user, err := r.user.List(ctx, nil, []api.USER_STATUS{api.USER_STATUS_LOCKED, api.USER_STATUS_DELETED}, page, 100)
+		user, err := r.user.List(ctx, nil, []api.USER_STATUS{api.USER_STATUS_LOCKED, api.USER_STATUS_DELETED, api.USER_STATUS_INACTIVE}, page, 100)
 		if err != nil {
 			if strings.Contains(err.Error(), gorm.ErrRecordNotFound.Error()) {
 				break
@@ -92,21 +98,22 @@ func (d *dataOperatorRepo) FlashAppsCache(ctx context.Context, prefix string, mo
 		kv = append(kv, key, model.Secret)
 		kv = append(kv, fmt.Sprintf("%s:appid:%s", prefix, model.AccessKey), model.Appid)
 	}
-	pipe := d.data.BatchCacheByTx(ctx, exp, kv...)
-	_, err := pipe.Exec(ctx)
-	return err
-}
-func (d *dataOperatorRepo) FlashAppidCache(ctx context.Context, prefix string, models []*app.Apps, exp time.Duration) error {
 
-	kv := make([]interface{}, 0)
-	for _, model := range models {
-		key := fmt.Sprintf("%s:%s", prefix, model.AccessKey)
-		kv = append(kv, key, model.Appid)
-	}
 	pipe := d.data.BatchCacheByTx(ctx, exp, kv...)
+	pipe.Set(ctx, fmt.Sprintf("%s:last_updated", prefix), time.Now().UnixMilli(), exp)
+
 	_, err := pipe.Exec(ctx)
+	if err != nil {
+		return err
+	}
+	for i := 0; i < len(kv)-1; i += 2 {
+		key := kv[i].(string)
+		val := kv[i+1].(string)
+		_ = d.local.SetToLocal(ctx, key, []byte(val), exp)
+	}
 	return err
 }
+
 func (d *dataOperatorRepo) FlashUsersCache(ctx context.Context, prefix string, models []*api.Users, exp time.Duration) error {
 
 	kv := make([]interface{}, 0)
@@ -115,53 +122,37 @@ func (d *dataOperatorRepo) FlashUsersCache(ctx context.Context, prefix string, m
 		val, _ := protojson.Marshal(model)
 		kv = append(kv, key, string(val))
 	}
+	// d.local.Set()
 	pipe := d.data.BatchCacheByTx(ctx, exp, kv...)
 	// 记录最后更新时间
 	pipe.Set(ctx, fmt.Sprintf("%s:last_updated", prefix), time.Now().UnixMilli(), exp)
 	_, err := pipe.Exec(ctx)
+	if err != nil {
+		return err
+	}
+	for i := 0; i < len(kv)-1; i += 2 {
+		key := kv[i].(string)
+		val := kv[i+1].(string)
+		_ = d.local.SetToLocal(ctx, key, []byte(val), exp)
+	}
 	return err
 }
-func (d *dataOperatorRepo) LoadAppsLayeredCache(ctx context.Context, prefix string, models []*app.Apps, exp time.Duration) error {
-	for _, model := range models {
-		key := fmt.Sprintf("%s:access_key:%s", prefix, model.AccessKey)
-		if err := d.local.Set(ctx, key, []byte(model.Secret), exp); err != nil {
-			return err
-		}
-		key = fmt.Sprintf("%s:appid:%s", prefix, model.AccessKey)
-		if err := d.local.Set(ctx, key, []byte(model.Appid), exp); err != nil {
-			return err
-		}
+
+func (d *dataOperatorRepo) LoadRemoteCache(ctx context.Context) {
+
+	err := d.local.kv.LoadDump(ctx)
+	if err != nil {
+		d.log.Errorf("load remote cache error %v", err)
 	}
-	return nil
-}
-func (d *dataOperatorRepo) LoadUsersLayeredCache(ctx context.Context, prefix string, models []*api.Users, exp time.Duration) error {
-	for _, model := range models {
-		key := fmt.Sprintf("%s:%s", prefix, model.Uid)
-		val, _ := tiga.IntToBytes(int(model.Status))
-		if err := d.local.Set(ctx, key, val, exp); err != nil {
-			return err
-		}
+	err = d.local.filters.LoadDump(ctx)
+	if err != nil {
+		d.log.Errorf("load remote cache error %v", err)
 
 	}
-	return nil
-}
 
-func (r *dataOperatorRepo) CacheUsers(ctx context.Context, prefix string, models []*api.Users, exp time.Duration) error {
-
-	pipe := r.user.Cache(ctx, prefix, models, exp, func(user *api.Users) ([]byte, interface{}) {
-		val, _ := tiga.IntToBytes(int(user.Status))
-		return val, int(user.Status)
-	})
-	_, err := pipe.Exec(ctx)
-	return err
 }
-func (r *dataOperatorRepo) PullBloom(ctx context.Context, key string) []byte {
-	return r.data.rdb.GetBytes(ctx, key)
-}
-
 
 func (d *dataOperatorRepo) LastUpdated(ctx context.Context, key string) (time.Time, error) {
-	// return d.data.rdb.SetBytes(ctx, keys, exp)
 	key = fmt.Sprintf("%s:last_updated", key)
 	timestamp, err := d.data.rdb.GetClient().Get(ctx, key).Int64()
 	if err != nil {
@@ -180,8 +171,6 @@ func (d *dataOperatorRepo) LastUpdated(ctx context.Context, key string) (time.Ti
 }
 
 func (d *dataOperatorRepo) Watcher(ctx context.Context, prefix string, handle func(ctx context.Context, op mvccpb.Event_EventType, key, value string) error) error {
-	// prefix := d.local.config.GetEndpointsPrefix()
-	// prefix = filepath.Join(prefix, "details")
 	watcher := d.data.etcd.Watch(ctx, prefix, clientv3.WithPrefix(), clientv3.WithPrevKV())
 	for wresp := range watcher {
 		for _, ev := range wresp.Events {
@@ -198,4 +187,35 @@ func (d *dataOperatorRepo) Watcher(ctx context.Context, prefix string, handle fu
 		}
 	}
 	return nil
+}
+
+func (d *dataOperatorRepo) Sync() {
+	ticker := time.NewTicker(5 * time.Minute) // 5分钟同步一次
+	defer ticker.Stop()
+
+	go func() {
+		for range ticker.C {
+			d.LoadRemoteCache(context.Background())
+		}
+	}()
+
+}
+
+func (d *dataOperatorRepo) OnStart() {
+	d.onceOnStart.Do(func() {
+		// l.Sync()
+		d.log.Info("data operator repo start")
+		errChan := d.local.filters.Watch(context.Background())
+		go func() {
+			for err := range errChan {
+				d.log.Errorf("bloom filter error %v", err)
+			}
+		}()
+		errKvChan := d.local.kv.Watch(context.Background())
+		go func() {
+			for err := range errKvChan {
+				d.local.log.Errorf("kv error %v", err)
+			}
+		}()
+	})
 }

@@ -9,13 +9,12 @@ import (
 )
 
 type authzRepo struct {
-	data  *Data
 	log   logger.Logger
 	local *LayeredCache
 }
 
-func NewAuthzRepoImpl(data *Data, log logger.Logger, local *LayeredCache) biz.AuthzRepo {
-	return &authzRepo{data: data, log: log, local: local}
+func NewAuthzRepoImpl(log logger.Logger, local *LayeredCache) biz.AuthzRepo {
+	return &authzRepo{log: log, local: local}
 }
 
 func (t *authzRepo) CacheToken(ctx context.Context, key, token string, exp time.Duration) error {

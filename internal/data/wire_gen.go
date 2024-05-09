@@ -18,13 +18,11 @@ import (
 
 func NewAppRepo(cfg *tiga.Configuration, log logger.Logger) biz.AppRepo {
 	mySQLDao := NewMySQL(cfg)
-	redisDao := NewRDB(cfg)
-	etcdDao := NewEtcd(cfg)
-	data := NewData(mySQLDao, redisDao, etcdDao)
 	configConfig := config.NewConfig(cfg)
 	curd := NewCurdImpl(mySQLDao, configConfig)
-	layeredCache := NewLayeredCache(data, configConfig, log)
-	appRepo := NewAppRepoImpl(data, curd, layeredCache, configConfig)
+	redisDao := NewRDB(cfg)
+	layeredCache := NewLayeredCache(redisDao, configConfig, log)
+	appRepo := NewAppRepoImpl(curd, layeredCache, configConfig)
 	return appRepo
 }
 
@@ -42,13 +40,10 @@ func NewEndpointRepo(cfg *tiga.Configuration, log logger.Logger) gateway.Endpoin
 }
 
 func NewAuthzRepo(cfg *tiga.Configuration, log logger.Logger) biz.AuthzRepo {
-	mySQLDao := NewMySQL(cfg)
 	redisDao := NewRDB(cfg)
-	etcdDao := NewEtcd(cfg)
-	data := NewData(mySQLDao, redisDao, etcdDao)
 	configConfig := config.NewConfig(cfg)
-	layeredCache := NewLayeredCache(data, configConfig, log)
-	bizAuthzRepo := NewAuthzRepoImpl(data, log, layeredCache)
+	layeredCache := NewLayeredCache(redisDao, configConfig, log)
+	bizAuthzRepo := NewAuthzRepoImpl(log, layeredCache)
 	return bizAuthzRepo
 }
 
@@ -58,28 +53,30 @@ func NewUserRepo(cfg *tiga.Configuration, log logger.Logger) biz.UserRepo {
 	etcdDao := NewEtcd(cfg)
 	data := NewData(mySQLDao, redisDao, etcdDao)
 	configConfig := config.NewConfig(cfg)
-	layeredCache := NewLayeredCache(data, configConfig, log)
+	layeredCache := NewLayeredCache(redisDao, configConfig, log)
 	curd := NewCurdImpl(mySQLDao, configConfig)
 	userRepo := NewUserRepoImpl(data, layeredCache, curd, configConfig)
 	return userRepo
 }
 
 func NewLayered(cfg *tiga.Configuration, log logger.Logger) *LayeredCache {
-	mySQLDao := NewMySQL(cfg)
 	redisDao := NewRDB(cfg)
-	etcdDao := NewEtcd(cfg)
-	data := NewData(mySQLDao, redisDao, etcdDao)
 	configConfig := config.NewConfig(cfg)
-	layeredCache := NewLayeredCache(data, configConfig, log)
+	layeredCache := NewLayeredCache(redisDao, configConfig, log)
 	return layeredCache
 }
 
-func NewOperator(cfg *tiga.Configuration, log logger.Logger) *LayeredCache {
+func NewOperator(cfg *tiga.Configuration, log logger.Logger) biz.DataOperatorRepo {
 	mySQLDao := NewMySQL(cfg)
 	redisDao := NewRDB(cfg)
 	etcdDao := NewEtcd(cfg)
 	data := NewData(mySQLDao, redisDao, etcdDao)
 	configConfig := config.NewConfig(cfg)
-	layeredCache := NewLayeredCache(data, configConfig, log)
-	return layeredCache
+	curd := NewCurdImpl(mySQLDao, configConfig)
+	layeredCache := NewLayeredCache(redisDao, configConfig, log)
+	appRepo := NewAppRepoImpl(curd, layeredCache, configConfig)
+	userRepo := NewUserRepoImpl(data, layeredCache, curd, configConfig)
+	bizAuthzRepo := NewAuthzRepoImpl(log, layeredCache)
+	bizDataOperatorRepo := NewDataOperatorRepo(data, appRepo, userRepo, bizAuthzRepo, layeredCache, log)
+	return bizDataOperatorRepo
 }

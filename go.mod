@@ -5,7 +5,7 @@ go 1.20
 require (
 	// github.com/begonia-org/begonia/common v0.0.0-20240220080319-965ae95c8876
 	// github.com/begonia-org/begonia/endpoint v0.0.0-20240220080319-965ae95c8876
-	github.com/begonia-org/go-layered-cache v0.0.0-20240507014811-e3639472c0a8
+	github.com/begonia-org/go-layered-cache v0.0.0-20240509081803-d1a424e5064b
 	github.com/bsm/redislock v0.9.4
 	github.com/cockroachdb/errors v1.11.1
 	github.com/google/wire v0.6.0

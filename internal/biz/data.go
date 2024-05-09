@@ -30,6 +30,7 @@ type DataOperatorRepo interface {
 	GetAllForbiddenUsers(ctx context.Context) ([]*u.Users, error)
 	Lock(ctx context.Context, key string, exp time.Duration) (DataLock, error)
 	LastUpdated(ctx context.Context, key string) (time.Time, error)
+	OnStart()
 	Watcher(ctx context.Context, prefix string, handle func(ctx context.Context, op mvccpb.Event_EventType, key, value string) error) error
 }
 type operationAction func(ctx context.Context) error
