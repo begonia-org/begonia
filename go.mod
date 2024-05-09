@@ -139,7 +139,7 @@ require (
 
 // replace github.com/spark-lence/tiga => /data/work/spark-lence/tiga
 
-// replace github.com/begonia-org/go-layered-cache => ../go-layered-cache
+replace github.com/begonia-org/go-layered-cache => ../go-layered-cache
 
 // replace github.com/begonia-org/go-sdk => ../begonia-go-sdk
 

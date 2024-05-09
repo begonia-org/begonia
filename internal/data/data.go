@@ -9,7 +9,6 @@ import (
 	"time"
 
 	common "github.com/begonia-org/go-sdk/common/api/v1"
-	"github.com/bsm/redislock"
 	"github.com/cockroachdb/errors"
 	"github.com/google/wire"
 	"github.com/redis/go-redis/v9"
@@ -64,7 +63,6 @@ var ProviderSet = wire.NewSet(NewMySQL,
 
 	NewAuthzRepoImpl,
 	NewUserRepoImpl,
-	// NewFileRepoImpl,
 	NewEndpointRepoImpl,
 	NewAppRepoImpl,
 	NewDataOperatorRepo)
@@ -84,29 +82,7 @@ type SourceType interface {
 func NewData(mysql *tiga.MySQLDao, rdb *tiga.RedisDao, etcd *tiga.EtcdDao) *Data {
 	return &Data{db: mysql, rdb: rdb, etcd: etcd}
 }
-func (d *Data) Get(model interface{}, data interface{}, conds ...interface{}) error {
-	ret := d.db.GetModel(model).First(data, conds...)
-	return ret.Error
-}
-func (d *Data) List(model interface{}, data interface{}, page, pageSize int32, conds ...interface{}) error {
-	queryTag := tiga.QueryTags{}
-	query := queryTag.BuildConditions(d.db.GetModel(model), conds)
-	if query == nil {
-		query = d.db.GetModel(model).Find(data, conds...)
-	}
-	if err := query.Find(data).Offset(int(page)).Limit(int(pageSize)).Error; err != nil {
-		return err
-	} else {
-		return nil
-	}
-}
 
-//	func (d *Data) Get(model interface{}, data interface{}, conds ...interface{}) error {
-//		return d.db.GetModel(model).First(data, conds...).Error
-//	}
-func (d *Data) Create(ctx context.Context, model interface{}) error {
-	return d.db.Create(ctx,model)
-}
 func (d *Data) CreateInBatches(models []SourceType) error {
 
 	db, err := d.CreateInBatchesByTx(models)
@@ -171,7 +147,6 @@ func (d *Data) CreateInBatchesByTx(models interface{}) (*gorm.DB, error) {
 		return nil, fmt.Errorf("批量插入资源失败: %w", err)
 	}
 	return db, nil
-
 }
 func (d *Data) BatchUpdates(ctx context.Context, models []SourceType) error {
 	size, err := tiga.GetElementCount(models)
@@ -187,7 +162,7 @@ func (d *Data) BatchUpdates(ctx context.Context, models []SourceType) error {
 		if err != nil {
 			return errors.New("获取第一个元素失败")
 		}
-		return d.db.Update(ctx,model, model)
+		return d.db.Update(ctx, model, model)
 	}
 	db := d.db.Begin()
 	for _, item := range models {
@@ -251,7 +226,6 @@ func getPrimaryColumnValue(model interface{}, tagName string) (string, interface
 	}
 	return "", nil, fmt.Errorf("not found primary column")
 }
-
 func (d *Data) Update(ctx context.Context, model SourceType) error {
 	paths := make([]string, 0)
 	updateMask := model.GetUpdateMask()
@@ -263,7 +237,7 @@ func (d *Data) Update(ctx context.Context, model SourceType) error {
 		return errors.Wrap(err, "get column value failed")
 
 	}
-	err = d.db.UpdateSelectColumns(ctx,fmt.Sprintf("%s=%s", key, val), model, paths...)
+	err = d.db.UpdateSelectColumns(ctx, fmt.Sprintf("%s=%s", key, val), model, paths...)
 
 	if err != nil {
 		return errors.Wrap(err, "更新失败")
@@ -290,16 +264,9 @@ func (d *Data) DelCacheByTx(ctx context.Context, keys ...string) redis.Pipeliner
 	}
 	return pipe
 }
-func (d *Data) DelCache(ctx context.Context, key string) error {
-	return d.rdb.Del(ctx, key)
-}
-func (d *Data) ScanCache(ctx context.Context, cur uint64, prefix string, count int64) ([]string, uint64, error) {
-	return d.rdb.Scan(ctx, cur, count, prefix)
-}
-func (d *Data) Lock(ctx context.Context, key string, expiration time.Duration) (*redislock.Lock, error) {
-	return d.rdb.Lock(ctx, key, expiration)
-}
-func (d *Data) BatchDelete(models []SourceType) error {
+
+
+func (d *Data) BatchEtcdDelete(models []SourceType) error {
 	if len(models) == 0 {
 		return nil
 	}

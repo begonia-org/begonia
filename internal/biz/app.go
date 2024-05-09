@@ -60,7 +60,6 @@ func (a *AppUsecase) newApp() *api.Apps {
 
 }
 func (a *AppUsecase) CreateApp(ctx context.Context, in *api.AppsRequest, owner string) (*api.Apps, error) {
-    // return a.repo.ListApps(ctx, conds...)
     appid := GenerateAppid(ctx, a.snowflake)
     accessKey, err := GenerateAppAccessKey(ctx)
     if err != nil {

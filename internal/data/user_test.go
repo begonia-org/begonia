@@ -91,7 +91,7 @@ func testGetUser(t *testing.T) {
 		if begonia.Env != "" {
 			env = begonia.Env
 		}
-        conf:=cfg.ReadConfig(env)
+		conf := cfg.ReadConfig(env)
 		repo := NewUserRepo(conf, logger.Log)
 		user, err := repo.Get(context.TODO(), uid)
 		c.So(err, c.ShouldBeNil)
@@ -99,18 +99,18 @@ func testGetUser(t *testing.T) {
 		c.So(user.Uid, c.ShouldEqual, uid)
 		c.So(user.Name, c.ShouldEqual, user1)
 
-        c.Convey("test user get by account", func() {
-            cnf:=config.NewConfig(conf)
-            key, iv := cnf.GetAesConfig()
-            account, err := tiga.EncryptAES([]byte(key), user.Name, iv)
-            t.Log("account:", account)
-            c.So(err, c.ShouldBeNil)
-            userByName, err := repo.Get(context.TODO(), account)
-            c.So(err, c.ShouldBeNil)
-            c.So(userByName, c.ShouldNotBeNil)
-            c.So(userByName.Uid, c.ShouldEqual, uid)
-            c.So(userByName.Name, c.ShouldEqual, user1)
-        })
+		c.Convey("test user get by account", func() {
+			cnf := config.NewConfig(conf)
+			key, iv := cnf.GetAesConfig()
+			account, err := tiga.EncryptAES([]byte(key), user.Name, iv)
+			t.Log("account:", account)
+			c.So(err, c.ShouldBeNil)
+			userByName, err := repo.Get(context.TODO(), account)
+			c.So(err, c.ShouldBeNil)
+			c.So(userByName, c.ShouldNotBeNil)
+			c.So(userByName.Uid, c.ShouldEqual, uid)
+			c.So(userByName.Name, c.ShouldEqual, user1)
+		})
 	})
 }
 
@@ -180,15 +180,13 @@ func testListUser(t *testing.T) {
 			env = begonia.Env
 		}
 		repo := NewUserRepo(cfg.ReadConfig(env), logger.Log)
-		// users, err := repo.List(context.TODO(), &api.ListUserReq{
-		//     Name: user2,
-		// })
 		snk, _ := tiga.NewSnowflake(1)
-		rand.Seed(time.Now().UnixNano())
+		// rand.Seed(time.Now().UnixNano())
+		rand:=rand.New(rand.NewSource(time.Now().UnixNano()))
 		status := []api.USER_STATUS{api.USER_STATUS_ACTIVE, api.USER_STATUS_INACTIVE, api.USER_STATUS_LOCKED}
-        depts:=[3]string{"dev","test","prd"}
+		depts := [3]string{"dev", "test", "prd"}
 		for i := 0; i < 20; i++ {
-			err:=repo.Add(context.TODO(), &api.Users{
+			err := repo.Add(context.TODO(), &api.Users{
 				Uid:       snk.GenerateIDString(),
 				Name:      fmt.Sprintf("user-%d-%s@example.com", i, time.Now().Format("20060102150405")),
 				Dept:      depts[rand.Intn(len(depts))],
@@ -201,19 +199,19 @@ func testListUser(t *testing.T) {
 				UpdatedAt: timestamppb.Now(),
 				Status:    status[rand.Intn(len(status))],
 			})
-            if err!=nil{
-                t.Errorf("add user error:%v",err)
-            }
+			if err != nil {
+				t.Errorf("add user error:%v", err)
+			}
 		}
-        users1, err := repo.List(context.TODO(), []string{"dev","test"},[]api.USER_STATUS{api.USER_STATUS_ACTIVE,api.USER_STATUS_INACTIVE}, 1, 5)
+		users1, err := repo.List(context.TODO(), []string{"dev", "test"}, []api.USER_STATUS{api.USER_STATUS_ACTIVE, api.USER_STATUS_INACTIVE}, 1, 5)
 		c.So(err, c.ShouldBeNil)
 		c.So(users1, c.ShouldNotBeEmpty)
-        users2, err := repo.List(context.TODO(), []string{"dev","test"},[]api.USER_STATUS{api.USER_STATUS_ACTIVE,api.USER_STATUS_INACTIVE}, 2, 5)
+		users2, err := repo.List(context.TODO(), []string{"dev", "test"}, []api.USER_STATUS{api.USER_STATUS_ACTIVE, api.USER_STATUS_INACTIVE}, 2, 5)
 		c.So(err, c.ShouldBeNil)
 		c.So(users2, c.ShouldNotBeEmpty)
-        c.So(users1[0].Uid, c.ShouldNotEqual, users2[0].Uid)
-        c.So(users1[4].Uid, c.ShouldBeLessThan, users2[0].Uid)
-        
+		c.So(users1[0].Uid, c.ShouldNotEqual, users2[0].Uid)
+		c.So(users1[4].Uid, c.ShouldBeLessThan, users2[0].Uid)
+
 	})
 }
 func TestUser(t *testing.T) {
@@ -221,5 +219,5 @@ func TestUser(t *testing.T) {
 	t.Run("testGetUser", testGetUser)
 	t.Run("testUpdateUser", testUpdateUser)
 	t.Run("testDelUser", testDelUser)
-    t.Run("testListUser", testListUser)
+	t.Run("testListUser", testListUser)
 }

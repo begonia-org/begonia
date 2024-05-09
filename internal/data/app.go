@@ -12,14 +12,13 @@ import (
 )
 
 type appRepoImpl struct {
-	data  *Data
 	local *LayeredCache
 	cfg   *config.Config
 	curd  biz.CURD
 }
 
-func NewAppRepoImpl(data *Data, curd biz.CURD, local *LayeredCache, cfg *config.Config) biz.AppRepo {
-	return &appRepoImpl{data: data, curd: curd, local: local, cfg: cfg}
+func NewAppRepoImpl(curd biz.CURD, local *LayeredCache, cfg *config.Config) biz.AppRepo {
+	return &appRepoImpl{curd: curd, local: local, cfg: cfg}
 }
 
 func (r *appRepoImpl) Add(ctx context.Context, apps *api.Apps) error {
