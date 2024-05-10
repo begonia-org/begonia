@@ -51,26 +51,22 @@ func (u *UserUsecase) Add(ctx context.Context, users *api.Users) (err error) {
 
 	err = u.repo.Add(ctx, users)
 	return
-
 }
 func (u *UserUsecase) Get(ctx context.Context, key string) (*api.Users, error) {
 	user, err := u.repo.Get(ctx, key)
 	if err != nil {
-		if strings.Contains(err.Error(), "not found") {
-			return nil, errors.New(err, int32(api.UserSvrCode_USER_NOT_FOUND_ERR), codes.NotFound, "get_user")
-
-		}
-		return nil, errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_user")
+		return nil, errors.New(err, int32(api.UserSvrCode_USER_NOT_FOUND_ERR), codes.NotFound, "get_user")
 	}
 	return user, nil
 }
-
 func (u *UserUsecase) Update(ctx context.Context, model *api.Users) error {
 	err := u.repo.Patch(ctx, model)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			return errors.New(err, int32(api.UserSvrCode_USER_NOT_FOUND_ERR), codes.NotFound, "get_user")
-
+		}
+		if strings.Contains(err.Error(), "Duplicate entry") {
+			return errors.New(err, int32(api.UserSvrCode_USER_USERNAME_DUPLICATE_ERR), codes.AlreadyExists, "patch_app")
 		}
 		return errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_user")
 	}
@@ -87,3 +83,15 @@ func (u *UserUsecase) Delete(ctx context.Context, uid string) error {
 	}
 	return nil
 }
+
+func (u *UserUsecase) List(ctx context.Context, dept []string, status []api.USER_STATUS, page, pageSize int32) ([]*api.Users, error) {
+	users, err := u.repo.List(ctx, dept, status, page, pageSize)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			return nil, errors.New(err, int32(api.UserSvrCode_USER_NOT_FOUND_ERR), codes.NotFound, "list_users")
+		}
+		return nil, errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "list_user")
+	}
+	return users, nil
+}
+

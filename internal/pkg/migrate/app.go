@@ -33,7 +33,7 @@ func (m *APPOperator) InitAdminAPP(owner string) error {
 		}
 		// 初始化数据
 		// uid := snk.GenerateID()
-		accessKey, err := biz.GenerateAppAccessKey(context.TODO())
+		accessKey, err := biz.GenerateAppAccessKey()
 		if err != nil {
 			return err
 		}
@@ -42,7 +42,7 @@ func (m *APPOperator) InitAdminAPP(owner string) error {
 			accessKey = ak
 		}
 
-		secret, err := biz.GenerateAppSecret(context.TODO())
+		secret, err := biz.GenerateAppSecret()
 
 		if err != nil {
 			return err
@@ -52,7 +52,7 @@ func (m *APPOperator) InitAdminAPP(owner string) error {
 			secret = sk
 		}
 		app = &api.Apps{
-			Appid:       biz.GenerateAppid(context.TODO(), snk),
+			Appid:       biz.GenerateAppid(snk),
 			AccessKey:   accessKey,
 			Secret:      secret,
 			Name:        "admin-app",

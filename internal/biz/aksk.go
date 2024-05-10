@@ -10,9 +10,9 @@ import (
 	"github.com/begonia-org/begonia/internal/pkg/routers"
 	gosdk "github.com/begonia-org/go-sdk"
 	api "github.com/begonia-org/go-sdk/api/app/v1"
+	common "github.com/begonia-org/go-sdk/common/api/v1"
 	"github.com/begonia-org/go-sdk/logger"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 type AccessKeyAuth struct {
@@ -38,7 +38,6 @@ func IfNeedValidate(ctx context.Context, fullMethod string) bool {
 	return router.AuthRequired
 
 }
-
 
 func (a *AccessKeyAuth) AppValidator(ctx context.Context, req *gosdk.GatewayRequest) (string, error) {
 	xDate := ""
@@ -68,22 +67,21 @@ func (a *AccessKeyAuth) AppValidator(ctx context.Context, req *gosdk.GatewayRequ
 	}
 	t, err := time.Parse(gosdk.DateFormat, xDate)
 	if err != nil {
-		return "", status.Errorf(codes.Unauthenticated, "parse %s error,%v", gosdk.HeaderXDateTime, err)
+		return "", errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Unauthenticated, "sign_request")
 	}
 	// check timestamp
-	if time.Since(t) > time.Minute*1 {
+	if time.Since(t).Abs() > time.Minute*1 {
+
 		return "", errors.New(errors.ErrRequestExpired, int32(api.APPSvrCode_APP_REQUEST_EXPIRED_ERR), codes.DeadlineExceeded, "app_timestamp")
 	}
 	secret, err := a.app.GetSecret(ctx, accessKey)
-	// a.log.Info("secret:", secret)
 	if err != nil {
-		return "", errors.New(err, int32(api.APPSvrCode_APP_UNKONW), codes.Unauthenticated, "app_secret")
+		return "", errors.New(err, int32(api.APPSvrCode_APP_UNKNOWN), codes.Unauthenticated, "app_secret")
 	}
 	signer := gosdk.NewAppAuthSigner(accessKey, secret)
-	// a.log.Infof("req:%v,%v,%v,%v,%v", req.Headers, req.Host, req.Method, req.Host, req.URL.String())
 	sign, err := signer.Sign(req)
 	if err != nil {
-		return "", status.Errorf(codes.Unauthenticated, "sign error,%v", err)
+		return "", errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Unauthenticated, "sign_request")
 	}
 	if sign != a.getSignature(auth) {
 		return "", errors.New(errors.ErrAppSignatureInvalid, int32(api.APPSvrCode_APP_SIGNATURE_ERR), codes.Unauthenticated, "app签名校验")
@@ -106,15 +104,15 @@ func (a *AccessKeyAuth) getSignature(auth string) string {
 func (a *AccessKeyAuth) GetSecret(ctx context.Context, accessKey string) (string, error) {
 	secret, err := a.app.GetSecret(ctx, accessKey)
 	if err != nil {
-		return "", errors.New(err, int32(api.APPSvrCode_APP_UNKONW), codes.Unauthenticated, "app_secret")
+		return "", errors.New(err, int32(api.APPSvrCode_APP_UNKNOWN), codes.Unauthenticated, "app_secret")
 	}
 	return secret, nil
 }
 
-func (a *AccessKeyAuth)GetAppid(ctx context.Context, accessKey string) (string, error) {
+func (a *AccessKeyAuth) GetAppid(ctx context.Context, accessKey string) (string, error) {
 	appid, err := a.app.GetAppid(ctx, accessKey)
 	if err != nil {
-		return "", errors.New(err, int32(api.APPSvrCode_APP_UNKONW), codes.Unauthenticated, "app_secret")
+		return "", errors.New(err, int32(api.APPSvrCode_APP_UNKNOWN), codes.Unauthenticated, "app_secret")
 	}
 	return appid, nil
 }

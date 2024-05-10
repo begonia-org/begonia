@@ -21,7 +21,6 @@ type curdImpl struct {
 	// cache *LayeredCache
 }
 
-
 func NewCurdImpl(db *tiga.MySQLDao, conf *config.Config) biz.CURD {
 	return &curdImpl{db: db, conf: conf}
 }
@@ -31,7 +30,7 @@ func (c *curdImpl) SetDatetimeAt(model biz.Model, jsonName string) error {
 		return fmt.Errorf("field %s not found", jsonName)
 
 	}
-	val:= timestamppb.Now()
+	val := timestamppb.Now()
 	model.ProtoReflect().Set(field, protoreflect.ValueOfMessage(val.ProtoReflect()))
 	return nil
 }
@@ -43,7 +42,7 @@ func (c *curdImpl) SetBoolean(model biz.DeleteModel, jsonName string) error {
 	model.ProtoReflect().Set(field, protoreflect.ValueOfBool(true))
 	return nil
 }
-func (c *curdImpl) Add(ctx context.Context, model biz.Model,needEncrypt bool) error {
+func (c *curdImpl) Add(ctx context.Context, model biz.Model, needEncrypt bool) error {
 	if err := c.SetDatetimeAt(model, "created_at"); err != nil {
 		return err
 	}
@@ -59,16 +58,16 @@ func (c *curdImpl) Add(ctx context.Context, model biz.Model,needEncrypt bool) er
 			return fmt.Errorf("encrypt model struct failed:%w", err)
 
 		}
-	
+
 	}
-	return c.db.Create(ctx,model)
+	return c.db.Create(ctx, model)
 }
-func (c *curdImpl) Get(ctx context.Context, model interface{},needDecrypt bool, query string, args ...interface{}) error {
+func (c *curdImpl) Get(ctx context.Context, model interface{}, needDecrypt bool, query string, args ...interface{}) error {
 	if _, ok := model.(biz.DeleteModel); ok {
 		query = fmt.Sprintf("(%s) and is_deleted=0", query)
 
 	}
-	if err := c.db.First(ctx,model, query, args...); err != nil {
+	if err := c.db.First(ctx, model, query, args...); err != nil {
 		return fmt.Errorf("get model failed: %w", err)
 	}
 	if needDecrypt {
@@ -90,10 +89,16 @@ func (c *curdImpl) Update(ctx context.Context, model biz.Model, needEncrypt bool
 		paths = updateMask.Paths
 	}
 	key, val, err := getPrimaryColumnValue(model, "primary")
+	for _, path := range paths {
+		if path == key {
+			return fmt.Errorf("primary key %s can not be updated", key)
+		}
+
+	}
 	if err != nil {
 		return errors.Wrap(err, "get primary column value failed")
 	}
-	_=c.SetDatetimeAt(model, "updated_at")
+	_ = c.SetDatetimeAt(model, "updated_at")
 	if needEncrypt {
 		ivKey := c.conf.GetAesIv()
 		aseKey := c.conf.GetAesKey()
@@ -104,8 +109,8 @@ func (c *curdImpl) Update(ctx context.Context, model biz.Model, needEncrypt bool
 
 		}
 	}
-	
-	err = c.db.UpdateSelectColumns(ctx,fmt.Sprintf("%s=%s", key, val), model, paths...)
+
+	err = c.db.UpdateSelectColumns(ctx, fmt.Sprintf("%s=%s", key, val), model, paths...)
 	if err != nil {
 		return fmt.Errorf("update model for %s=%v failed: %w", key, val, err)
 	}
@@ -156,7 +161,7 @@ func (c *curdImpl) Del(ctx context.Context, model interface{}, needEncrypt bool)
 		if err := c.SetBoolean(delModel, "is_deleted"); err != nil {
 			return err
 		}
-		_=c.SetDatetimeAt(delModel, "updated_at")
+		_ = c.SetDatetimeAt(delModel, "updated_at")
 		updated, err := c.renameUniqueFields(delModel)
 		if err != nil {
 			return fmt.Errorf("rename unique fields failed: %w", err)
@@ -174,7 +179,7 @@ func (c *curdImpl) Del(ctx context.Context, model interface{}, needEncrypt bool)
 				}
 			}
 		}
-		return c.db.UpdateSelectColumns(ctx,fmt.Sprintf("%s=%s", key, val), model, updated...)
+		return c.db.UpdateSelectColumns(ctx, fmt.Sprintf("%s=%s", key, val), model, updated...)
 	} else {
 		return c.db.Delete(model, fmt.Sprintf("%s=?", key), val)
 	}
@@ -183,7 +188,5 @@ func (c *curdImpl) List(ctx context.Context, models interface{}, pagination *tig
 	if _, ok := models.(biz.DeleteModel); ok {
 		pagination.Query = fmt.Sprintf("(%s) and is_deleted=0", pagination.Query)
 	}
-	return c.db.Pagination(ctx,models, pagination)
+	return c.db.Pagination(ctx, models, pagination)
 }
-
-

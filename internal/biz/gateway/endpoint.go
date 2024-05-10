@@ -197,9 +197,6 @@ func (e *EndpointUsecase) Patch(ctx context.Context, srvConfig *api.EndpointSrvU
     return updated_at, nil
 }
 
-//	func (e *EndpointUsecase) DeleteByName(ctx context.Context, name string) error {
-//		return e.repo.Del(ctx, uniqueKey)
-//	}
 func (u *EndpointUsecase) Delete(ctx context.Context, uniqueKey string) error {
     return u.repo.Del(ctx, uniqueKey)
 }
