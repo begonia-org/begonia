@@ -14,7 +14,7 @@ import (
 )
 
 type LayeredCache struct {
-	kv glc.LayeredKeyValueCache
+	kv          glc.LayeredKeyValueCache
 	config      *config.Config
 	log         logger.Logger
 	mux         sync.Mutex
@@ -84,4 +84,11 @@ func (l *LayeredCache) AddToFilter(ctx context.Context, key string, value []byte
 }
 func (l *LayeredCache) DelInFilter(ctx context.Context, key string, value []byte) error {
 	return l.filters.Del(ctx, key, value)
+}
+func (l *LayeredCache) Watch(ctx context.Context) {
+	errChan:=l.kv.Watch(ctx)
+	for err:=range errChan{
+		l.log.Errorf("Watch layered-cache error:%v",err)
+	}
+	
 }

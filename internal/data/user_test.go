@@ -174,7 +174,6 @@ func testDelUser(t *testing.T) {
 
 func testListUser(t *testing.T) {
 	c.Convey("test user list success", t, func() {
-		t.Log("list test")
 		env := "dev"
 		if begonia.Env != "" {
 			env = begonia.Env
@@ -182,9 +181,10 @@ func testListUser(t *testing.T) {
 		repo := NewUserRepo(cfg.ReadConfig(env), logger.Log)
 		snk, _ := tiga.NewSnowflake(1)
 		// rand.Seed(time.Now().UnixNano())
-		rand:=rand.New(rand.NewSource(time.Now().UnixNano()))
+		rand := rand.New(rand.NewSource(time.Now().UnixNano()))
 		status := []api.USER_STATUS{api.USER_STATUS_ACTIVE, api.USER_STATUS_INACTIVE, api.USER_STATUS_LOCKED}
-		depts := [3]string{"dev", "test", "prd"}
+		depts := [3]string{"dev", "test"}
+		
 		for i := 0; i < 20; i++ {
 			err := repo.Add(context.TODO(), &api.Users{
 				Uid:       snk.GenerateIDString(),
@@ -212,6 +212,9 @@ func testListUser(t *testing.T) {
 		c.So(users1[0].Uid, c.ShouldNotEqual, users2[0].Uid)
 		c.So(users1[4].Uid, c.ShouldBeLessThan, users2[0].Uid)
 
+		user3, err := repo.List(context.TODO(), []string{"unknown"}, []api.USER_STATUS{api.USER_STATUS_ACTIVE, api.USER_STATUS_INACTIVE}, 1, 5)
+		c.So(err, c.ShouldBeNil)
+		c.So(len(user3), c.ShouldEqual,0)
 	})
 }
 func TestUser(t *testing.T) {

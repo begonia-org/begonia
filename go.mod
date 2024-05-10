@@ -5,14 +5,14 @@ go 1.20
 require (
 	// github.com/begonia-org/begonia/common v0.0.0-20240220080319-965ae95c8876
 	// github.com/begonia-org/begonia/endpoint v0.0.0-20240220080319-965ae95c8876
-	github.com/begonia-org/go-layered-cache v0.0.0-20240509081803-d1a424e5064b
+	github.com/begonia-org/go-layered-cache v0.0.0-20240510102605-41bdb7aa07fa
 	github.com/bsm/redislock v0.9.4
 	github.com/cockroachdb/errors v1.11.1
 	github.com/google/wire v0.6.0
 	github.com/smartystreets/goconvey v1.8.1
-	github.com/spark-lence/tiga v0.0.0-20240509013147-dc01ba9576c1
+	github.com/spark-lence/tiga v0.0.0-20240510102710-93bf07b60b07
 	github.com/spf13/cobra v1.8.0
-	google.golang.org/genproto/googleapis/api v0.0.0-20240506185236-b8a5c65736ae
+	google.golang.org/genproto/googleapis/api v0.0.0-20240509183442-62759503f434
 	google.golang.org/grpc v1.63.2
 	google.golang.org/protobuf v1.34.1
 )
@@ -80,7 +80,7 @@ require (
 require (
 	github.com/agiledragon/gomonkey/v2 v2.11.0
 	github.com/begonia-org/go-loadbalancer v0.0.0-20240408092223-42b5fab476ce
-	github.com/begonia-org/go-sdk v0.0.0-20240507014141-340c1958f4e2
+	github.com/begonia-org/go-sdk v0.0.0-20240510102512-71c487f8c5b3
 	github.com/go-git/go-git/v5 v5.11.0
 	github.com/go-playground/validator/v10 v10.19.0
 	github.com/gorilla/websocket v1.5.1
@@ -133,7 +133,7 @@ require (
 	golang.org/x/sys v0.20.0 // indirect
 	golang.org/x/text v0.15.0 // indirect
 	golang.org/x/tools v0.21.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240506185236-b8a5c65736ae // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240509183442-62759503f434 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 )
 

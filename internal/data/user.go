@@ -65,6 +65,7 @@ func (r *userRepoImpl) List(ctx context.Context, dept []string, status []api.USE
 		query += "status in (?)"
 		conds = append(conds, status)
 	}
+	
 	pagination := &tiga.Pagination{
 		Page:     page,
 		PageSize: pageSize,

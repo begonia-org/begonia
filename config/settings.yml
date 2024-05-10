@@ -98,7 +98,7 @@ common:
   blacklist_key_prefix: "begonia:blacklist"
   pubsub_key_prefix: "begonia:pubsub"
   multi_cache_strategy: 1
-  kv_prefix: "begonia:kv"
+  kv_prefix: "begonia:cache"
   pubsub_key_channel: "begonia:pubsub:channel"
   etcd:
     endpoint:
