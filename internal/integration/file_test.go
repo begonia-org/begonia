@@ -193,12 +193,16 @@ func downloadParts(t *testing.T) {
 	})
 }
 func deleteFile(t *testing.T) {
+	env := "dev"
+	if begonia.Env != "" {
+		env = begonia.Env
+	}
 	c.Convey("test delete file", t, func() {
 		apiClient := client.NewFilesAPI(apiAddr, accessKey, secret)
 		rsp, err := apiClient.DeleteFile(context.Background(), sdkAPPID +"/test/helloworld.pb")
 		c.So(err, c.ShouldBeNil)
 		c.So(rsp.StatusCode, c.ShouldEqual, common.Code_OK)
-		conf := cfg.NewConfig(config.ReadConfig("test"))
+		conf := cfg.NewConfig(config.ReadConfig(env))
 
 		saveDir := filepath.Join(conf.GetUploadDir(), filepath.Dir("test/helloworld.pb"))
 		filename := filepath.Base("test/helloworld.pb")

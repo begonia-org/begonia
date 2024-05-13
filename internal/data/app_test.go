@@ -53,7 +53,7 @@ func addTest(t *testing.T) {
 		accessKey = access
 		secret, _ = generateRandomString(62)
 		appid = snk.GenerateIDString()
-		appName = fmt.Sprintf("app-%s", time.Now().Format("20060102150405"))
+		appName = fmt.Sprintf("app-data-%s", time.Now().Format("20060102150405"))
 		err := repo.Add(context.TODO(), &api.Apps{
 			Appid:       appid,
 			AccessKey:   access,
