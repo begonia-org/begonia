@@ -76,7 +76,7 @@ func testFlashUsersCache(t *testing.T) {
 		operator := NewOperator(cfg.ReadConfig(env), logger.Log)
 		// operator.(*dataOperatorRepo).local.OnStart()
 		operator.OnStart()
-		lock, err := operator.Lock(context.Background(), "test:user:blacklist:lock", 3*time.Second)
+		lock, err := operator.Locker(context.Background(), "test:user:blacklist:lock", 3*time.Second)
 		c.So(err, c.ShouldBeNil)
 		defer func(){
             _=lock.UnLock(context.TODO())

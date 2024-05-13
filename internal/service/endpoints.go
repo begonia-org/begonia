@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/begonia-org/begonia/internal/biz/gateway"
+	"github.com/begonia-org/begonia/internal/biz/endpoint"
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	api "github.com/begonia-org/go-sdk/api/endpoint/v1"
 	"github.com/begonia-org/go-sdk/logger"
@@ -13,26 +13,17 @@ import (
 )
 
 type EndpointsService struct {
-	biz    *gateway.EndpointUsecase
+	biz    *endpoint.EndpointUsecase
 	log    logger.Logger
 	config *config.Config
 	api.UnimplementedEndpointServiceServer
 }
 
-func NewEndpointsService(biz *gateway.EndpointUsecase, log logger.Logger, config *config.Config) *EndpointsService {
+func NewEndpointsService(biz *endpoint.EndpointUsecase, log logger.Logger, config *config.Config) *EndpointsService {
 	return &EndpointsService{biz: biz, log: log, config: config}
 }
 
-func (e *EndpointsService) Create(ctx context.Context, in *api.AddEndpointRequest) (*api.AddEndpointResponse, error) {
 
-	identity := GetIdentity(ctx)
-	key, err := e.biz.CreateEndpoint(ctx, in, identity)
-	if err != nil {
-		return nil, err
-
-	}
-	return &api.AddEndpointResponse{UniqueKey: key}, nil
-}
 func (e *EndpointsService) Update(ctx context.Context, in *api.EndpointSrvUpdateRequest) (*api.UpdateEndpointResponse, error) {
 	timestamp, err := e.biz.Patch(ctx, in)
 	if err != nil {
@@ -42,7 +33,7 @@ func (e *EndpointsService) Update(ctx context.Context, in *api.EndpointSrvUpdate
 	tm, _ := time.Parse(time.RFC3339, timestamp)
 	return &api.UpdateEndpointResponse{UpdatedAt: timestamppb.New(tm)}, nil
 }
-func (e *EndpointsService) Config(ctx context.Context, in *api.EndpointSrvConfig) (*api.AddEndpointResponse, error) {
+func (e *EndpointsService) Put(ctx context.Context, in *api.EndpointSrvConfig) (*api.AddEndpointResponse, error) {
 	id, err := e.biz.AddConfig(ctx, in)
 	if err != nil {
 		return nil, err

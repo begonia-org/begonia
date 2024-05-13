@@ -7,13 +7,13 @@ import (
 
 	"github.com/begonia-org/begonia/transport"
 	_ "github.com/begonia-org/go-sdk/api/app/v1"
-	_ "github.com/begonia-org/go-sdk/api/example/v1"
-	_ "github.com/begonia-org/go-sdk/api/plugin/v1"
 	_ "github.com/begonia-org/go-sdk/api/endpoint/v1"
-	_ "github.com/begonia-org/go-sdk/api/user/v1"
+	_ "github.com/begonia-org/go-sdk/api/example/v1"
 	_ "github.com/begonia-org/go-sdk/api/iam/v1"
-	_ "github.com/begonia-org/go-sdk/common/api/v1"
+	_ "github.com/begonia-org/go-sdk/api/plugin/v1"
 	_ "github.com/begonia-org/go-sdk/api/sys/v1"
+	_ "github.com/begonia-org/go-sdk/api/user/v1"
+	_ "github.com/begonia-org/go-sdk/common/api/v1"
 	common "github.com/begonia-org/go-sdk/common/api/v1"
 	"google.golang.org/genproto/googleapis/api/annotations"
 	"google.golang.org/protobuf/proto"
@@ -158,7 +158,6 @@ func (h *HttpURIRouteToSrvMethod) DeleteRouterDetails(fullMethod string, method 
 func (r *HttpURIRouteToSrvMethod) addRouterDetails(serviceName string, authRequired bool, methodName *descriptorpb.MethodDescriptorProto) {
 	// 获取并打印 google.api.http 注解
 	if path, method := r.getUri(methodName); path != "" {
-
 		r.AddRoute(path, &APIMethodDetails{
 			ServiceName:    serviceName,
 			MethodName:     string(methodName.GetName()),
@@ -176,10 +175,10 @@ func (r *HttpURIRouteToSrvMethod) LoadAllRouters(pd transport.ProtobufDescriptio
 	defer r.mux.Unlock()
 	for _, fd := range fds.File {
 		for _, service := range fd.Service {
-			srvOptions := service.GetOptions()
-			if srvOptions == nil {
-				continue
-			}
+			// srvOptions := service.GetOptions()
+			// if srvOptions == nil {
+			// 	continue
+			// }
 			authRequired := false
 			// 获取并打印 pb.auth_reqiured 注解
 			if authRequiredExt := r.getServiceOptionByExt(service, common.E_AuthReqiured); authRequiredExt != nil {

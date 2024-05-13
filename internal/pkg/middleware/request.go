@@ -94,7 +94,7 @@ func IncomingHeadersToMetadata(ctx context.Context, req *http.Request) metadata.
 	if len(xuid) > 0 {
 		author = xuid[0]
 	}
-	if len(accessKey) > 0 {
+	if author == "" && len(accessKey) > 0 {
 		author = accessKey[0]
 	}
 	if author == "" {

@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -48,7 +49,7 @@ func (f *FileUsecase) getPartsDir(key string) string {
 }
 func (f *FileUsecase) spiltKey(key string) (string, string, error) {
 	if strings.HasPrefix(key, "/") {
-		return "", "", errors.New(errors.ErrInvalidFileKey, int32(api.FileSvrStatus_FILE_INVAILDATE_KEY_ERR), codes.InvalidArgument, "invalid_key")
+		return "", "", errors.New(errors.ErrInvalidFileKey, int32(api.FileSvrStatus_FILE_INVALIDATE_KEY_ERR), codes.InvalidArgument, "invalid_key")
 	}
 	if strings.Contains(key, "/") {
 		name := filepath.Base(key)
@@ -59,7 +60,7 @@ func (f *FileUsecase) spiltKey(key string) (string, string, error) {
 }
 func (f *FileUsecase) InitiateUploadFile(ctx context.Context, in *api.InitiateMultipartUploadRequest) (*api.InitiateMultipartUploadResponse, error) {
 	if in.Key == "" || strings.HasPrefix(in.Key, "/") {
-		return nil, errors.New(errors.ErrInvalidFileKey, int32(api.FileSvrStatus_FILE_INVAILDATE_KEY_ERR), codes.InvalidArgument, "invalid_key")
+		return nil, errors.New(errors.ErrInvalidFileKey, int32(api.FileSvrStatus_FILE_INVALIDATE_KEY_ERR), codes.InvalidArgument, "invalid_key")
 	}
 	uploadId := f.snowflake.GenerateIDString()
 	_, _, err := f.spiltKey(in.Key)
@@ -160,29 +161,28 @@ func (f *FileUsecase) commitFile(dir string, filename string, authorId string, a
 // getSaveDir Get the save directory of the file
 //
 // The save directory is the directory where the file is saved.
-func (f *FileUsecase) getSaveDir(key string) (string, error) {
+func (f *FileUsecase) getSaveDir(key string) string {
 
 	saveDir := filepath.Join(f.config.GetUploadDir(), filepath.Dir(key))
 
-	return saveDir, nil
+	return saveDir
 
 }
-
 
 // checkIn checks the key and authorId.
 //
 // If the key is empty or starts with '/', it returns an error.
 // The key is not allow start with '/'.
-func (f *FileUsecase) checkIn(key string, authorId string) (string, error) {
+func (f *FileUsecase) checkIn(key string) (string, error) {
 	if key == "" || strings.HasPrefix(key, "/") {
-		return "", errors.New(errors.ErrInvalidFileKey, int32(api.FileSvrStatus_FILE_INVAILDATE_KEY_ERR), codes.InvalidArgument, "invalid_key")
+		return "", errors.New(errors.ErrInvalidFileKey, int32(api.FileSvrStatus_FILE_INVALIDATE_KEY_ERR), codes.InvalidArgument, "invalid_key")
 	}
-	if authorId == "" {
-		return "", errors.New(errors.ErrIdentityMissing, int32(user.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
-	}
-	if !strings.HasPrefix(key, authorId) {
-		key = authorId + "/" + key
-	}
+	// if authorId == "" {
+	// 	return "", errors.New(errors.ErrIdentityMissing, int32(user.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
+	// }
+	// if !strings.HasPrefix(key, authorId) {
+	// 	key = authorId + "/" + key
+	// }
 	return key, nil
 }
 
@@ -192,18 +192,20 @@ func (f *FileUsecase) checkIn(key string, authorId string) (string, error) {
 //
 // The authorId is used to determine the directory which is as user's home dir where the file is saved.
 func (f *FileUsecase) Upload(ctx context.Context, in *api.UploadFileRequest, authorId string) (*api.UploadFileResponse, error) {
+	if authorId == "" {
+		return nil, errors.New(errors.ErrIdentityMissing, int32(user.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
+	}
 
-	key, err := f.checkIn(in.Key, authorId)
+	key, err := f.checkIn(in.Key)
 	if err != nil {
 		return nil, err
 	}
-	in.Key = key
-	// var err error
-	saveDir, err := f.getSaveDir(in.Key)
-	if err != nil {
-		return nil, errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_save_dir")
-	}
+	in.Key = filepath.Join(authorId, key)
+	// log.Printf("key:%s", in.Key)
 	filename := filepath.Base(in.Key)
+	// in.Key = key
+	saveDir := f.getSaveDir(in.Key)
+
 	if err := os.MkdirAll(saveDir, 0755); err != nil {
 		return nil, errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "create_upload_dir")
 	}
@@ -212,7 +214,6 @@ func (f *FileUsecase) Upload(ctx context.Context, in *api.UploadFileRequest, aut
 	if err != nil {
 		return nil, errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "create_file")
 	}
-
 	defer file.Close()
 	defer func() {
 		if err != nil {
@@ -223,7 +224,7 @@ func (f *FileUsecase) Upload(ctx context.Context, in *api.UploadFileRequest, aut
 	if err != nil {
 		return nil, errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "write_file")
 	}
-	uri, err := f.getUri(filePath, authorId)
+	uri, err := f.getUri(filePath)
 	if err != nil {
 		return nil, err
 	}
@@ -255,14 +256,13 @@ func (f *FileUsecase) UploadMultipartFileFile(ctx context.Context, in *api.Uploa
 	if in.UploadId == "" {
 		return nil, errors.New(errors.ErrUploadIdMissing, int32(api.FileSvrStatus_FILE_UPLOADID_MISSING_ERR), codes.InvalidArgument, "upload_id_not_found")
 	}
-	if in.PartNumber == 0 {
+	if in.PartNumber <= 0 {
 		return nil, errors.New(errors.ErrPartNumberMissing, int32(api.FileSvrStatus_FILE_PARTNUMBER_MISSING_ERR), codes.InvalidArgument, "part_number_not_found")
 
 	}
 
-	// 分片上传处理
 	uploadId := in.UploadId
-
+	// get upload dir by uploadId
 	saveDir := f.getPartsDir(uploadId)
 	if !pathExists(saveDir) {
 		err := errors.New(errors.ErrUploadNotInitiate, int32(api.FileSvrStatus_FILE_UPLOAD_NOT_INITIATE_ERR), codes.NotFound, "upload_dir_not_found")
@@ -271,19 +271,16 @@ func (f *FileUsecase) UploadMultipartFileFile(ctx context.Context, in *api.Uploa
 
 	filePath := filepath.Join(saveDir, fmt.Sprintf("%08d.part", in.PartNumber))
 
-	// 创建文件
 	file, err := os.Create(filePath)
 	if err != nil {
 		return nil, errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "create_file")
 	}
 	defer file.Close()
-	// 写入文件
 	_, err = file.Write(in.Content)
 	if err != nil {
 		return nil, errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "write_file")
 
 	}
-	// 计算哈希值
 	sha256Hash := getSHA256(in.Content)
 	if sha256Hash != in.Sha256 {
 		os.Remove(filePath)
@@ -291,7 +288,7 @@ func (f *FileUsecase) UploadMultipartFileFile(ctx context.Context, in *api.Uploa
 		return nil, err
 
 	}
-	uri, err := f.getUri(filePath, "")
+	uri, err := f.getUri(filePath)
 	if err != nil {
 		return nil, err
 	}
@@ -356,18 +353,16 @@ func (f *FileUsecase) mvDir(src, dst string) error {
 
 	return os.Rename(src, newPath)
 }
-func (f *FileUsecase) getPersistenceKeyParts(key string, authorId string) string {
+func (f *FileUsecase) getPersistenceKeyParts(key string) string {
 	if strings.Contains(key, ".") {
 		key = key[:strings.LastIndex(key, ".")]
 
 	}
-	return filepath.Join(f.config.GetUploadDir(), "parts", authorId, key)
+	return filepath.Join(f.config.GetUploadDir(), "parts", key)
 }
-func (f *FileUsecase) getUri(filePath string, _ string) (string, error) {
+func (f *FileUsecase) getUri(filePath string) (string, error) {
 	uploadRootDir := f.config.GetUploadDir()
-	// if useVersion {
-	// 	uploadRootDir = filepath.Join(f.config.GetUploadDir(), "versions", authorId)
-	// }
+	log.Printf("uploadRootDir:%s,filePath:%s", uploadRootDir, filePath)
 	uri, err := filepath.Rel(uploadRootDir, filePath)
 	if err != nil {
 		return "", errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_file_uri")
@@ -389,11 +384,14 @@ func (f *FileUsecase) AbortMultipartUpload(ctx context.Context, in *api.AbortMul
 	return &api.AbortMultipartUploadResponse{}, nil
 }
 func (f *FileUsecase) CompleteMultipartUploadFile(ctx context.Context, in *api.CompleteMultipartUploadRequest, authorId string) (*api.CompleteMultipartUploadResponse, error) {
-	key, err := f.checkIn(in.Key, authorId)
+	if authorId == "" {
+		return nil, errors.New(errors.ErrIdentityMissing, int32(user.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
+	}
+	key, err := f.checkIn(in.Key)
 	if err != nil {
 		return nil, err
 	}
-	in.Key = key
+	in.Key = filepath.Join(authorId, key)
 	partsDir := f.getPartsDir(in.UploadId)
 	if !pathExists(partsDir) {
 		err := errors.New(errors.ErrUploadIdNotFound, int32(api.FileSvrStatus_FILE_NOT_FOUND_UPLOADID_ERR), codes.NotFound, "upload_id_not_found")
@@ -406,11 +404,7 @@ func (f *FileUsecase) CompleteMultipartUploadFile(ctx context.Context, in *api.C
 
 	}
 
-	saveDir, err := f.getSaveDir(in.Key)
-	if err != nil {
-		return nil, errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_save_dir")
-
-	}
+	saveDir := f.getSaveDir(in.Key)
 	filename := filepath.Base(in.Key)
 	filePath := filepath.Join(saveDir, filename)
 	// merge files to uploadDir/key
@@ -419,7 +413,7 @@ func (f *FileUsecase) CompleteMultipartUploadFile(ctx context.Context, in *api.C
 		return nil, errors.New(fmt.Errorf("merge file error"), int32(common.Code_INTERNAL_ERROR), codes.Internal, "merge_files")
 	}
 	// the parts file has been merged, remove the parts dir to uploadDir/parts/key
-	keyParts := f.getPersistenceKeyParts(in.Key, authorId)
+	keyParts := f.getPersistenceKeyParts(in.Key)
 	if err = os.MkdirAll(keyParts, 0755); err != nil {
 		return nil, errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "create_parts_dir")
 	}
@@ -428,7 +422,7 @@ func (f *FileUsecase) CompleteMultipartUploadFile(ctx context.Context, in *api.C
 		return nil, errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "mv_dir")
 
 	}
-	uri, err := f.getUri(filePath, authorId)
+	uri, err := f.getUri(filePath)
 	if err != nil {
 		return nil, err
 
@@ -450,13 +444,13 @@ func (f *FileUsecase) CompleteMultipartUploadFile(ctx context.Context, in *api.C
 }
 
 func (f *FileUsecase) DownloadForRange(ctx context.Context, in *api.DownloadRequest, start int64, end int64, authorId string) ([]byte, int64, error) {
-	key, err := f.checkIn(in.Key, authorId)
+	key, err := f.checkIn(in.Key)
 	if err != nil {
 		return nil, 0, err
 	}
 	in.Key = key
 	if start > end {
-		err := errors.New(errors.ErrInvalidRange, int32(api.FileSvrStatus_FILE_INVAILDATE_RANGE_ERR), codes.InvalidArgument, "invalid_range")
+		err := errors.New(errors.ErrInvalidRange, int32(api.FileSvrStatus_FILE_INVALIDATE_RANGE_ERR), codes.InvalidArgument, "invalid_range")
 		return nil, 0, err
 
 	}
@@ -486,7 +480,7 @@ func (f *FileUsecase) DownloadForRange(ctx context.Context, in *api.DownloadRequ
 
 }
 func (f *FileUsecase) Metadata(ctx context.Context, in *api.FileMetadataRequest, authorId string) (*api.FileMetadataResponse, error) {
-	key, err := f.checkIn(in.Key, authorId)
+	key, err := f.checkIn(in.Key)
 	originKey := in.Key
 	if err != nil {
 		return nil, err
@@ -541,15 +535,14 @@ func (f *FileUsecase) Metadata(ctx context.Context, in *api.FileMetadataRequest,
 // If the version is not empty, the file reader will be a version file reader.
 func (f *FileUsecase) getReader(key string, version string) (FileReader, error) {
 
-	dir, err := f.getSaveDir(key)
+	dir := f.getSaveDir(key)
 
-	if err != nil {
-		return nil, err
-	}
 	filePath := filepath.Join(dir, filepath.Base(key))
 	var fileReader FileReader
+	var err error
 	if version != "" {
 		fileReader, err = NewFileVersionReader(filePath, version)
+		// log.Printf("version fileReader:%v", err)
 		if err != nil {
 			return nil, err
 		}
@@ -564,7 +557,7 @@ func (f *FileUsecase) getReader(key string, version string) (FileReader, error) 
 
 }
 func (f *FileUsecase) Version(ctx context.Context, key, authorId string) (string, error) {
-	key, err := f.checkIn(key, authorId)
+	key, err := f.checkIn(key)
 	if err != nil {
 		return "", err
 	}
@@ -590,7 +583,7 @@ func (f *FileUsecase) checkStatusCode(err error) (int32, codes.Code) {
 }
 func (f *FileUsecase) Download(ctx context.Context, in *api.DownloadRequest, authorId string) ([]byte, error) {
 
-	key, err := f.checkIn(in.Key, authorId)
+	key, err := f.checkIn(in.Key)
 	if err != nil {
 		return nil, err
 	}
@@ -616,13 +609,14 @@ func (f *FileUsecase) Download(ctx context.Context, in *api.DownloadRequest, aut
 }
 
 func (f *FileUsecase) Delete(ctx context.Context, in *api.DeleteRequest, authorId string) (*api.DeleteResponse, error) {
-	key, err := f.checkIn(in.Key, authorId)
+	key, err := f.checkIn(in.Key)
 	if err != nil {
 		return nil, err
 	}
 	in.Key = key
 	file, err := f.getReader(in.Key, "")
 	if err != nil && !os.IsNotExist(err) {
+		// log.Printf("err:%v", err)
 		return nil, errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "remove_file")
 
 	}
@@ -632,17 +626,17 @@ func (f *FileUsecase) Delete(ctx context.Context, in *api.DeleteRequest, authorI
 	}
 	versionFile, err := f.getReader(in.Key, "latest")
 	if err != nil {
+		// log.Printf("version err:%v", err)
 		code, rpcCode := f.checkStatusCode(err)
 		return nil, errors.New(err, code, rpcCode, "remove_file")
 	}
 	defer versionFile.Close()
 	os.Remove(versionFile.Name())
 
-	keyParts := f.getPersistenceKeyParts(in.Key, authorId)
+	keyParts := f.getPersistenceKeyParts(in.Key)
 	err = os.RemoveAll(keyParts)
 	if err != nil {
 		return nil, errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "remove_parts_dir")
 	}
 	return &api.DeleteResponse{}, nil
 }
-

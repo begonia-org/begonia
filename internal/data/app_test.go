@@ -73,7 +73,9 @@ func addTest(t *testing.T) {
 		value, err := layered.Get(context.Background(), cacheKey)
 		c.So(err, c.ShouldBeNil)
 		c.So(string(value), c.ShouldEqual, secret)
-
+		value,err = layered.GetFromLocal(context.Background(),cacheKey)
+		c.So(err, c.ShouldBeNil)
+		c.So(string(value), c.ShouldEqual, secret)
 		patch := gomonkey.ApplyFuncReturn((*LayeredCache).Get, nil, errors.New("error"))
 
 		defer patch.Reset()

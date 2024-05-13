@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -44,7 +43,7 @@ func (f *FileService) Upload(ctx context.Context, in *api.UploadFileRequest) (*a
 	if len(identity) == 0 {
 		return nil, errors.New(errors.ErrIdentityMissing, int32(user.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
 	}
-	in.Key = identity[0] + "/" + in.Key
+	// in.Key = identity[0] + "/" + in.Key
 	return f.biz.Upload(ctx, in, identity[0])
 }
 
@@ -63,8 +62,6 @@ func (f *FileService) CompleteMultipartUpload(ctx context.Context, in *api.Compl
 	if len(identity) == 0 {
 		return nil, errors.New(errors.ErrIdentityMissing, int32(user.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
 	}
-	in.Key = identity[0] + "/" + in.Key
-
 	return f.biz.CompleteMultipartUploadFile(ctx, in, identity[0])
 }
 func (f *FileService) AbortMultipartUpload(ctx context.Context, in *api.AbortMultipartUploadRequest) (*api.AbortMultipartUploadResponse, error) {
@@ -84,7 +81,6 @@ func (f *FileService) Download(ctx context.Context, in *api.DownloadRequest) (*h
 		return nil, errors.New(err, int32(common.Code_UNKNOWN), codes.InvalidArgument, "url_unescape")
 	}
 	in.Key = newKey
-	log.Printf("download key: %s", in.Key)
 	buf, err := f.biz.Download(ctx, in, identity[0])
 	if err != nil {
 		return nil, err
@@ -207,11 +203,6 @@ func (f *FileService) Metadata(ctx context.Context, in *api.FileMetadataRequest)
 	if identity == "" {
 		return nil, errors.New(errors.ErrIdentityMissing, int32(user.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
 	}
-	// defer func ()  {
-	// 	if r:=recover();r!=nil{
-	// 		log.Println("panic recover",r)
-	// 	}
-	// }()
 	rsp, err := f.biz.Metadata(ctx, in, identity)
 	if err != nil {
 		return nil, err

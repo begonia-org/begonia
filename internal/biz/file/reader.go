@@ -78,14 +78,6 @@ type fileVersionReaderImpl struct {
 }
 
 func (f *fileVersionReaderImpl) Reader() (io.ReadCloser, error) {
-	if f.version == "" {
-		ref, err := f.Repository.Head()
-		if err != nil {
-			return nil, err
-		}
-		f.version = ref.Hash().String()
-
-	}
 	// 通过commit ID找到commit对象
 	commitHash := plumbing.NewHash(f.version)
 	commit, err := f.Repository.CommitObject(commitHash)
@@ -107,10 +99,10 @@ func (f *fileVersionReaderImpl) Reader() (io.ReadCloser, error) {
 	return file.Reader()
 }
 
-func (f *fileVersionReaderImpl) Commit() (*object.Commit, error) {
-	commitHash := plumbing.NewHash(f.version)
-	return f.Repository.CommitObject(commitHash)
-}
+// func (f *fileVersionReaderImpl) Commit() (*object.Commit, error) {
+// 	commitHash := plumbing.NewHash(f.version)
+// 	return f.Repository.CommitObject(commitHash)
+// }
 
 func (f *fileVersionReaderImpl) Size() int64 {
 	return f.file.Size
@@ -156,6 +148,7 @@ func NewFileVersionReader(path string, version string) (FileVersionReader, error
 	fileName := filepath.Base(path)
 	repo, err := git.PlainOpen(dir)
 	if err != nil {
+		// log.Printf("failed to open git repository: %v", err)
 		return nil, err
 
 	}

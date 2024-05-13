@@ -1,4 +1,6 @@
 {
 	"editor.insertSpaces": true,
-	"editor.detectIndentation": false
+    "editor.detectIndentation": false,
+    "go.formatTool": "goimports",
+    "editor.formatOnSave": true
 }

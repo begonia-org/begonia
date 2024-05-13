@@ -8,8 +8,8 @@ package internal
 
 import (
 	"github.com/begonia-org/begonia/internal/biz"
+	"github.com/begonia-org/begonia/internal/biz/endpoint"
 	"github.com/begonia-org/begonia/internal/biz/file"
-	"github.com/begonia-org/begonia/internal/biz/gateway"
 	"github.com/begonia-org/begonia/internal/daemon"
 	"github.com/begonia-org/begonia/internal/data"
 	"github.com/begonia-org/begonia/internal/pkg/config"
@@ -35,7 +35,7 @@ func InitOperatorApp(config2 *tiga.Configuration) *migrate.InitOperator {
 	return initOperator
 }
 
-func New(config2 *tiga.Configuration, log logger.Logger, endpoint string) GatewayWorker {
+func New(config2 *tiga.Configuration, log logger.Logger, endpoint2 string) GatewayWorker {
 	configConfig := config.NewConfig(config2)
 	mySQLDao := data.NewMySQL(config2)
 	redisDao := data.NewRDB(config2)
@@ -48,16 +48,16 @@ func New(config2 *tiga.Configuration, log logger.Logger, endpoint string) Gatewa
 	authzRepo := data.NewAuthzRepoImpl(log, layeredCache)
 	dataOperatorRepo := data.NewDataOperatorRepo(dataData, appRepo, userRepo, authzRepo, layeredCache, log)
 	endpointRepo := data.NewEndpointRepoImpl(dataData, configConfig)
-	gatewayWatcher := gateway.NewWatcher(configConfig, endpointRepo)
+	gatewayWatcher := endpoint.NewWatcher(configConfig, endpointRepo)
 	dataOperatorUsecase := biz.NewDataOperatorUsecase(dataOperatorRepo, configConfig, log, gatewayWatcher, endpointRepo)
 	daemonDaemon := daemon.NewDaemonImpl(configConfig, dataOperatorUsecase)
-	gatewayConfig := server.NewGatewayConfig(endpoint)
+	gatewayConfig := server.NewGatewayConfig(endpoint2)
 	fileUsecase := file.NewFileUsecase(configConfig)
 	fileService := service.NewFileService(fileUsecase, configConfig)
 	usersAuth := crypto.NewUsersAuth()
 	authzUsecase := biz.NewAuthzUsecase(authzRepo, userRepo, log, usersAuth, configConfig)
 	authzService := service.NewAuthzService(authzUsecase, log, usersAuth, configConfig)
-	endpointUsecase := gateway.NewEndpointUsecase(endpointRepo, fileUsecase, configConfig)
+	endpointUsecase := endpoint.NewEndpointUsecase(endpointRepo, fileUsecase, configConfig)
 	endpointsService := service.NewEndpointsService(endpointUsecase, log, configConfig)
 	appUsecase := biz.NewAppUsecase(appRepo, configConfig)
 	appService := service.NewAppService(appUsecase, log, configConfig)

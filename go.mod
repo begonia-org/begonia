@@ -80,7 +80,7 @@ require (
 require (
 	github.com/agiledragon/gomonkey/v2 v2.11.0
 	github.com/begonia-org/go-loadbalancer v0.0.0-20240408092223-42b5fab476ce
-	github.com/begonia-org/go-sdk v0.0.0-20240510102512-71c487f8c5b3
+	github.com/begonia-org/go-sdk v0.0.0-20240513042120-a4f311161656
 	github.com/go-git/go-git/v5 v5.11.0
 	github.com/go-playground/validator/v10 v10.19.0
 	github.com/gorilla/websocket v1.5.1
@@ -146,7 +146,7 @@ require (
 // replace github.com/begonia-org/go-loadbalancer => ../go-loadbalancer
 
 // replace github.com/begonia-org/begonia/common => ./common
-replace github.com/grpc-ecosystem/grpc-gateway/v2 v2.19.1 => github.com/geebytes/grpc-gateway/v2 v2.0.0-20240330063207-392782282837
+replace github.com/grpc-ecosystem/grpc-gateway/v2 v2.19.1 => github.com/geebytes/grpc-gateway/v2 v2.0.0-20240512163144-d1a770758112
 
 // replace github.com/grpc-ecosystem/grpc-gateway/v2 => /data/work/grpc-ecosystem/grpc-gateway
 // replace github.com/begonia-org/go-iam => ../go-access-control
