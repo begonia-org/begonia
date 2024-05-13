@@ -54,6 +54,11 @@ func dumpInitApp(app *api.Apps) {
 }
 func (m *APPOperator) InitAdminAPP(owner string) error {
 	app := &api.Apps{}
+	defer func() {
+		if app.Appid != "" {
+			dumpInitApp(app)
+		}
+	}()
 	err := m.mysql.First(context.TODO(), app, "name = ?", "admin-app")
 	if err != nil && err != gorm.ErrRecordNotFound {
 		log.Fatalf("InitAdminAPP error:%v", err)
@@ -103,6 +108,5 @@ func (m *APPOperator) InitAdminAPP(owner string) error {
 		err = m.mysql.Create(context.Background(), app)
 		return err
 	}
-	dumpInitApp(app)
 	return nil
 }
