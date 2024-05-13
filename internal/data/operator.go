@@ -42,7 +42,7 @@ func NewDataOperatorRepo(data *Data, app biz.AppRepo, user biz.UserRepo, authz b
 }
 
 // DistributedLock 分布式锁,拿到锁对象后需要调用DistributedUnlock释放锁
-func (r *dataOperatorRepo) Lock(ctx context.Context, key string, exp time.Duration) (biz.DataLock, error) {
+func (r *dataOperatorRepo) Locker(ctx context.Context, key string, exp time.Duration) (biz.DataLock, error) {
 	return NewDataLock(r.data.rdb.GetClient(), key, exp, 3), nil
 }
 
@@ -133,6 +133,7 @@ func (d *dataOperatorRepo) FlashUsersCache(ctx context.Context, prefix string, m
 	for i := 0; i < len(kv)-1; i += 2 {
 		key := kv[i].(string)
 		val := kv[i+1].(string)
+		// d.log.Infof("set to local %s %s", key, val)
 		_ = d.local.SetToLocal(ctx, key, []byte(val), exp)
 	}
 	return err
@@ -155,7 +156,7 @@ func (d *dataOperatorRepo) LoadRemoteCache(ctx context.Context) {
 func (d *dataOperatorRepo) LastUpdated(ctx context.Context, key string) (time.Time, error) {
 	key = fmt.Sprintf("%s:last_updated", key)
 	timestamp, err := d.data.rdb.GetClient().Get(ctx, key).Int64()
-	if err != nil {
+	if err != nil||timestamp==0 {
 		if err == redis.Nil {
 			return time.Time{}, nil
 		}
@@ -170,7 +171,7 @@ func (d *dataOperatorRepo) LastUpdated(ctx context.Context, key string) (time.Ti
 	return t, nil
 }
 
-func (d *dataOperatorRepo) Watcher(ctx context.Context, prefix string, handle func(ctx context.Context, op mvccpb.Event_EventType, key, value string) error) error {
+func (d *dataOperatorRepo) Watcher(ctx context.Context, prefix string, handle biz.EtcdWatchHandle) error {
 	watcher := d.data.etcd.Watch(ctx, prefix, clientv3.WithPrefix(), clientv3.WithPrevKV())
 	for wresp := range watcher {
 		for _, ev := range wresp.Events {

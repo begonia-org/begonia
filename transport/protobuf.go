@@ -173,6 +173,7 @@ func NewDescriptionFromBinary(data []byte, outDir string) (ProtobufDescription, 
 		return nil, fmt.Errorf("Failed to register: %w", err)
 
 	}
+	
 	if err := os.MkdirAll(outDir, 0755); err != nil {
 		return nil, fmt.Errorf("Failed to create directory: %w", err)
 	}

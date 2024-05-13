@@ -8,7 +8,7 @@ package data
 
 import (
 	"github.com/begonia-org/begonia/internal/biz"
-	"github.com/begonia-org/begonia/internal/biz/gateway"
+	"github.com/begonia-org/begonia/internal/biz/endpoint"
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/go-sdk/logger"
 	"github.com/spark-lence/tiga"
@@ -29,7 +29,7 @@ func NewAppRepo(cfg *tiga.Configuration, log logger.Logger) biz.AppRepo {
 //	func NewFileRepo(cfg *tiga.Configuration,log logger.Logger) file.FileRepo {
 //		panic(wire.Build(ProviderSet))
 //	}
-func NewEndpointRepo(cfg *tiga.Configuration, log logger.Logger) gateway.EndpointRepo {
+func NewEndpointRepo(cfg *tiga.Configuration, log logger.Logger) endpoint.EndpointRepo {
 	mySQLDao := NewMySQL(cfg)
 	redisDao := NewRDB(cfg)
 	etcdDao := NewEtcd(cfg)

@@ -22,8 +22,9 @@ import (
 )
 
 var endpointId = ""
-var tag = fmt.Sprintf("test-data-%s", time.Now().Format("20060102150405"))
+var tag = fmt.Sprintf("test-endpoint-data-%s", time.Now().Format("20060102150405"))
 var tag3 = fmt.Sprintf("test3-%s", time.Now().Format("20060102150405"))
+
 func putTest(t *testing.T) {
 	c.Convey("test app add success", t, func() {
 		t.Log("add test")
@@ -59,7 +60,7 @@ func putTest(t *testing.T) {
 					Weight: 0,
 				},
 			},
-			Tags:      []string{tag,tag3},
+			Tags:      []string{tag, tag3},
 			Version:   fmt.Sprintf("%d", time.Now().UnixMilli()),
 			CreatedAt: timestamppb.New(time.Now()).AsTime().Format(time.RFC3339),
 			UpdatedAt: timestamppb.New(time.Now()).AsTime().Format(time.RFC3339),
@@ -104,6 +105,62 @@ func getKeysByTagsTest(t *testing.T) {
 		c.So(keys, c.ShouldContain, endpointKey)
 	})
 }
+func testList(t *testing.T) {
+	env := "dev"
+	if begonia.Env != "" {
+		env = begonia.Env
+	}
+	_, filename, _, _ := runtime.Caller(0)
+	pbFile := filepath.Join(filepath.Dir(filepath.Dir(filename)), "integration", "testdata", "helloworld.pb")
+	pb, _ := os.ReadFile(pbFile)
+	conf := cfg.ReadConfig(env)
+	repo := NewEndpointRepo(conf, logger.Log)
+	snk, _ := tiga.NewSnowflake(1)
+	enps:=make([]string,0)
+	c.Convey("test list", t, func() {
+		for i := 0; i < 10; i++ {
+			epd := snk.GenerateIDString()
+			enps = append(enps, epd)
+			err := repo.Put(context.Background(), &api.Endpoints{
+				Key:           epd,
+				DescriptorSet: pb,
+				Name:          fmt.Sprintf("test-data-%d-%s", i,time.Now().Format("20060102150405")),
+				ServiceName:   fmt.Sprintf("test-data-%d-%s", i,time.Now().Format("20060102150405")),
+				Description:   fmt.Sprintf("test-data-%d-%s", i,time.Now().Format("20060102150405")),
+				Balance:       string(goloadbalancer.RRBalanceType),
+				Endpoints: []*api.EndpointMeta{
+					{
+						Addr:   "127.0.0.1:21213",
+						Weight: 0,
+					},
+					{
+						Addr:   "127.0.0.1:21214",
+						Weight: 0,
+					},
+					{
+						Addr:   "127.0.0.1:21215",
+						Weight: 0,
+					},
+				},
+				Tags:      []string{fmt.Sprintf("test-list-%d-data-%s",i, time.Now().Format("20060102150405"))},
+				Version:   fmt.Sprintf("%d", time.Now().UnixMilli()),
+				CreatedAt: timestamppb.New(time.Now()).AsTime().Format(time.RFC3339),
+				UpdatedAt: timestamppb.New(time.Now()).AsTime().Format(time.RFC3339),
+			})
+			c.So(err, c.ShouldBeNil)
+		}
+		data, err := repo.List(context.Background(), enps)
+		c.So(err, c.ShouldBeNil)
+		c.So(len(data), c.ShouldEqual,10)
+
+		data,err = repo.List(context.Background(),[]string{"not-exist"})
+		c.So(err, c.ShouldBeNil)
+		c.So(data, c.ShouldBeEmpty)
+		data,err = repo.List(context.Background(),nil)
+		c.So(err, c.ShouldBeNil)
+		c.So(len(data), c.ShouldBeGreaterThan,0)
+	})
+}
 func patchEndpointTest(t *testing.T) {
 	c.Convey("test endpoint patch success", t, func() {
 		env := "dev"
@@ -114,11 +171,11 @@ func patchEndpointTest(t *testing.T) {
 		repo := NewEndpointRepo(conf, logger.Log)
 		cnf := config.NewConfig(conf)
 		endpointKey := cnf.GetServiceKey(endpointId)
-		tag1:=fmt.Sprintf("test-data-patch-%s", time.Now().Format("20060102150405"))
+		tag1 := fmt.Sprintf("test-data-patch-%s", time.Now().Format("20060102150405"))
 		err := repo.Patch(context.Background(), endpointId, map[string]interface{}{
 			"description": "test description",
 			"balance":     string(goloadbalancer.WRRBalanceType),
-			"tags":		[]string{tag1,tag3},
+			"tags":        []string{tag1, tag3},
 		})
 		c.So(err, c.ShouldBeNil)
 
@@ -144,7 +201,7 @@ func patchEndpointTest(t *testing.T) {
 
 	})
 }
-func delEndpointTest(t *testing.T){
+func delEndpointTest(t *testing.T) {
 	c.Convey("test endpoint delete", t, func() {
 		env := "dev"
 		if begonia.Env != "" {
@@ -169,7 +226,7 @@ func delEndpointTest(t *testing.T){
 
 	})
 }
-func putTagsTest(t *testing.T){
+func putTagsTest(t *testing.T) {
 	c.Convey("test endpoint add tags", t, func() {
 		env := "dev"
 		if begonia.Env != "" {
@@ -179,9 +236,9 @@ func putTagsTest(t *testing.T){
 		repo := NewEndpointRepo(conf, logger.Log)
 		cnf := config.NewConfig(conf)
 		endpointKey := cnf.GetServiceKey(endpointId)
-		tag1:=fmt.Sprintf("test1-data-%s", time.Now().Format("20060102150405"))
-		tag2:=fmt.Sprintf("test2-%s", time.Now().Format("20060102150405"))
-		err := repo.PutTags(context.Background(), endpointId, []string{tag1,tag2,tag3})
+		tag1 := fmt.Sprintf("test1-data-%s", time.Now().Format("20060102150405"))
+		tag2 := fmt.Sprintf("test2-%s", time.Now().Format("20060102150405"))
+		err := repo.PutTags(context.Background(), endpointId, []string{tag1, tag2, tag3})
 		c.So(err, c.ShouldBeNil)
 
 		data, err := repo.Get(context.Background(), endpointKey)
@@ -208,11 +265,11 @@ func putTagsTest(t *testing.T){
 	})
 }
 
-
 func TestEndpoint(t *testing.T) {
 	t.Run("put", putTest)
 	t.Run("get", getEndpointTest)
 	t.Run("getKeysByTags", getKeysByTagsTest)
+	t.Run("list", testList)
 	t.Run("patch", patchEndpointTest)
 	t.Run("putTags", putTagsTest)
 	t.Run("del", delEndpointTest)

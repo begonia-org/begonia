@@ -4,11 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"sync"
 	"time"
 
-	"github.com/begonia-org/begonia/internal/biz/gateway"
+	"github.com/begonia-org/begonia/internal/biz/endpoint"
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	api "github.com/begonia-org/go-sdk/api/app/v1"
 	u "github.com/begonia-org/go-sdk/api/user/v1"
@@ -22,27 +21,27 @@ type DataLock interface {
 	UnLock(ctx context.Context) error
 	Lock(ctx context.Context) error
 }
-
+type EtcdWatchHandle func(ctx context.Context, op mvccpb.Event_EventType, key, value string) error
 type DataOperatorRepo interface {
 	GetAllApps(ctx context.Context) ([]*api.Apps, error)
 	FlashAppsCache(ctx context.Context, prefix string, models []*api.Apps, exp time.Duration) error
 	FlashUsersCache(ctx context.Context, prefix string, models []*u.Users, exp time.Duration) error
 	GetAllForbiddenUsers(ctx context.Context) ([]*u.Users, error)
-	Lock(ctx context.Context, key string, exp time.Duration) (DataLock, error)
+	Locker(ctx context.Context, key string, exp time.Duration) (DataLock, error)
 	LastUpdated(ctx context.Context, key string) (time.Time, error)
 	OnStart()
-	Watcher(ctx context.Context, prefix string, handle func(ctx context.Context, op mvccpb.Event_EventType, key, value string) error) error
+	Watcher(ctx context.Context, prefix string, handle EtcdWatchHandle) error
 }
 type operationAction func(ctx context.Context) error
 type DataOperatorUsecase struct {
 	repo            DataOperatorRepo
-	endpoint        gateway.EndpointRepo
+	endpoint        endpoint.EndpointRepo
 	config          *config.Config
 	log             logger.Logger
-	endpointWatcher *gateway.GatewayWatcher
+	endpointWatcher *endpoint.EndpointWatcher
 }
 
-func NewDataOperatorUsecase(repo DataOperatorRepo, config *config.Config, log logger.Logger, endpointWatch *gateway.GatewayWatcher, endpoint gateway.EndpointRepo) *DataOperatorUsecase {
+func NewDataOperatorUsecase(repo DataOperatorRepo, config *config.Config, log logger.Logger, endpointWatch *endpoint.EndpointWatcher, endpoint endpoint.EndpointRepo) *DataOperatorUsecase {
 	log.WithField("module", "data")
 	log.SetReportCaller(true)
 	return &DataOperatorUsecase{repo: repo, config: config, log: log, endpointWatcher: endpointWatch, endpoint: endpoint}
@@ -54,7 +53,7 @@ func (d *DataOperatorUsecase) Do(ctx context.Context) {
 	if err != nil {
 		d.log.Error(err)
 	}
-	log.Println("start watch")
+	d.log.Info("start watch")
 	d.handle(ctx)
 
 }
@@ -65,16 +64,16 @@ func (d *DataOperatorUsecase) handle(ctx context.Context) {
 	actions := []operationAction{
 		d.loadUsersBlacklist,
 		d.loadApps,
-		d.watch,
+		d.doWatchEndpoint,
 		// d.loadLocalBloom,
 	}
 	for _, action := range actions {
 		wg.Add(1)
 		a := action
-		go func(action operationAction) {
+		go func(action operationAction,wg *sync.WaitGroup) {
 			defer wg.Done()
 			errChan <- action(ctx)
-		}(a)
+		}(a,wg)
 
 	}
 	go func() {
@@ -99,7 +98,8 @@ func (d *DataOperatorUsecase) loadUsersBlacklist(ctx context.Context) error {
 		return fmt.Errorf("expiration time is too short")
 	}
 	lockKey := d.config.GetUserBlackListLockKey()
-	lock, err := d.repo.Lock(ctx, lockKey, time.Second*time.Duration(exp))
+	d.log.Infof("lock key:%d", exp)
+	lock, err := d.repo.Locker(ctx, lockKey, time.Second*time.Duration(exp))
 	if err != nil {
 		// d.log.Error("get lock error", err)
 		return fmt.Errorf("get lock error: %w", err)
@@ -116,16 +116,20 @@ func (d *DataOperatorUsecase) loadUsersBlacklist(ctx context.Context) error {
 		if err != nil {
 			// d.log.Error("unlock error", err)
 			d.log.Error(fmt.Errorf("unlock error: %w", err))
-
+		}else{
+			d.log.Infof("unlock success")
 		}
 	}()
 	prefix := d.config.GetUserBlackListPrefix()
 	lastUpdate, err := d.repo.LastUpdated(ctx, prefix)
+	// d.log.Infof("last update:%v", lastUpdate.Unix())
 	// 如果缓存时间小于3秒，说明刚刚更新过，不需要再次更新
 	// 直接加载远程缓存到本地
 	// lastUpdate ttl<exp,避免更新不到缓存的情况
 	if lastUpdate.IsZero() || time.Since(lastUpdate) < 3*time.Second {
 		users, err := d.repo.GetAllForbiddenUsers(ctx)
+		// d.log.Infof("load users:%d", len(users))
+
 		if err != nil {
 			return err
 		}
@@ -177,8 +181,12 @@ func (d *DataOperatorUsecase) OnStart(ctx context.Context) error {
 	}
 	return nil
 }
-func (d *DataOperatorUsecase) watch(ctx context.Context) error {
+func (d *DataOperatorUsecase) doWatchEndpoint(ctx context.Context) error {
 	prefix := d.config.GetServicePrefix()
+	return d.doWatch(ctx, prefix, d.endpointWatcher.Handle)
+}
+func (d *DataOperatorUsecase) doWatch(ctx context.Context, prefix string, handle EtcdWatchHandle) error {
+	// prefix := d.config.GetServicePrefix()
 
-	return d.repo.Watcher(context.Background(), prefix, d.endpointWatcher.Handle)
+	return d.repo.Watcher(ctx, prefix, handle)
 }

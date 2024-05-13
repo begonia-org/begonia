@@ -20,6 +20,7 @@
 # Go workspace file
 go.work
 coverage.txt
+coverage.html
 upload/
 ./upload
 bin

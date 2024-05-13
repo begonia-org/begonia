@@ -5,7 +5,7 @@ package data
 
 import (
 	"github.com/begonia-org/begonia/internal/biz"
-	"github.com/begonia-org/begonia/internal/biz/gateway"
+	"github.com/begonia-org/begonia/internal/biz/endpoint"
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/go-sdk/logger"
 	"github.com/google/wire"
@@ -17,7 +17,7 @@ func NewAppRepo(cfg *tiga.Configuration,log logger.Logger) biz.AppRepo {
 	// return &appRepoImpl{data: data, curd: curd, local: local, cfg: cfg}
 }
 
-func NewEndpointRepo(cfg *tiga.Configuration,log logger.Logger) gateway.EndpointRepo {
+func NewEndpointRepo(cfg *tiga.Configuration,log logger.Logger) endpoint.EndpointRepo {
 	panic(wire.Build(ProviderSet, config.NewConfig))
 }
 func NewAuthzRepo(cfg *tiga.Configuration,log logger.Logger) biz.AuthzRepo {

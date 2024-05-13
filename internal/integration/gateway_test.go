@@ -81,7 +81,7 @@ func patchEndpoint(t *testing.T) {
 					Weight: 0,
 				},
 			},
-			Mask: &fieldmaskpb.FieldMask{Paths: []string{"description", "endpoints"}},
+			UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"description", "endpoints"}},
 		}
 
 		resp, err := apiClient.PatchEndpointConfig(context.Background(), patch)

@@ -2,8 +2,10 @@ package migrate
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/begonia-org/begonia/internal/biz"
@@ -20,10 +22,46 @@ type APPOperator struct {
 func NewAPPOperator(mysql *tiga.MySQLDao) *APPOperator {
 	return &APPOperator{mysql: mysql}
 }
+func dumpInitApp(app *api.Apps) {
+	log.Print("########################################admin-app###############################")
+	log.Printf("Init appid:%s", app.Appid)
+	log.Printf("Init accessKey:%s", app.AccessKey)
+	log.Printf("Init secret:%s", app.Secret)
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		log.Fatalf(err.Error())
+		return
+	}
+	path := filepath.Join(homeDir, ".begonia")
+	if err := os.MkdirAll(path, os.ModePerm); err != nil {
+		log.Fatalf(err.Error())
+		return
+	}
+	file, err := os.Create(filepath.Join(path, "admin-app.json"))
+	if err != nil {
+		log.Fatalf(err.Error())
+		return
+	}
+	defer file.Close()
+	encoder := json.NewEncoder(file)
+	if err := encoder.Encode(app); err != nil {
+		log.Fatalf(err.Error())
+		return
+	}
+	log.Printf("Init admin-app config file at :%s", file.Name())
+	log.Print("#################################################################################")
+
+}
 func (m *APPOperator) InitAdminAPP(owner string) error {
 	app := &api.Apps{}
-	err := m.mysql.First(context.TODO(),app, "name = ?", "admin-app")
+	defer func() {
+		if app.Appid != "" {
+			dumpInitApp(app)
+		}
+	}()
+	err := m.mysql.First(context.TODO(), app, "name = ?", "admin-app")
 	if err != nil && err != gorm.ErrRecordNotFound {
+		log.Fatalf("InitAdminAPP error:%v", err)
 		return err
 	}
 	if app.Appid == "" {
@@ -37,22 +75,26 @@ func (m *APPOperator) InitAdminAPP(owner string) error {
 		if err != nil {
 			return err
 		}
-		ak := os.Getenv("APP_ACCESS_KEY")
-		if ak != "" {
-			accessKey = ak
-		}
+		// ak := os.Getenv("APP_ACCESS_KEY")
+		// if ak != "" {
+		// 	accessKey = ak
+		// }
 
 		secret, err := biz.GenerateAppSecret()
 
 		if err != nil {
 			return err
 		}
-		sk := os.Getenv("APP_SECRET")
-		if sk != "" {
-			secret = sk
-		}
+		// sk := os.Getenv("APP_SECRET")
+		// if sk != "" {
+		// 	secret = sk
+		// }
+		appid := biz.GenerateAppid(snk)
+		// if pid := os.Getenv("APPID"); pid != "" {
+		// 	appid = pid
+		// }
 		app = &api.Apps{
-			Appid:       biz.GenerateAppid(snk),
+			Appid:       appid,
 			AccessKey:   accessKey,
 			Secret:      secret,
 			Name:        "admin-app",
@@ -66,10 +108,5 @@ func (m *APPOperator) InitAdminAPP(owner string) error {
 		err = m.mysql.Create(context.Background(), app)
 		return err
 	}
-	log.Print("########################################admin-app###############################")
-	log.Printf("Init appid:%s", app.Appid)
-	log.Printf("Init accessKey:%s", app.AccessKey)
-	log.Printf("Init secret:%s", app.Secret)
-	log.Print("#################################################################################")
 	return nil
 }

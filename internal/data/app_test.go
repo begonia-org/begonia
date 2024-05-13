@@ -53,7 +53,7 @@ func addTest(t *testing.T) {
 		accessKey = access
 		secret, _ = generateRandomString(62)
 		appid = snk.GenerateIDString()
-		appName = fmt.Sprintf("app-%s", time.Now().Format("20060102150405"))
+		appName = fmt.Sprintf("app-data-%s", time.Now().Format("20060102150405"))
 		err := repo.Add(context.TODO(), &api.Apps{
 			Appid:       appid,
 			AccessKey:   access,
@@ -73,7 +73,9 @@ func addTest(t *testing.T) {
 		value, err := layered.Get(context.Background(), cacheKey)
 		c.So(err, c.ShouldBeNil)
 		c.So(string(value), c.ShouldEqual, secret)
-
+		value,err = layered.GetFromLocal(context.Background(),cacheKey)
+		c.So(err, c.ShouldBeNil)
+		c.So(string(value), c.ShouldEqual, secret)
 		patch := gomonkey.ApplyFuncReturn((*LayeredCache).Get, nil, errors.New("error"))
 
 		defer patch.Reset()

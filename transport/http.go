@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/gorilla/websocket"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -67,6 +68,7 @@ type HttpEndpointImpl struct {
 	// items  []*HttpEndpointItem
 	// pd     ProtobufDescription
 	client HttpForwardGrpcEndpoint
+	mux    *sync.Mutex
 }
 
 func loadHttpEndpointItem(pd ProtobufDescription, descFile string) ([]*HttpEndpointItem, error) {
@@ -145,6 +147,7 @@ func NewHttpEndpoint(client HttpForwardGrpcEndpoint) (HttpEndpoint, error) {
 
 	return &HttpEndpointImpl{
 		client: client,
+		mux:    &sync.Mutex{},
 	}, nil
 }
 func (h *HttpEndpointImpl) stream(ctx context.Context, item *HttpEndpointItem, marshaler runtime.Marshaler, req *http.Request, _ map[string]string) (StreamClient, runtime.ServerMetadata, error) {
@@ -406,6 +409,8 @@ func (h *HttpEndpointImpl) NotFound(w http.ResponseWriter, r *http.Request, path
 	w.WriteHeader(http.StatusNotFound)
 }
 func (h *HttpEndpointImpl) DeleteEndpoint(ctx context.Context, pd ProtobufDescription, mux *runtime.ServeMux) error {
+	h.mux.Lock()
+	defer h.mux.Unlock()
 	items, err := loadHttpEndpointItem(pd, pd.GetGatewayJsonSchema())
 	if err != nil {
 		return err
@@ -416,6 +421,8 @@ func (h *HttpEndpointImpl) DeleteEndpoint(ctx context.Context, pd ProtobufDescri
 	return nil
 }
 func (h *HttpEndpointImpl) RegisterHandlerClient(ctx context.Context, pd ProtobufDescription, mux *runtime.ServeMux) error {
+	h.mux.Lock()
+	defer h.mux.Unlock()
 	items, err := loadHttpEndpointItem(pd, pd.GetGatewayJsonSchema())
 	if err != nil {
 		return err

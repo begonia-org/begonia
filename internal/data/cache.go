@@ -2,6 +2,7 @@ package data
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -68,6 +69,19 @@ func (l *LayeredCache) Set(ctx context.Context, key string, value []byte, exp ti
 func (l *LayeredCache) Get(ctx context.Context, key string) ([]byte, error) {
 	return l.kv.Get(ctx, key)
 }
+func (l *LayeredCache) GetFromLocal(ctx context.Context, key string) ([]byte, error) {
+	values, err := l.kv.GetFromLocal(ctx, key)
+	if err != nil {
+		return nil, err
+	}
+	if len(values) == 0 {
+		return nil,fmt.Errorf("local cache not found")
+	}
+	if val,ok:=values[0].([]byte);ok{
+		return val,nil
+	}
+	return nil, fmt.Errorf("local cache value type error")
+}
 func (l *LayeredCache) Del(ctx context.Context, key string) error {
 	return l.kv.Del(ctx, key)
 }
@@ -86,9 +100,9 @@ func (l *LayeredCache) DelInFilter(ctx context.Context, key string, value []byte
 	return l.filters.Del(ctx, key, value)
 }
 func (l *LayeredCache) Watch(ctx context.Context) {
-	errChan:=l.kv.Watch(ctx)
-	for err:=range errChan{
-		l.log.Errorf("Watch layered-cache error:%v",err)
+	errChan := l.kv.Watch(ctx)
+	for err := range errChan {
+		l.log.Errorf("Watch layered-cache error:%v", err)
 	}
-	
+
 }

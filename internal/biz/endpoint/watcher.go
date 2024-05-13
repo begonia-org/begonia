@@ -1,4 +1,4 @@
-package gateway
+package endpoint
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/logger"
+	"github.com/begonia-org/begonia/internal/pkg/routers"
 	"go.etcd.io/etcd/api/v3/mvccpb"
 
 	"encoding/json"
@@ -18,7 +19,7 @@ import (
 	"google.golang.org/grpc/codes"
 )
 
-type GatewayWatcher struct {
+type EndpointWatcher struct {
 	config *config.Config
 	repo   EndpointRepo
 }
@@ -28,8 +29,9 @@ type GatewayWatcher struct {
 // Created or Update endpoint from etcd data
 // It will delete all old endpoint and register new endpoint
 // and then new endpoint will be registered to gateway
-func (g *GatewayWatcher) Update(ctx context.Context, key string, value string) error {
+func (g *EndpointWatcher) Update(ctx context.Context, key string, value string) error {
 	endpoint := &api.Endpoints{}
+	routersList := routers.NewHttpURIRouteToSrvMethod()
 	err := json.Unmarshal([]byte(value), endpoint)
 	if err != nil {
 		return errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "unmarshal_endpoint")
@@ -51,15 +53,20 @@ func (g *GatewayWatcher) Update(ctx context.Context, key string, value string) e
 	if err != nil {
 		return errors.New(fmt.Errorf("new loadbalance error: %w", err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "new_loadbalance")
 	}
+	// register routers
+	// log.Print("register router")
+	routersList.LoadAllRouters(pd)
+	// register service to gateway
 	gw := gateway.Get()
 	err = gw.RegisterService(ctx, pd, lb)
 	if err != nil {
 		return errors.New(fmt.Errorf("register service error: %w", err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "register_service")
 	}
+
 	// err = g.repo.PutTags(ctx, endpoint.Key, endpoint.Tags)
 	return nil
 }
-func (g *GatewayWatcher) del(ctx context.Context, key string, value string) error {
+func (g *EndpointWatcher) del(ctx context.Context, key string, value string) error {
 	endpoint := &api.Endpoints{}
 	err := json.Unmarshal([]byte(value), endpoint)
 	if err != nil {
@@ -76,7 +83,7 @@ func (g *GatewayWatcher) del(ctx context.Context, key string, value string) erro
 	return nil
 }
 
-func (g *GatewayWatcher) Handle(ctx context.Context, op mvccpb.Event_EventType, key, value string) error {
+func (g *EndpointWatcher) Handle(ctx context.Context, op mvccpb.Event_EventType, key, value string) error {
 	switch op {
 	case mvccpb.PUT:
 		return g.Update(ctx, key, value)
@@ -87,8 +94,8 @@ func (g *GatewayWatcher) Handle(ctx context.Context, op mvccpb.Event_EventType, 
 	}
 }
 
-func NewWatcher(config *config.Config, repo EndpointRepo) *GatewayWatcher {
-	return &GatewayWatcher{
+func NewWatcher(config *config.Config, repo EndpointRepo) *EndpointWatcher {
+	return &EndpointWatcher{
 		config: config,
 		repo:   repo,
 	}

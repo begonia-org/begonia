@@ -132,9 +132,9 @@ func uploadParts(t *testing.T) {
 		}
 		conf := cfg.NewConfig(config.ReadConfig(env))
 
-		saveDir := filepath.Join(conf.GetUploadDir(), filepath.Dir(rsp.Uri))
-		filename := filepath.Base(rsp.Uri)
-		filePath := filepath.Join(saveDir, filename)
+		filePath := filepath.Join(conf.GetUploadDir(), rsp.Uri)
+		// filename := filepath.Base(rsp.Uri)
+		// filePath := filepath.Join(saveDir, filename)
 
 		file, err := os.Open(filePath)
 		c.So(err, c.ShouldBeNil)
@@ -169,7 +169,7 @@ func download(t *testing.T) {
 		c.So(err, c.ShouldBeNil)
 		defer tmp.Close()
 		defer os.Remove(tmp.Name())
-		sha256Str, err := apiClient.DownloadFile(context.Background(), "test/helloworld.pb", tmp.Name(), "")
+		sha256Str, err := apiClient.DownloadFile(context.Background(), sdkAPPID + "/test/helloworld.pb", tmp.Name(), "")
 		c.So(err, c.ShouldBeNil)
 		downloadedSha256, _ := sumFileSha256(tmp.Name())
 		t.Log(sha256Str)
@@ -183,7 +183,7 @@ func downloadParts(t *testing.T) {
 		c.So(err, c.ShouldBeNil)
 		defer tmp.Close()
 		defer os.Remove(tmp.Name())
-		rsp, err := apiClient.DownloadMultiParts(context.Background(), "test/tmp.bin", tmp.Name(), "")
+		rsp, err := apiClient.DownloadMultiParts(context.Background(), sdkAPPID+"/test/tmp.bin", tmp.Name(), "")
 		c.So(err, c.ShouldBeNil)
 		// c.So(rsp.StatusCode, c.ShouldEqual, common.Code_OK)
 		downloadedSha256, _ := sumFileSha256(tmp.Name())
@@ -193,12 +193,16 @@ func downloadParts(t *testing.T) {
 	})
 }
 func deleteFile(t *testing.T) {
+	env := "dev"
+	if begonia.Env != "" {
+		env = begonia.Env
+	}
 	c.Convey("test delete file", t, func() {
 		apiClient := client.NewFilesAPI(apiAddr, accessKey, secret)
-		rsp, err := apiClient.DeleteFile(context.Background(), "test/helloworld.pb")
+		rsp, err := apiClient.DeleteFile(context.Background(), sdkAPPID +"/test/helloworld.pb")
 		c.So(err, c.ShouldBeNil)
 		c.So(rsp.StatusCode, c.ShouldEqual, common.Code_OK)
-		conf := cfg.NewConfig(config.ReadConfig("dev"))
+		conf := cfg.NewConfig(config.ReadConfig(env))
 
 		saveDir := filepath.Join(conf.GetUploadDir(), filepath.Dir("test/helloworld.pb"))
 		filename := filepath.Base("test/helloworld.pb")

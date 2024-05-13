@@ -23,7 +23,7 @@ import (
 	"github.com/spark-lence/tiga"
 )
 
-type AuthVildator struct {
+type AuthValidator struct {
 	rsaKey *rsa.PrivateKey
 }
 type AuthSeed struct {
@@ -36,14 +36,14 @@ type AuthKeys struct {
 	Seed string
 }
 
-func NewAuthVildator() *AuthVildator {
+func NewAuthVildator() *AuthValidator {
 	_, filename, _, ok := runtime.Caller(0)
 	if !ok {
 		panic("No caller information")
 	}
 	dir := path.Dir(path.Dir(path.Dir(filename)))
 	rsaKeyPath := filepath.Join(dir, "cert", "auth_private_key.pem")
-	validator := &AuthVildator{}
+	validator := &AuthValidator{}
 	rsa, err := validator.LoadPrivateKey(rsaKeyPath)
 	if err != nil {
 		panic(err)
@@ -52,7 +52,7 @@ func NewAuthVildator() *AuthVildator {
 	return validator
 }
 
-func (a AuthVildator) GenerateRandPasswd() (string, error) {
+func (a AuthValidator) GenerateRandPasswd() (string, error) {
 	var charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	var length = 16 // 可以根据需要设置密码长度
 	passwd := make([]byte, length)
@@ -68,7 +68,7 @@ func (a AuthVildator) GenerateRandPasswd() (string, error) {
 	return string(passwd), nil
 }
 
-func (a AuthVildator) GenerateRandSeed() int64 {
+func (a AuthValidator) GenerateRandSeed() int64 {
 	// 使用当前时间的 Unix 时间戳（秒级）
 	timestamp := time.Now().Unix()
 	seed := time.Now().UnixNano()
@@ -85,7 +85,7 @@ func (a AuthVildator) GenerateRandSeed() int64 {
 }
 
 // 生成密钥对
-func (a AuthVildator) GenerateKeys(bits int) (*rsa.PrivateKey, *rsa.PublicKey, error) {
+func (a AuthValidator) GenerateKeys(bits int) (*rsa.PrivateKey, *rsa.PublicKey, error) {
 	privateKey, err := rsa.GenerateKey(rand.Reader, bits)
 	if err != nil {
 		return nil, nil, err
@@ -96,7 +96,7 @@ func (a AuthVildator) GenerateKeys(bits int) (*rsa.PrivateKey, *rsa.PublicKey, e
 }
 
 // 基于公钥加密
-func (a AuthVildator) EncryptWithPublicKey(msg string, pubKey *rsa.PublicKey) ([]byte, error) {
+func (a AuthValidator) EncryptWithPublicKey(msg string, pubKey *rsa.PublicKey) ([]byte, error) {
 	label := []byte("") // 使用空标签
 	hash := sha256.New()
 
@@ -109,7 +109,7 @@ func (a AuthVildator) EncryptWithPublicKey(msg string, pubKey *rsa.PublicKey) ([
 }
 
 // 基于私钥解密
-func (a AuthVildator) DecryptWithPrivateKey(ciphertext []byte, privKey *rsa.PrivateKey) (string, error) {
+func (a AuthValidator) DecryptWithPrivateKey(ciphertext []byte, privKey *rsa.PrivateKey) (string, error) {
 	label := []byte("") // 使用空标签
 	hash := sha256.New()
 
@@ -120,7 +120,7 @@ func (a AuthVildator) DecryptWithPrivateKey(ciphertext []byte, privKey *rsa.Priv
 
 	return string(plaintext), nil
 }
-func (a AuthVildator) publicKeyToString(pubKey *rsa.PublicKey) (string, error) {
+func (a AuthValidator) publicKeyToString(pubKey *rsa.PublicKey) (string, error) {
 	// 将公钥转换为 ASN.1 DER 编码
 	derBytes, err := x509.MarshalPKIXPublicKey(pubKey)
 	if err != nil {
@@ -140,7 +140,7 @@ func (a AuthVildator) publicKeyToString(pubKey *rsa.PublicKey) (string, error) {
 }
 
 // 另一种方式是将 DER 编码的数据直接转换为 Base64 编码的字符串
-func (a AuthVildator) publicKeyToBase64String(pubKey *rsa.PublicKey) (string, error) {
+func (a AuthValidator) publicKeyToBase64String(pubKey *rsa.PublicKey) (string, error) {
 	derBytes, err := x509.MarshalPKIXPublicKey(pubKey)
 	if err != nil {
 		return "", err
@@ -148,7 +148,7 @@ func (a AuthVildator) publicKeyToBase64String(pubKey *rsa.PublicKey) (string, er
 
 	return base64.StdEncoding.EncodeToString(derBytes), nil
 }
-func (a AuthVildator) EncryptAES(key []byte, plaintext string) (string, error) {
+func (a AuthValidator) EncryptAES(key []byte, plaintext string) (string, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return "", err
@@ -167,7 +167,7 @@ func (a AuthVildator) EncryptAES(key []byte, plaintext string) (string, error) {
 	// 返回带有IV的加密文本
 	return hex.EncodeToString(iv) + hex.EncodeToString(cipherText), nil
 }
-func (a AuthVildator) GenerateAuthSeed(aesKey string) (string, error) {
+func (a AuthValidator) GenerateAuthSeed(aesKey string) (string, error) {
 	key, err := a.GenerateRandPasswd()
 	if err != nil {
 		return "", err
@@ -186,7 +186,7 @@ func (a AuthVildator) GenerateAuthSeed(aesKey string) (string, error) {
 }
 
 // loadPrivateKey 从文件中加载 RSA 私钥
-func (a AuthVildator) LoadPrivateKey(path string) (*rsa.PrivateKey, error) {
+func (a AuthValidator) LoadPrivateKey(path string) (*rsa.PrivateKey, error) {
 	keyData, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -209,7 +209,7 @@ func (a AuthVildator) LoadPrivateKey(path string) (*rsa.PrivateKey, error) {
 }
 
 // rsaDecrypt 使用 RSA 私钥解密数据
-func (a AuthVildator) RSADecrypt(ciphertext string) ([]byte, error) {
+func (a AuthValidator) RSADecrypt(ciphertext string) ([]byte, error) {
 	decodedData, err := base64.StdEncoding.DecodeString(ciphertext)
 	if err != nil {
 		return nil, err

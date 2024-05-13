@@ -49,7 +49,7 @@ type GatewayServer struct {
 	addr        string
 	proxyAddr   string
 	opts        *GrpcServerOptions
-	mux         sync.Mutex
+	mux         *sync.Mutex
 }
 
 func NewBalancer() {
@@ -97,7 +97,7 @@ func NewGateway(cfg *GatewayConfig, opts *GrpcServerOptions) *GatewayServer {
 			addr:        cfg.GatewayAddr,
 			proxyAddr:   cfg.GrpcProxyAddr,
 			opts:        opts,
-			mux:         sync.Mutex{},
+			mux:         &sync.Mutex{},
 		}
 	})
 	return gatewayS

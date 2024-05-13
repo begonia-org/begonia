@@ -84,7 +84,7 @@ func (c *Config) GetUserTokenBlackListBloomKey(uid string) string {
 }
 func (c *Config) GetUserBlackListPrefix() string {
 	prefix := c.GetString("common.rdb_key_prefix")
-	return fmt.Sprintf("%s:user:black:", prefix)
+	return fmt.Sprintf("%s:user:black", prefix)
 }
 func (c *Config) GetUserTokenBlackListBloom() string {
 	prefix := c.GetFilterPrefix()
