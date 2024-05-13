@@ -1,11 +1,14 @@
 package integration_test
 
 import (
+	"encoding/json"
 	"log"
+	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
-
+	api "github.com/begonia-org/go-sdk/api/app/v1"
 	"github.com/begonia-org/begonia"
 	"github.com/begonia-org/begonia/config"
 	"github.com/begonia-org/begonia/internal"
@@ -35,7 +38,34 @@ func runExampleServer() {
 	})
 
 }
+func readInitAPP() {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		log.Fatalf(err.Error())
+		return
+	}
+	path := filepath.Join(homeDir, ".begonia")
+	path = filepath.Join(path, "admin-app.json")
+	file, err := os.Open(path)
+	if err != nil {
+		log.Fatalf(err.Error())
+		return
 
+	}
+	defer file.Close()
+
+	decoder := json.NewDecoder(file)
+	app := &api.Apps{}
+	err = decoder.Decode(app)
+	if err != nil {
+		log.Fatalf(err.Error())
+		return
+	
+	}
+	accessKey = app.AccessKey
+	secret = app.Secret
+	sdkAPPID = app.Appid
+}
 func RunTestServer() {
 	log.Printf("run test server")
 	onceServer.Do(func() {
@@ -60,7 +90,7 @@ func RunTestServer() {
 }
 
 func TestMain(m *testing.M) {
-
+	readInitAPP()
 	RunTestServer()
 	time.Sleep(5 * time.Second)
 

@@ -23,6 +23,7 @@ jobs:
       run: |
         export APP_ACCESS_KEY=NWkbCslfh9ea2LjVIUsKehJuopPb65fn
         export APP_SECRET=oVPNllSR1DfizdmdSF7wLjgABYbexdt4FZ1HWrI81dD5BeNhsyXpXPDFoDEyiSVe
+        export APPID=424077418374893568
         go run ./cmd/gateway/main.go init -e dev
 
     - name: Type a temporary tag

@@ -105,7 +105,7 @@ func TestDo(t *testing.T) {
 		go dataOperator.Do(context.Background())
 		go dataOperator.Do(context.Background())
 
-		time.Sleep(3 * time.Second)
+		time.Sleep(5 * time.Second)
 		prefix := cnf.GetUserBlackListPrefix()
 		val, err := cache.GetFromLocal(context.TODO(), fmt.Sprintf("%s:%s", prefix, u1.Uid))
 		c.So(err, c.ShouldBeNil)
