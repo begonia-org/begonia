@@ -56,6 +56,7 @@ func (m *APPOperator) InitAdminAPP(owner string) error {
 	app := &api.Apps{}
 	err := m.mysql.First(context.TODO(), app, "name = ?", "admin-app")
 	if err != nil && err != gorm.ErrRecordNotFound {
+		log.Fatalf("InitAdminAPP error:%v", err)
 		return err
 	}
 	if app.Appid == "" {
