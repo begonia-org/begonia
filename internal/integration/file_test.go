@@ -37,6 +37,10 @@ func sumFileSha256(src string) (string, error) {
 }
 
 func upload(t *testing.T) {
+	env:=begonia.Env
+	if env==""{
+		env="dev"
+	}
 	c.Convey("test upload file", t, func() {
 		// test upload file
 		apiClient := client.NewFilesAPI(apiAddr, accessKey, secret)
@@ -48,11 +52,11 @@ func upload(t *testing.T) {
 		c.So(err, c.ShouldBeNil)
 		c.So(rsp.StatusCode, c.ShouldEqual, common.Code_OK)
 		c.So(rsp.Uri, c.ShouldNotBeEmpty)
-		conf := cfg.NewConfig(config.ReadConfig(begonia.Env))
+		conf := cfg.NewConfig(config.ReadConfig(env))
 
-		saveDir := filepath.Join(conf.GetUploadDir(), filepath.Dir(rsp.Uri))
-		filename = filepath.Base(rsp.Uri)
-		filePath := filepath.Join(saveDir, filename)
+		filePath := filepath.Join(conf.GetUploadDir(), rsp.Uri)
+		// filename = filepath.Base(rsp.Uri)
+		// filePath := filepath.Join(saveDir, filename)
 
 		_, err = os.Stat(filePath)
 		c.So(err, c.ShouldBeNil)
@@ -126,8 +130,8 @@ func uploadParts(t *testing.T) {
 		c.So(rsp.Uri, c.ShouldNotBeEmpty)
 		c.So(rsp.Version, c.ShouldNotBeEmpty)
 		// c.So(rsp.Sha256,c.ShouldEqual,tmp.sha256)
-		env:=begonia.Env
-		if env==""{
+		env:="dev"
+		if begonia.Env!=""{
 			env="test"
 		}
 		conf := cfg.NewConfig(config.ReadConfig(env))

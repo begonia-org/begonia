@@ -5,15 +5,14 @@ import (
 	"io"
 	"reflect"
 
-	"github.com/begonia-org/begonia/internal/pkg/config"
 	_ "github.com/begonia-org/go-sdk/api/app/v1"
 	_ "github.com/begonia-org/go-sdk/api/endpoint/v1"
 	_ "github.com/begonia-org/go-sdk/api/file/v1"
-	_ "github.com/begonia-org/go-sdk/common/api/v1"
-	_ "github.com/begonia-org/go-sdk/api/user/v1"
 	_ "github.com/begonia-org/go-sdk/api/iam/v1"
 	_ "github.com/begonia-org/go-sdk/api/plugin/v1"
 	_ "github.com/begonia-org/go-sdk/api/sys/v1"
+	_ "github.com/begonia-org/go-sdk/api/user/v1"
+	_ "github.com/begonia-org/go-sdk/common/api/v1"
 	common "github.com/begonia-org/go-sdk/common/api/v1"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/genproto/googleapis/api/httpbody"
@@ -23,8 +22,6 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/dynamicpb"
-
-	"github.com/spark-lence/tiga"
 )
 
 type RawBinaryUnmarshaler runtime.HTTPBodyMarshaler
@@ -38,6 +35,7 @@ type EventSourceMarshaler struct {
 type BinaryDecoder struct {
 	fieldName string
 	r         io.Reader
+	marshaler runtime.Marshaler
 }
 
 func (d *BinaryDecoder) fn() string {
@@ -47,38 +45,41 @@ func (d *BinaryDecoder) fn() string {
 	return d.fieldName
 }
 
-var typeOfBytes = reflect.TypeOf([]byte(nil))
-var typeOfHttpbody = reflect.TypeOf(&httpbody.HttpBody{})
+// var typeOfBytes = reflect.TypeOf([]byte(nil))
+// var typeOfHttpbody = reflect.TypeOf(&httpbody.HttpBody{})
 
 func (d *BinaryDecoder) Decode(v interface{}) error {
+	if v == nil {
+		return nil
+	
+	}
 	rv := reflect.ValueOf(v).Elem() // assert it must be a pointer
 	if rv.Kind() != reflect.Struct {
 		return d
 	}
-
-	data := rv.FieldByName(d.fn())
-	if !data.CanSet() || (data.Type() != typeOfBytes && data.Type() != typeOfHttpbody) {
-		return d
-	}
-	p, err := io.ReadAll(d.r)
-	if err != nil {
-		return err
-	}
-	if len(p) == 0 {
-		return io.EOF
-	}
-
-	if _, ok := data.Interface().(*httpbody.HttpBody); ok {
-		httpBody := &httpbody.HttpBody{
-			ContentType: "application/octet-stream",
-			Data:        p,
+	if dpb, ok := v.(*dynamicpb.Message); ok {
+		typ := dpb.Type().Descriptor().Name()
+		if string(typ) == "HttpBody" {
+			p, err := io.ReadAll(d.r)
+			if err != nil {
+				return err
+			}
+			if len(p) == 0 {
+				return io.EOF
+			}
+			httpBody := &httpbody.HttpBody{
+				ContentType: "application/octet-stream",
+				Data:        p,
+			}
+			body, err := proto.Marshal(httpBody)
+			if err != nil {
+				return err
+			}
+			return proto.Unmarshal(body, v.(proto.Message))
 		}
-		data.Set(reflect.ValueOf(httpBody))
-		return nil
+		return d.marshaler.NewDecoder(d.r).Decode(v)
 	}
-	data.SetBytes(p)
-
-	return err
+	return d.marshaler.NewDecoder(d.r).Decode(v)
 }
 
 func (d *BinaryDecoder) Error() string {
@@ -110,12 +111,12 @@ func ConvertDynamicMessageToHttpBody(dynamicMessage *dynamicpb.Message) (*httpbo
 	}
 
 	// 反序列化字节流回原始的HttpBody
-	var httpBody httpbody.HttpBody
-	if err := proto.Unmarshal(serialized, &httpBody); err != nil {
+	var httpBody *httpbody.HttpBody = new(httpbody.HttpBody)
+	if err := proto.Unmarshal(serialized, httpBody); err != nil {
 		return nil, err
 	}
 
-	return &httpBody, nil
+	return httpBody, nil
 }
 func (m *RawBinaryUnmarshaler) ContentType(v interface{}) string {
 	if dpb, ok := v.(*dynamicpb.Message); ok {
@@ -128,6 +129,11 @@ func (m *RawBinaryUnmarshaler) ContentType(v interface{}) string {
 	}
 	return "application/octet-stream"
 }
+
+func (m *RawBinaryUnmarshaler) NewDecoder(r io.Reader) runtime.Decoder {
+	return &BinaryDecoder{"Data", r, m.Marshaler}
+
+}
 func (m *RawBinaryUnmarshaler) Marshal(v interface{}) ([]byte, error) {
 	if dpb, ok := v.(*dynamicpb.Message); ok {
 		typ := dpb.Type().Descriptor().Name()
@@ -139,11 +145,12 @@ func (m *RawBinaryUnmarshaler) Marshal(v interface{}) ([]byte, error) {
 	}
 	return m.Marshaler.Marshal(v)
 }
+
 func (m *EventSourceMarshaler) ContentType(v interface{}) string {
 	return "text/event-stream"
 }
-func (m *EventSourceMarshaler) ToEventStreamResponse(dynMsg *dynamicpb.Message) (*common.EventStreamResponse, error) {
-	esr := &common.EventStreamResponse{}
+func (m *EventSourceMarshaler) ToEventStreamResponse(dynMsg *dynamicpb.Message) (*common.EventStream, error) {
+	esr := &common.EventStream{}
 
 	// 遍历所有字段
 	dynMsg.Range(func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
@@ -172,16 +179,8 @@ func (m *EventSourceMarshaler) Marshal(v interface{}) ([]byte, error) {
 
 	}
 	// 在这里定义你的自定义序列化逻辑
-	if response, ok := v.(*common.APIResponse); ok {
-		data, err := tiga.ProtoMsgUnserializer(fmt.Sprintf("%s.%s", config.APIPkg, response.ResponseType), response.Data)
-		if err != nil {
-			return nil, fmt.Errorf("marshal response error: %w", err)
-		}
-		stream, err := m.ToEventStreamResponse(data.(*dynamicpb.Message))
-		if err != nil {
-			return nil, fmt.Errorf("marshal response error: %w", err)
-		}
-		line := fmt.Sprintf("id: %d\nevent: %s\nretry: %d\ndata: %s\n\n", stream.Id, stream.Event, stream.Retry, stream.Data)
+	if stream, ok := v.(*common.EventStream); ok {
+		line := fmt.Sprintf("id: %d\nevent: %s\nretry: %d\ndata: %s\n", stream.Id, stream.Event, stream.Retry, stream.Data)
 		return []byte(line), nil
 
 	}

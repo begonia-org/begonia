@@ -125,7 +125,7 @@ func (g *GatewayServer) GetLoadbalanceName() loadbalance.BalanceType {
 func (g *GatewayServer) RegisterHandlerClient(ctx context.Context, pd ProtobufDescription) error {
 	return g.httpGateway.RegisterHandlerClient(ctx, pd, g.gatewayMux)
 }
-func (g *GatewayServer) Start() error {
+func (g *GatewayServer) Start() {
 	handler := h2c.NewHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.ProtoMajor == 2 && strings.Contains(r.Header.Get("Content-Type"), "application/grpc") {
 			grpcServer.ServeHTTP(w, r)
@@ -145,15 +145,21 @@ func (g *GatewayServer) Start() error {
 
 	lis, err := net.Listen("tcp", g.proxyAddr)
 	if err != nil {
-		return fmt.Errorf("listening %s,error:%w", g.proxyAddr, err)
+		panic(err)
 	}
-	go g.grpcServer.Serve(lis)
+	go func() {
+		err = g.grpcServer.Serve(lis)
+		if err != nil {
+			panic(err)
+
+		}
+	}()
 	time.Sleep(3 * time.Second)
 	log.Printf("Start on %s\n", g.addr)
 	if err := s.ListenAndServe(); err != nil {
-		return fmt.Errorf("start server error:%w", err)
+		panic(err)
+		// return fmt.Errorf("start server error:%w", err)
 	}
-	return nil
 }
 func (g *GatewayServer) GetOptions() *GrpcServerOptions {
 	return g.opts

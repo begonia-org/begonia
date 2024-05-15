@@ -10,7 +10,7 @@ import (
 
 type GatewayWorker interface {
 	// Start the worker
-	Start() error
+	Start()
 }
 
 type GatewayWorkerImpl struct {
@@ -27,9 +27,9 @@ func NewGatewayWorkerImpl(daemon daemon.Daemon, server *transport.GatewayServer)
 	}
 }
 
-func (g *GatewayWorkerImpl) Start() error {
+func (g *GatewayWorkerImpl) Start() {
 
 	g.daemon.Start(context.Background())
 	time.Sleep(time.Second * 2)
-	return g.server.Start()
+	g.server.Start()
 }

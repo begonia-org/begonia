@@ -10,15 +10,14 @@ import (
 	"strconv"
 
 	"github.com/begonia-org/begonia/internal/pkg/config"
-	"github.com/begonia-org/begonia/internal/pkg/gateway"
+	"github.com/begonia-org/begonia/transport"
+	"github.com/begonia-org/begonia/internal/pkg/logger"
 	"github.com/begonia-org/begonia/internal/pkg/middleware"
-	"github.com/begonia-org/begonia/internal/pkg/middleware/serialization"
+	"github.com/begonia-org/begonia/transport/serialization"
 	"github.com/begonia-org/begonia/internal/pkg/routers"
 	"github.com/begonia-org/begonia/internal/service"
-	"github.com/begonia-org/begonia/transport"
 	loadbalance "github.com/begonia-org/go-loadbalancer"
 	common "github.com/begonia-org/go-sdk/common/api/v1"
-	"github.com/begonia-org/begonia/internal/pkg/logger"
 	"github.com/google/wire"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
@@ -40,7 +39,7 @@ func readDesc(conf *config.Config) (transport.ProtobufDescription, error) {
 	if err != nil {
 		return nil, fmt.Errorf("read desc file error:%w", err)
 	}
-	pd, err := transport.NewDescriptionFromBinary(bin,filepath.Dir(desc))
+	pd, err := transport.NewDescriptionFromBinary(bin, filepath.Dir(desc))
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +80,7 @@ func NewGateway(cfg *transport.GatewayConfig, conf *config.Config, services []se
 	}
 	opts.HttpHandlers = append(opts.HttpHandlers, cors.Handle)
 	runtime.WithMetadata(middleware.IncomingHeadersToMetadata)
-	gw := gateway.New(cfg, opts)
+	gw := transport.New(cfg, opts)
 
 	pd, err := readDesc(conf)
 	if err != nil {

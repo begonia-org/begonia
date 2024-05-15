@@ -9,9 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/spark-lence/tiga"
-	// "github.com/spark-lence/tiga/loadbalance"
 	loadbalance "github.com/begonia-org/go-loadbalancer"
+	"github.com/spark-lence/tiga"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
@@ -194,7 +193,6 @@ func (g *GrpcProxy) UnaryProxyInterceptor(ctx context.Context, req interface{}, 
 	if err != nil {
 		return nil, status.Errorf(codes.Unavailable, "no endpoint available to select,%v", err)
 	}
-	// log.Printf("grpc 选择连接:%v", endpoint.Addr())
 	cn, err := endpoint.Get(ctx)
 	if err != nil {
 		return nil, status.Errorf(codes.Unavailable, "no endpoint available from endpoint,%v", err)

@@ -19,10 +19,9 @@ import (
 	"github.com/begonia-org/begonia/internal/data"
 	cfg "github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/errors"
-	"github.com/begonia-org/begonia/internal/pkg/gateway"
+	"github.com/begonia-org/begonia/transport"
 	"github.com/begonia-org/begonia/internal/pkg/logger"
 	"github.com/begonia-org/begonia/internal/pkg/routers"
-	"github.com/begonia-org/begonia/transport"
 	gwRuntime "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 
 	goloadbalancer "github.com/begonia-org/go-loadbalancer"
@@ -310,14 +309,14 @@ func testWatcherUpdate(t *testing.T) {
 		GatewayAddr:   "127.0.0.1:9527",
 		GrpcProxyAddr: "127.0.0.1:12148",
 	}
-	gateway.New(gwCnf, opts)
+	transport.New(gwCnf, opts)
 	routers.NewHttpURIRouteToSrvMethod()
 	c.Convey("Test Watcher Update", t, func() {
 
 		err = watcher.Handle(context.TODO(), mvccpb.PUT, cnf.GetServiceKey(epId), string(val))
 		c.So(err, c.ShouldBeNil)
 		r := routers.Get()
-		detail := r.GetRoute("/api/v1/example/helloworld")
+		detail := r.GetRoute("/api/v1/example/{name}")
 		c.So(detail, c.ShouldNotBeNil)
 
 	})
@@ -364,7 +363,7 @@ func testWatcherDel(t *testing.T) {
 		err := watcher.Handle(context.TODO(), mvccpb.DELETE, cnf.GetServiceKey(epId), string(val))
 		c.So(err, c.ShouldBeNil)
 		r := routers.Get()
-		detail := r.GetRoute("/api/v1/example/helloworld")
+		detail := r.GetRoute("/api/v1/example/{name}")
 		c.So(detail, c.ShouldBeNil)
 	})
 	c.Convey("test watcher del fail", t, func() {
