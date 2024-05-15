@@ -69,7 +69,7 @@ func readInitAPP() {
 func RunTestServer() {
 	log.Printf("run test server")
 	onceServer.Do(func() {
-		env := "test"
+		env := "dev"
 		if begonia.Env != "" {
 			env = begonia.Env
 		}
@@ -78,10 +78,8 @@ func RunTestServer() {
 		go func() {
 
 			worker := internal.New(config, logger.Log, "0.0.0.0:12140")
-			err := worker.Start()
-			if err != nil {
-				panic(err)
-			}
+			worker.Start()
+		
 		}()
 		runExampleServer()
 		time.Sleep(2 * time.Second)

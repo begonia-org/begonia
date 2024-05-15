@@ -43,10 +43,7 @@ func NewGatewayCmd() *cobra.Command {
 			env, _ := cmd.Flags().GetString("env")
 			config := config.ReadConfig(env)
 			worker := internal.New(config, logger.Log, endpoint)
-			err := worker.Start()
-			if err != nil {
-				log.Fatalf("failed to start master: %v", err)
-			}
+			worker.Start()
 
 		},
 	}

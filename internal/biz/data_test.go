@@ -13,7 +13,6 @@ import (
 	"github.com/begonia-org/begonia/internal/biz/endpoint"
 	"github.com/begonia-org/begonia/internal/data"
 	cfg "github.com/begonia-org/begonia/internal/pkg/config"
-	"github.com/begonia-org/begonia/internal/pkg/gateway"
 	"github.com/begonia-org/begonia/internal/pkg/logger"
 	"github.com/begonia-org/begonia/transport"
 	loadbalance "github.com/begonia-org/go-loadbalancer"
@@ -63,7 +62,7 @@ func TestDo(t *testing.T) {
 		GatewayAddr:   "127.0.0.1:9527",
 		GrpcProxyAddr: "127.0.0.1:12148",
 	}
-	gateway.New(gwCnf, opts)
+	transport.New(gwCnf, opts)
 	c.Convey("test data operator do success", t, func() {
 		u1 := &api.Users{
 			Name:      fmt.Sprintf("user-data-operator-%s", time.Now().Format("20060102150405")),

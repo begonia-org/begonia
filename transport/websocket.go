@@ -2,6 +2,7 @@ package transport
 
 import (
 	"bytes"
+	"io"
 	"net/http"
 
 	"github.com/gorilla/websocket"
@@ -12,17 +13,16 @@ type WebsocketForwarder interface {
 	Read() ([]byte, error)
 	Write([]byte) (int, error)
 	Close() error
+	NextReader() (io.Reader, error)
 }
 
 type websocketForwarder struct {
 	http.ResponseWriter
 	websocket    *websocket.Conn
 	responseType int
-	stream       StreamClient
 }
 
-func NewWebsocketForwarder(w http.ResponseWriter, req *http.Request,
-	stream StreamClient, responseType int) (WebsocketForwarder, error) {
+func NewWebsocketForwarder(w http.ResponseWriter, req *http.Request,responseType int) (WebsocketForwarder, error) {
 	var upgrader = websocket.Upgrader{
 		// 允许所有CORS请求
 		CheckOrigin: func(r *http.Request) bool { return true },
@@ -31,13 +31,13 @@ func NewWebsocketForwarder(w http.ResponseWriter, req *http.Request,
 	if err != nil {
 		return nil, err
 	}
-	return &websocketForwarder{w, conn, responseType, stream}, nil
+	return &websocketForwarder{w, conn, responseType}, nil
 }
 func (w *websocketForwarder) Flush() {
 	// w.ResponseWriter.(http.Flusher).Flush()
 }
 func (w *websocketForwarder) Close() error {
-	_=w.stream.CloseSend()
+	// _ = w.stream.CloseSend()
 	return w.websocket.Close()
 }
 func (w *websocketForwarder) Read() ([]byte, error) {
@@ -47,6 +47,14 @@ func (w *websocketForwarder) Read() ([]byte, error) {
 	}
 	return msg, nil
 
+}
+func (w *websocketForwarder) NextReader() (io.Reader, error) {
+
+	_,reader,err:= w.websocket.NextReader()
+	if err != nil {
+		return nil, err
+	}
+	return reader, nil
 }
 func (w *websocketForwarder) Write(message []byte) (int, error) {
 	if len(message) == 0 || bytes.Equal(message, []byte("\n")) {

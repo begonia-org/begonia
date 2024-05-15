@@ -12,7 +12,7 @@ import (
 	"encoding/json"
 
 	"github.com/begonia-org/begonia/internal/pkg/errors"
-	"github.com/begonia-org/begonia/internal/pkg/gateway"
+	"github.com/begonia-org/begonia/transport"
 	loadbalance "github.com/begonia-org/go-loadbalancer"
 	api "github.com/begonia-org/go-sdk/api/endpoint/v1"
 	common "github.com/begonia-org/go-sdk/common/api/v1"
@@ -45,7 +45,7 @@ func (g *EndpointWatcher) Update(ctx context.Context, key string, value string) 
 	if err != nil {
 		return errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "delete_descriptor")
 	}
-	eps, err := newEndpoint(loadbalance.BalanceType(endpoint.Balance), endpoint.GetEndpoints())
+	eps, err := transport.NewLoadBalanceEndpoint(loadbalance.BalanceType(endpoint.Balance), endpoint.GetEndpoints())
 	if err != nil {
 		return errors.New(errors.ErrUnknownLoadBalancer, int32(api.EndpointSvrStatus_NOT_SUPPORT_BALANCE), codes.InvalidArgument, "new_endpoint")
 	}
@@ -57,7 +57,7 @@ func (g *EndpointWatcher) Update(ctx context.Context, key string, value string) 
 	// log.Print("register router")
 	routersList.LoadAllRouters(pd)
 	// register service to gateway
-	gw := gateway.Get()
+	gw := transport.Get()
 	err = gw.RegisterService(ctx, pd, lb)
 	if err != nil {
 		return errors.New(fmt.Errorf("register service error: %w", err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "register_service")

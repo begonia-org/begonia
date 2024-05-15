@@ -43,7 +43,6 @@ func (e *httpForwardGrpcEndpointImpl) Request(req GrpcRequest) (proto.Message, r
 	out := req.GetOut()
 	in := req.GetIn()
 	ctx := req.GetContext()
-	// conn, _ = grpc.Dial("127.0.0.1:19527", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	err = conn.Invoke(ctx, req.GetFullMethodName(), in, out, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return out, metadata, err
 

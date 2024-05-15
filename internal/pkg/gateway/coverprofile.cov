@@ -1,4 +1,0 @@
-mode: set
-github.com/begonia-org/begonia/internal/pkg/grpc/endpoint.go:20.49,24.2 1 1
-github.com/begonia-org/begonia/internal/pkg/grpc/endpoint.go:26.60,32.120 1 1
-github.com/begonia-org/begonia/internal/pkg/grpc/endpoint.go:32.120,35.3 2 1
