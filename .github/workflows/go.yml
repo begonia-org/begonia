@@ -34,6 +34,10 @@ jobs:
         uses: arduino/setup-protoc@v3
         with:
           version: "22.2"
+      - name: Install protoc-gen-grpc-gateway
+        run: |
+          go install github.com/geebytes/grpc-gateway/v2/protoc-gen-grpc-gateway@latest
+          go install github.com/geebytes/grpc-gateway/v2/protoc-gen-openapiv2@latest
       - name: Test
         run: go test -v -gcflags=-l -coverprofile=coverage.txt -covermode=atomic -ldflags -X=github.com/begonia-org/begonia.Version=$(git describe --tags --abbrev=0)\ -X=github.com/begonia-org/begonia.BuildTime=$(date '+%Y%m%d%H%M%S')\ -X=github.com/begonia-org/begonia.Commit=$(git rev-parse --short HEAD)\ -X=github.com/begonia-org/begonia.Env=test ./...
 
