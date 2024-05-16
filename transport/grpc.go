@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 	"strings"
 	"sync"
 	"time"
@@ -159,60 +158,63 @@ func (g *GrpcProxy) getXForward(ctx context.Context) []string {
 	}
 	return md.Get("X-Forwarded-For")
 }
-func (g *GrpcProxy) forwardUnaryCall(ctx context.Context, method string, req interface{}, cc *grpc.ClientConn) (interface{}, error) {
-	// 创建一个新的UnaryInvoker，它是用于发起Unary RPC调用的
-	invoker := grpc.Invoke
 
-	// 准备用于存储RPC响应的变量
-	var resp interface{}
+// func (g *GrpcProxy) forwardUnaryCall(ctx context.Context, method string, req interface{}, cc *grpc.ClientConn) (interface{}, error) {
+// 	// 创建一个新的UnaryInvoker，它是用于发起Unary RPC调用的
+// 	invoker := grpc.Invoke
 
-	// 调用实际服务
-	err := invoker(ctx, method, req, &resp, cc)
-	if err != nil {
-		return nil, err
-	}
+// 	// 准备用于存储RPC响应的变量
+// 	var resp interface{}
 
-	return resp, nil
-}
-func (g *GrpcProxy) UnaryProxyInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-	fullMethodName := info.FullMethod
-	log.Println("准备转发")
-	// 选择一个端点，获取链接
-	clientIP, err := g.getClientIP(ctx)
-	if err != nil {
-		return nil, status.Errorf(codes.Unavailable, "no source ip")
-	}
-	xForwards := g.getXForward(ctx)
-	if len(xForwards) > 0 {
-		clientIP = xForwards[0]
-	} else {
-		xForwards = make([]string, 0)
-	}
-	endpoint, err := g.lb.Select(fullMethodName, clientIP)
-	// log.Println("选择连接完成")
-	if err != nil {
-		return nil, status.Errorf(codes.Unavailable, "no endpoint available to select,%v", err)
-	}
-	cn, err := endpoint.Get(ctx)
-	if err != nil {
-		return nil, status.Errorf(codes.Unavailable, "no endpoint available from endpoint,%v", err)
-	}
-	// 释放链接
-	defer endpoint.AfterTransform(ctx, cn.((loadbalance.Connection)))
+// 	// 调用实际服务
+// 	err := invoker(ctx, method, req, &resp, cc)
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	conn := cn.(loadbalance.Connection).ConnInstance().(*grpc.ClientConn)
-	// 将请求转发到目标服务
-	// 添加本地ip
-	local, _ := tiga.GetLocalIP()
-	xForwards = append(xForwards, local)
-	clientCtx := metadata.NewIncomingContext(ctx, metadata.Pairs("X-Forwarded-For", strings.Join(xForwards, ",")))
-	resp, err := g.forwardUnaryCall(clientCtx, info.FullMethod, req, conn)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to forward call: %v", err)
-	}
-	return resp, nil
-}
+// 	return resp, nil
+// }
+
+// func (g *GrpcProxy) UnaryProxyInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+// 	fullMethodName := info.FullMethod
+// 	log.Println("准备转发")
+// 	// 选择一个端点，获取链接
+// 	clientIP, err := g.getClientIP(ctx)
+// 	if err != nil {
+// 		return nil, status.Errorf(codes.Unavailable, "no source ip")
+// 	}
+// 	xForwards := g.getXForward(ctx)
+// 	if len(xForwards) > 0 {
+// 		clientIP = xForwards[0]
+// 	} else {
+// 		xForwards = make([]string, 0)
+// 	}
+// 	endpoint, err := g.lb.Select(fullMethodName, clientIP)
+// 	// log.Println("选择连接完成")
+// 	if err != nil {
+// 		return nil, status.Errorf(codes.Unavailable, "no endpoint available to select,%v", err)
+// 	}
+// 	cn, err := endpoint.Get(ctx)
+// 	if err != nil {
+// 		return nil, status.Errorf(codes.Unavailable, "no endpoint available from endpoint,%v", err)
+// 	}
+// 	// 释放链接
+// 	defer endpoint.AfterTransform(ctx, cn.((loadbalance.Connection)))
+
+//		conn := cn.(loadbalance.Connection).ConnInstance().(*grpc.ClientConn)
+//		// 将请求转发到目标服务
+//		// 添加本地ip
+//		local, _ := tiga.GetLocalIP()
+//		xForwards = append(xForwards, local)
+//		clientCtx := metadata.NewIncomingContext(ctx, metadata.Pairs("X-Forwarded-For", strings.Join(xForwards, ",")))
+//		resp, err := g.forwardUnaryCall(clientCtx, info.FullMethod, req, conn)
+//		if err != nil {
+//			return nil, status.Errorf(codes.Internal, "failed to forward call: %v", err)
+//		}
+//		return resp, nil
+//	}
 func (g *GrpcProxy) Handler(srv interface{}, serverStream grpc.ServerStream) error {
+
 	// 执行中间件
 	for _, middleware := range g.middlewares {
 		if err := middleware(srv, serverStream); err != nil {
@@ -257,7 +259,13 @@ func (g *GrpcProxy) Handler(srv interface{}, serverStream grpc.ServerStream) err
 	// 添加本地ip
 	local, _ := tiga.GetLocalIP()
 	xForwards = append(xForwards, local)
-	clientCtx = metadata.NewIncomingContext(clientCtx, metadata.Pairs("X-Forwarded-For", strings.Join(xForwards, ",")))
+	md, ok := metadata.FromIncomingContext(clientCtx)
+	if !ok {
+		md = metadata.MD{}
+	}
+	md.Set("X-Forwarded-For", strings.Join(xForwards, ","))
+	clientCtx = metadata.NewOutgoingContext(clientCtx, md)
+
 	clientStream, err := grpc.NewClientStream(clientCtx, proxyDesc, conn, fullMethodName)
 	if err != nil {
 		return err

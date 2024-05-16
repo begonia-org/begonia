@@ -10,7 +10,7 @@ import (
 	"github.com/begonia-org/begonia"
 	cfg "github.com/begonia-org/begonia/config"
 	"github.com/begonia-org/begonia/internal/pkg/config"
-	"github.com/begonia-org/begonia/internal/pkg/logger"
+	"github.com/begonia-org/begonia/transport"
 	api "github.com/begonia-org/go-sdk/api/user/v1"
 	c "github.com/smartystreets/goconvey/convey"
 	"github.com/spark-lence/tiga"
@@ -32,7 +32,7 @@ func testAddUser(t *testing.T) {
 		if begonia.Env != "" {
 			env = begonia.Env
 		}
-		repo := NewUserRepo(cfg.ReadConfig(env), logger.Log)
+		repo := NewUserRepo(cfg.ReadConfig(env), transport.Log)
 		snk, _ := tiga.NewSnowflake(1)
 		uid = snk.GenerateIDString()
 		err := repo.Add(context.TODO(), &api.Users{
@@ -92,7 +92,7 @@ func testGetUser(t *testing.T) {
 			env = begonia.Env
 		}
 		conf := cfg.ReadConfig(env)
-		repo := NewUserRepo(conf, logger.Log)
+		repo := NewUserRepo(conf, transport.Log)
 		user, err := repo.Get(context.TODO(), uid)
 		c.So(err, c.ShouldBeNil)
 		c.So(user, c.ShouldNotBeNil)
@@ -121,7 +121,7 @@ func testUpdateUser(t *testing.T) {
 		if begonia.Env != "" {
 			env = begonia.Env
 		}
-		repo := NewUserRepo(cfg.ReadConfig(env), logger.Log)
+		repo := NewUserRepo(cfg.ReadConfig(env), transport.Log)
 		user, err := repo.Get(context.TODO(), uid)
 		c.So(err, c.ShouldBeNil)
 		c.So(user, c.ShouldNotBeNil)
@@ -163,7 +163,7 @@ func testDelUser(t *testing.T) {
 		if begonia.Env != "" {
 			env = begonia.Env
 		}
-		repo := NewUserRepo(cfg.ReadConfig(env), logger.Log)
+		repo := NewUserRepo(cfg.ReadConfig(env), transport.Log)
 		err := repo.Del(context.TODO(), uid)
 		c.So(err, c.ShouldBeNil)
 		_, err = repo.Get(context.TODO(), uid)
@@ -178,13 +178,13 @@ func testListUser(t *testing.T) {
 		if begonia.Env != "" {
 			env = begonia.Env
 		}
-		repo := NewUserRepo(cfg.ReadConfig(env), logger.Log)
+		repo := NewUserRepo(cfg.ReadConfig(env), transport.Log)
 		snk, _ := tiga.NewSnowflake(1)
 		// rand.Seed(time.Now().UnixNano())
 		rand := rand.New(rand.NewSource(time.Now().UnixNano()))
 		status := []api.USER_STATUS{api.USER_STATUS_ACTIVE, api.USER_STATUS_INACTIVE, api.USER_STATUS_LOCKED}
 		depts := [3]string{"dev", "test"}
-		
+
 		for i := 0; i < 20; i++ {
 			err := repo.Add(context.TODO(), &api.Users{
 				Uid:       snk.GenerateIDString(),
@@ -214,7 +214,7 @@ func testListUser(t *testing.T) {
 
 		user3, err := repo.List(context.TODO(), []string{"unknown"}, []api.USER_STATUS{api.USER_STATUS_ACTIVE, api.USER_STATUS_INACTIVE}, 1, 5)
 		c.So(err, c.ShouldBeNil)
-		c.So(len(user3), c.ShouldEqual,0)
+		c.So(len(user3), c.ShouldEqual, 0)
 	})
 }
 func TestUser(t *testing.T) {

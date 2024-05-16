@@ -19,9 +19,9 @@ import (
 	"github.com/begonia-org/begonia/internal/data"
 	cfg "github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/errors"
-	"github.com/begonia-org/begonia/transport"
-	"github.com/begonia-org/begonia/internal/pkg/logger"
+	
 	"github.com/begonia-org/begonia/internal/pkg/routers"
+	"github.com/begonia-org/begonia/transport"
 	gwRuntime "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 
 	goloadbalancer "github.com/begonia-org/go-loadbalancer"
@@ -43,7 +43,7 @@ func newEndpointBiz() *endpoint.EndpointUsecase {
 	}
 	conf := config.ReadConfig(env)
 	cnf := cfg.NewConfig(conf)
-	repo := data.NewEndpointRepo(conf, logger.Log)
+	repo := data.NewEndpointRepo(conf, transport.Log)
 	return endpoint.NewEndpointUsecase(repo, nil, cnf)
 }
 

@@ -15,8 +15,8 @@ import (
 	"github.com/begonia-org/begonia/internal/data"
 	cfg "github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/errors"
-	"github.com/begonia-org/begonia/internal/pkg/logger"
 	"github.com/begonia-org/begonia/internal/pkg/utils"
+	"github.com/begonia-org/begonia/transport"
 	gosdk "github.com/begonia-org/go-sdk"
 	api "github.com/begonia-org/go-sdk/api/app/v1"
 	c "github.com/smartystreets/goconvey/convey"
@@ -55,9 +55,9 @@ func newAKSK() *biz.AccessKeyAuth {
 		env = begonia.Env
 	}
 	config := config.ReadConfig(env)
-	repo := data.NewAppRepo(config, logger.Log)
+	repo := data.NewAppRepo(config, transport.Log)
 	cnf := cfg.NewConfig(config)
-	return biz.NewAccessKeyAuth(repo, cnf, logger.Log)
+	return biz.NewAccessKeyAuth(repo, cnf, transport.Log)
 }
 
 func testGetSecret(t *testing.T) {
@@ -66,7 +66,7 @@ func testGetSecret(t *testing.T) {
 		env = begonia.Env
 	}
 	config := config.ReadConfig(env)
-	repo := data.NewAppRepo(config, logger.Log)
+	repo := data.NewAppRepo(config, transport.Log)
 	snk, _ := tiga.NewSnowflake(1)
 	access, _ := utils.GenerateRandomString(32)
 	akskAccess = access
@@ -166,28 +166,28 @@ func testValidator(t *testing.T) {
 		gw.Headers.Set(gosdk.HeaderXAccessKey, ak)
 
 		newXDate := time.Now().Add(-time.Minute * 120).Format(gosdk.DateFormat)
-        gw.Headers.Set(gosdk.HeaderXDateTime, newXDate)
+		gw.Headers.Set(gosdk.HeaderXDateTime, newXDate)
 
-        _, err = aksk.AppValidator(context.TODO(), gw)
-        c.So(err.Error(),c.ShouldContainSubstring,errors.ErrRequestExpired.Error())
+		_, err = aksk.AppValidator(context.TODO(), gw)
+		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrRequestExpired.Error())
 
-        newXDate = time.Now().Format("2006-01-02 15:04:05")
-        gw.Headers.Set(gosdk.HeaderXDateTime, newXDate)
+		newXDate = time.Now().Format("2006-01-02 15:04:05")
+		gw.Headers.Set(gosdk.HeaderXDateTime, newXDate)
 
-        _, err = aksk.AppValidator(context.TODO(), gw)
-        c.So(err.Error(),c.ShouldContainSubstring,"cannot parse")
+		_, err = aksk.AppValidator(context.TODO(), gw)
+		c.So(err.Error(), c.ShouldContainSubstring, "cannot parse")
 
-        gw.Headers.Set(gosdk.HeaderXDateTime,xdate)
-        patch:=gomonkey.ApplyFuncReturn((*gosdk.AppAuthSignerImpl).Sign,"dhewivbdcvnwvwrfvwecfddcddc",nil)
-        defer patch.Reset()
-        _,err=aksk.AppValidator(context.TODO(),gw)
-        c.So(err,c.ShouldNotBeNil)
-        c.So(err.Error(),c.ShouldContainSubstring,errors.ErrAppSignatureInvalid.Error())
+		gw.Headers.Set(gosdk.HeaderXDateTime, xdate)
+		patch := gomonkey.ApplyFuncReturn((*gosdk.AppAuthSignerImpl).Sign, "dhewivbdcvnwvwrfvwecfddcddc", nil)
+		defer patch.Reset()
+		_, err = aksk.AppValidator(context.TODO(), gw)
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrAppSignatureInvalid.Error())
 	})
 }
 
-func TestAKSK(t *testing.T){
-    t.Run("get secret",testGetSecret)
-    t.Run("get appid",testGetAPPID)
-    t.Run("validator",testValidator)
+func TestAKSK(t *testing.T) {
+	t.Run("get secret", testGetSecret)
+	t.Run("get appid", testGetAPPID)
+	t.Run("validator", testValidator)
 }

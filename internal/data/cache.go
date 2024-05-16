@@ -102,7 +102,7 @@ func (l *LayeredCache) DelInFilter(ctx context.Context, key string, value []byte
 func (l *LayeredCache) Watch(ctx context.Context) {
 	errChan := l.kv.Watch(ctx)
 	for err := range errChan {
-		l.log.Errorf("Watch layered-cache error:%v", err)
+		l.log.Errorf(ctx,"Watch layered-cache error:%v", err)
 	}
 
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/begonia-org/begonia/internal/pkg/middleware"
 	"github.com/begonia-org/begonia/internal/pkg/middleware/auth"
 	"github.com/begonia-org/begonia/internal/pkg/migrate"
+	"github.com/begonia-org/begonia/transport"
 
 	"github.com/google/wire"
 )
@@ -27,6 +28,6 @@ var ProviderSet = wire.NewSet(
 	migrate.NewAPPOperator,
 	auth.NewAccessKeyAuth,
 
-	middleware.NewLoggerMiddleware,
+	transport.NewLoggerMiddleware,
 	middleware.New,
 )

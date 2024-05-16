@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/begonia-org/begonia/internal/pkg/config"
-	"github.com/begonia-org/begonia/internal/pkg/logger"
 	"github.com/begonia-org/begonia/internal/pkg/routers"
 	"go.etcd.io/etcd/api/v3/mvccpb"
 
@@ -38,7 +37,7 @@ func (g *EndpointWatcher) Update(ctx context.Context, key string, value string) 
 	}
 	pd, err := getDescriptorSet(g.config, key, endpoint.DescriptorSet)
 	if err != nil {
-		logger.Log.Errorf("get descriptor set error: %s", err.Error())
+		transport.Log.Errorf(ctx,"get descriptor set error: %s", err.Error())
 		return errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_descriptor_set")
 	}
 	err = deleteAll(ctx, pd)

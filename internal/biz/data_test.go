@@ -13,7 +13,6 @@ import (
 	"github.com/begonia-org/begonia/internal/biz/endpoint"
 	"github.com/begonia-org/begonia/internal/data"
 	cfg "github.com/begonia-org/begonia/internal/pkg/config"
-	"github.com/begonia-org/begonia/internal/pkg/logger"
 	"github.com/begonia-org/begonia/transport"
 	loadbalance "github.com/begonia-org/go-loadbalancer"
 	appApi "github.com/begonia-org/go-sdk/api/app/v1"
@@ -31,11 +30,11 @@ func newDataOperatorUsecase() *biz.DataOperatorUsecase {
 		env = begonia.Env
 	}
 	config := config.ReadConfig(env)
-	repo := data.NewEndpointRepo(config, logger.Log)
-	repoData := data.NewOperator(config, logger.Log)
+	repo := data.NewEndpointRepo(config, transport.Log)
+	repoData := data.NewOperator(config, transport.Log)
 	cnf := cfg.NewConfig(config)
 	watcher := endpoint.NewWatcher(cnf, repo)
-	return biz.NewDataOperatorUsecase(repoData, cnf, logger.Log, watcher, repo)
+	return biz.NewDataOperatorUsecase(repoData, cnf, transport.Log, watcher, repo)
 }
 
 func TestDo(t *testing.T) {
@@ -48,7 +47,7 @@ func TestDo(t *testing.T) {
 	}
 	config := config.ReadConfig(env)
 	cnf := cfg.NewConfig(config)
-	cache := data.NewLayered(config, logger.Log)
+	cache := data.NewLayered(config, transport.Log)
 	_ = cache.Del(context.Background(), "begonia:user:black:lock")
 	_ = cache.Del(context.Background(), "begonia:user:black:last_updated")
 	opts := &transport.GrpcServerOptions{

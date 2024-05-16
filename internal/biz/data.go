@@ -51,9 +51,9 @@ func (d *DataOperatorUsecase) Do(ctx context.Context) {
 	// d.LoadCache(context.Background())
 	err := d.OnStart(ctx)
 	if err != nil {
-		d.log.Error(err)
+		d.log.Error(ctx,err)
 	}
-	d.log.Info("start watch")
+	d.log.Info(ctx,"start watch")
 	d.handle(ctx)
 
 }
@@ -82,7 +82,7 @@ func (d *DataOperatorUsecase) handle(ctx context.Context) {
 				if st, ok := status.FromError(err); ok {
 					st.Details()
 				}
-				d.log.Error(err)
+				d.log.Error(ctx,err)
 			}
 
 		}
@@ -98,7 +98,7 @@ func (d *DataOperatorUsecase) loadUsersBlacklist(ctx context.Context) error {
 		return fmt.Errorf("expiration time is too short")
 	}
 	lockKey := d.config.GetUserBlackListLockKey()
-	d.log.Infof("lock key:%d", exp)
+	d.log.Infof(ctx,"lock key:%d", exp)
 	lock, err := d.repo.Locker(ctx, lockKey, time.Second*time.Duration(exp))
 	if err != nil {
 		// d.log.Error("get lock error", err)
@@ -115,9 +115,9 @@ func (d *DataOperatorUsecase) loadUsersBlacklist(ctx context.Context) error {
 		err = lock.UnLock(ctx)
 		if err != nil {
 			// d.log.Error("unlock error", err)
-			d.log.Error(fmt.Errorf("unlock error: %w", err))
+			d.log.Error(ctx,fmt.Errorf("unlock error: %w", err))
 		}else{
-			d.log.Infof("unlock success")
+			d.log.Infof(ctx,"unlock success")
 		}
 	}()
 	prefix := d.config.GetUserBlackListPrefix()
@@ -175,7 +175,7 @@ func (d *DataOperatorUsecase) OnStart(ctx context.Context) error {
 
 		err := d.endpointWatcher.Update(ctx, in.Key, string(bData))
 		if err != nil {
-			d.log.Errorf("init endpoints error,%s", err.Error())
+			d.log.Errorf(ctx,"init endpoints error,%s", err.Error())
 			continue
 		}
 	}

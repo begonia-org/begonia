@@ -30,7 +30,7 @@ func (app *AppService) Put(ctx context.Context, in *api.AppsRequest) (*api.AddAp
 func (app *AppService) Get(ctx context.Context, in *api.GetAPPRequest) (*api.Apps, error) {
 	apps, err := app.biz.Get(ctx, in.Appid)
 	if err != nil {
-		app.log.Errorf("GetApps failed: %v", err)
+		app.log.Errorf(ctx,"GetApps failed: %v", err)
 		return nil, err
 	}
 	return apps, nil

@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+option go_package = "github.com/begonia-org/begonia/internal/integration";
+
+package integration;
+
+import "google/api/annotations.proto";
+import "options.proto";
+message TestRequest{
+    string name = 1;
+    string msg=2;
+    TestStaus status = 3;
+}
+message TestResponse{
+    string name = 1;
+    string msg=2;
+    TestStaus status = 3;
+}
+enum TestStaus{
+    TestUnkown = 0;
+    TestOk = 1;
+    TestError = 2;
+}
+
+service TestService{
+    option (.begonia.org.sdk.common.http_response)="begonia.org.sdk.common.HttpResponse";
+
+    rpc Get(TestRequest) returns (TestResponse){
+        option (google.api.http) = {
+            get: "/test"
+        };
+    }
+    rpc Post(TestRequest) returns (TestResponse){
+        option (google.api.http) = {
+            post: "/test"
+            body: "*"
+        };
+    }
+    rpc Put(TestRequest) returns (TestResponse){
+        option (google.api.http) = {
+            put: "/test"
+            body: "*"
+        };
+    }
+    rpc Delete(TestRequest) returns (TestResponse){
+        option (google.api.http) = {
+            delete: "/test"
+        };
+    }
+    rpc Patch(TestRequest) returns (TestResponse){
+        option (google.api.http) = {
+            patch: "/test"
+            body: "*"
+        };
+    }
+}

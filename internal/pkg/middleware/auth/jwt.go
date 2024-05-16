@@ -129,12 +129,12 @@ func (a *JWTAuth) checkJWT(ctx context.Context, authorization string, rspHeader 
 			if p := recover(); p != nil {
 				ok = false
 				err = fmt.Errorf("刷新token失败,%v", p)
-				a.log.Errorf("刷新token失败,%s", p)
+				a.log.Errorf(ctx,"刷新token失败,%s", p)
 			}
 			if lock != nil {
 				err := lock.Release(ctx)
 				if err != nil {
-					a.log.Errorf("释放锁失败,%s", err.Error())
+					a.log.Errorf(ctx,"释放锁失败,%s", err.Error())
 				}
 			}
 		}()
