@@ -13,7 +13,7 @@ import (
 	"github.com/begonia-org/begonia"
 	cfg "github.com/begonia-org/begonia/config"
 	"github.com/begonia-org/begonia/internal/pkg/config"
-	"github.com/begonia-org/begonia/internal/pkg/logger"
+	"github.com/begonia-org/begonia/transport"
 	goloadbalancer "github.com/begonia-org/go-loadbalancer"
 	api "github.com/begonia-org/go-sdk/api/endpoint/v1"
 	c "github.com/smartystreets/goconvey/convey"
@@ -36,7 +36,7 @@ func putTest(t *testing.T) {
 		pbFile := filepath.Join(filepath.Dir(filepath.Dir(filename)), "integration", "testdata", "helloworld.pb")
 		pb, _ := os.ReadFile(pbFile)
 		conf := cfg.ReadConfig(env)
-		repo := NewEndpointRepo(conf, logger.Log)
+		repo := NewEndpointRepo(conf, transport.Log)
 		snk, _ := tiga.NewSnowflake(1)
 		endpointId = snk.GenerateIDString()
 		err := repo.Put(context.Background(), &api.Endpoints{
@@ -75,7 +75,7 @@ func getEndpointTest(t *testing.T) {
 			env = begonia.Env
 		}
 		conf := cfg.ReadConfig(env)
-		repo := NewEndpointRepo(conf, logger.Log)
+		repo := NewEndpointRepo(conf, transport.Log)
 		cnf := config.NewConfig(conf)
 		endpointKey := cnf.GetServiceKey(endpointId)
 		data, err := repo.Get(context.Background(), endpointKey)
@@ -96,7 +96,7 @@ func getKeysByTagsTest(t *testing.T) {
 			env = begonia.Env
 		}
 		conf := cfg.ReadConfig(env)
-		repo := NewEndpointRepo(conf, logger.Log)
+		repo := NewEndpointRepo(conf, transport.Log)
 		keys, err := repo.GetKeysByTags(context.Background(), []string{tag})
 		c.So(err, c.ShouldBeNil)
 		c.So(keys, c.ShouldNotBeEmpty)
@@ -114,9 +114,9 @@ func testList(t *testing.T) {
 	pbFile := filepath.Join(filepath.Dir(filepath.Dir(filename)), "integration", "testdata", "helloworld.pb")
 	pb, _ := os.ReadFile(pbFile)
 	conf := cfg.ReadConfig(env)
-	repo := NewEndpointRepo(conf, logger.Log)
+	repo := NewEndpointRepo(conf, transport.Log)
 	snk, _ := tiga.NewSnowflake(1)
-	enps:=make([]string,0)
+	enps := make([]string, 0)
 	c.Convey("test list", t, func() {
 		for i := 0; i < 10; i++ {
 			epd := snk.GenerateIDString()
@@ -124,9 +124,9 @@ func testList(t *testing.T) {
 			err := repo.Put(context.Background(), &api.Endpoints{
 				Key:           epd,
 				DescriptorSet: pb,
-				Name:          fmt.Sprintf("test-data-%d-%s", i,time.Now().Format("20060102150405")),
-				ServiceName:   fmt.Sprintf("test-data-%d-%s", i,time.Now().Format("20060102150405")),
-				Description:   fmt.Sprintf("test-data-%d-%s", i,time.Now().Format("20060102150405")),
+				Name:          fmt.Sprintf("test-data-%d-%s", i, time.Now().Format("20060102150405")),
+				ServiceName:   fmt.Sprintf("test-data-%d-%s", i, time.Now().Format("20060102150405")),
+				Description:   fmt.Sprintf("test-data-%d-%s", i, time.Now().Format("20060102150405")),
 				Balance:       string(goloadbalancer.RRBalanceType),
 				Endpoints: []*api.EndpointMeta{
 					{
@@ -142,7 +142,7 @@ func testList(t *testing.T) {
 						Weight: 0,
 					},
 				},
-				Tags:      []string{fmt.Sprintf("test-list-%d-data-%s",i, time.Now().Format("20060102150405"))},
+				Tags:      []string{fmt.Sprintf("test-list-%d-data-%s", i, time.Now().Format("20060102150405"))},
 				Version:   fmt.Sprintf("%d", time.Now().UnixMilli()),
 				CreatedAt: timestamppb.New(time.Now()).AsTime().Format(time.RFC3339),
 				UpdatedAt: timestamppb.New(time.Now()).AsTime().Format(time.RFC3339),
@@ -151,14 +151,14 @@ func testList(t *testing.T) {
 		}
 		data, err := repo.List(context.Background(), enps)
 		c.So(err, c.ShouldBeNil)
-		c.So(len(data), c.ShouldEqual,10)
+		c.So(len(data), c.ShouldEqual, 10)
 
-		data,err = repo.List(context.Background(),[]string{"not-exist"})
+		data, err = repo.List(context.Background(), []string{"not-exist"})
 		c.So(err, c.ShouldBeNil)
 		c.So(data, c.ShouldBeEmpty)
-		data,err = repo.List(context.Background(),nil)
+		data, err = repo.List(context.Background(), nil)
 		c.So(err, c.ShouldBeNil)
-		c.So(len(data), c.ShouldBeGreaterThan,0)
+		c.So(len(data), c.ShouldBeGreaterThan, 0)
 	})
 }
 func patchEndpointTest(t *testing.T) {
@@ -168,7 +168,7 @@ func patchEndpointTest(t *testing.T) {
 			env = begonia.Env
 		}
 		conf := cfg.ReadConfig(env)
-		repo := NewEndpointRepo(conf, logger.Log)
+		repo := NewEndpointRepo(conf, transport.Log)
 		cnf := config.NewConfig(conf)
 		endpointKey := cnf.GetServiceKey(endpointId)
 		tag1 := fmt.Sprintf("test-data-patch-%s", time.Now().Format("20060102150405"))
@@ -208,7 +208,7 @@ func delEndpointTest(t *testing.T) {
 			env = begonia.Env
 		}
 		conf := cfg.ReadConfig(env)
-		repo := NewEndpointRepo(conf, logger.Log)
+		repo := NewEndpointRepo(conf, transport.Log)
 		cnf := config.NewConfig(conf)
 		endpointKey := cnf.GetServiceKey(endpointId)
 		err := repo.Del(context.Background(), endpointId)
@@ -233,7 +233,7 @@ func putTagsTest(t *testing.T) {
 			env = begonia.Env
 		}
 		conf := cfg.ReadConfig(env)
-		repo := NewEndpointRepo(conf, logger.Log)
+		repo := NewEndpointRepo(conf, transport.Log)
 		cnf := config.NewConfig(conf)
 		endpointKey := cnf.GetServiceKey(endpointId)
 		tag1 := fmt.Sprintf("test1-data-%s", time.Now().Format("20060102150405"))

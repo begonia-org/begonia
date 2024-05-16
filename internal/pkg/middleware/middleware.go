@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"sort"
 	"time"
 
@@ -8,6 +9,7 @@ import (
 	"github.com/begonia-org/begonia/internal/data"
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/middleware/auth"
+	"github.com/begonia-org/begonia/transport"
 	goloadbalancer "github.com/begonia-org/go-loadbalancer"
 	gosdk "github.com/begonia-org/go-sdk"
 	"github.com/begonia-org/go-sdk/logger"
@@ -31,7 +33,7 @@ func New(config *config.Config,
 	plugins := map[string]gosdk.LocalPlugin{
 		"onlyJWT":           jwt,
 		"onlyAK":            ak,
-		"logger":            NewLoggerMiddleware(log),
+		"logger":            transport.NewLoggerMiddleware(log),
 		"exception":         NewException(log),
 		"http":              NewHttp(),
 		"auth":              NewAuth(ak, jwt, apiKey),
@@ -42,18 +44,18 @@ func New(config *config.Config,
 	pluginsApply := NewPluginsApply()
 	pluginsNeed := config.GetPlugins()
 	for pluginName, priority := range pluginsNeed {
-		log.Infof("plugin %s priority %d", pluginName, priority)
+		log.Infof(context.TODO(), "plugin %s priority %d", pluginName, priority)
 		if plugin, ok := plugins[pluginName]; ok {
 			pluginsApply.Register(plugin, priority.(int))
 		} else {
-			log.Warnf("plugin %s not found", pluginName)
+			log.Warnf(context.TODO(), "plugin %s not found", pluginName)
 
 		}
 	}
 
 	rpcPlugins, err := config.GetRPCPlugins()
 	if err != nil {
-		log.Errorf("get rpc plugins error:%v", err)
+		log.Errorf(context.TODO(),"get rpc plugins error:%v", err)
 		return pluginsApply
 	}
 	for _, rpc := range rpcPlugins {

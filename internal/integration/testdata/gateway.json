@@ -1,0 +1,152 @@
+{
+  "/integration.TestService/Delete": [
+    {
+      "FullMethodName": "/integration.TestService/Delete",
+      "HttpMethod": "DELETE",
+      "HttpUri": "/test",
+      "InName": "TestRequest",
+      "InPkg": "integration",
+      "IsClientStream": false,
+      "IsServerStream": false,
+      "OutName": "TestResponse",
+      "OutPkg": "integration",
+      "PathParams": [],
+      "Pattern": {},
+      "Pkg": "integration",
+      "Template": {
+        "Fields": null,
+        "OpCodes": [
+          2,
+          0
+        ],
+        "Pool": [
+          "test"
+        ],
+        "Template": "/test",
+        "Verb": "",
+        "Version": 1
+      },
+      "http_response": "begonia.org.sdk.common.HttpResponse"
+    }
+  ],
+  "/integration.TestService/Get": [
+    {
+      "FullMethodName": "/integration.TestService/Get",
+      "HttpMethod": "GET",
+      "HttpUri": "/test",
+      "InName": "TestRequest",
+      "InPkg": "integration",
+      "IsClientStream": false,
+      "IsServerStream": false,
+      "OutName": "TestResponse",
+      "OutPkg": "integration",
+      "PathParams": [],
+      "Pattern": {},
+      "Pkg": "integration",
+      "Template": {
+        "Fields": null,
+        "OpCodes": [
+          2,
+          0
+        ],
+        "Pool": [
+          "test"
+        ],
+        "Template": "/test",
+        "Verb": "",
+        "Version": 1
+      },
+      "http_response": "begonia.org.sdk.common.HttpResponse"
+    }
+  ],
+  "/integration.TestService/Patch": [
+    {
+      "FullMethodName": "/integration.TestService/Patch",
+      "HttpMethod": "PATCH",
+      "HttpUri": "/test",
+      "InName": "TestRequest",
+      "InPkg": "integration",
+      "IsClientStream": false,
+      "IsServerStream": false,
+      "OutName": "TestResponse",
+      "OutPkg": "integration",
+      "PathParams": [],
+      "Pattern": {},
+      "Pkg": "integration",
+      "Template": {
+        "Fields": null,
+        "OpCodes": [
+          2,
+          0
+        ],
+        "Pool": [
+          "test"
+        ],
+        "Template": "/test",
+        "Verb": "",
+        "Version": 1
+      },
+      "http_response": "begonia.org.sdk.common.HttpResponse"
+    }
+  ],
+  "/integration.TestService/Post": [
+    {
+      "FullMethodName": "/integration.TestService/Post",
+      "HttpMethod": "POST",
+      "HttpUri": "/test",
+      "InName": "TestRequest",
+      "InPkg": "integration",
+      "IsClientStream": false,
+      "IsServerStream": false,
+      "OutName": "TestResponse",
+      "OutPkg": "integration",
+      "PathParams": [],
+      "Pattern": {},
+      "Pkg": "integration",
+      "Template": {
+        "Fields": null,
+        "OpCodes": [
+          2,
+          0
+        ],
+        "Pool": [
+          "test"
+        ],
+        "Template": "/test",
+        "Verb": "",
+        "Version": 1
+      },
+      "http_response": "begonia.org.sdk.common.HttpResponse"
+    }
+  ],
+  "/integration.TestService/Put": [
+    {
+      "FullMethodName": "/integration.TestService/Put",
+      "HttpMethod": "PUT",
+      "HttpUri": "/test",
+      "InName": "TestRequest",
+      "InPkg": "integration",
+      "IsClientStream": false,
+      "IsServerStream": false,
+      "OutName": "TestResponse",
+      "OutPkg": "integration",
+      "PathParams": [],
+      "Pattern": {},
+      "Pkg": "integration",
+      "Template": {
+        "Fields": null,
+        "OpCodes": [
+          2,
+          0
+        ],
+        "Pool": [
+          "test"
+        ],
+        "Template": "/test",
+        "Verb": "",
+        "Version": 1
+      },
+      "http_response": "begonia.org.sdk.common.HttpResponse"
+    }
+  ]
+}

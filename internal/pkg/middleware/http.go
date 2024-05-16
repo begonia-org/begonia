@@ -18,11 +18,8 @@ import (
 	_ "github.com/begonia-org/go-sdk/api/sys/v1"
 	_ "github.com/begonia-org/go-sdk/api/user/v1"
 	common "github.com/begonia-org/go-sdk/common/api/v1"
-	"github.com/begonia-org/go-sdk/logger"
 
-	"github.com/google/uuid"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	"github.com/sirupsen/logrus"
 	"google.golang.org/genproto/googleapis/api/httpbody"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -158,90 +155,6 @@ func HttpResponseBodyModify(ctx context.Context, w http.ResponseWriter, msg prot
 		w.WriteHeader(httpCode)
 	}
 	return nil
-}
-func HandleErrorWithLogger(logger logger.Logger) runtime.ErrorHandlerFunc {
-	codes := getClientMessageMap()
-	return func(ctx context.Context, mux *runtime.ServeMux, marshaler runtime.Marshaler, w http.ResponseWriter, req *http.Request, err error) {
-		md, ok := runtime.ServerMetadataFromContext(ctx)
-		reqId := ""
-		if ok {
-			reqIds := md.HeaderMD.Get("x-request-id")
-			if len(reqIds) > 0 {
-				reqId = reqIds[0]
-			}
-		}
-		if reqId == "" {
-			reqId = uuid.New().String()
-		}
-		uri := req.RequestURI
-		method := req.Method
-		remoteAddr := req.RemoteAddr
-		statusCode := http.StatusOK
-
-		// file, line, fn, _ := errors.GetOneLineSource(err)
-		log := logger.WithFields(logrus.Fields{
-			"x-request-id": reqId,
-			"uri":          uri,
-			"method":       method,
-			"remote_addr":  remoteAddr,
-			"status":       statusCode,
-		},
-		)
-		code := http.StatusOK
-		data := &common.HttpResponse{}
-		data.Code = int32(common.Code_INTERNAL_ERROR)
-		data.Message = "internal error"
-		if st, ok := status.FromError(err); ok {
-			// rspCode := float64(common.Code_INTERNAL_ERROR)
-			msg := st.Message()
-			details := st.Details()
-			data.Message = clientMessageFromCode(st.Code())
-
-			// code = runtime.HTTPStatusFromCode(st.Code())
-			for _, detail := range details {
-				if anyType, ok := detail.(*anypb.Any); ok {
-					var errDetail common.Errors
-					if err := anyType.UnmarshalTo(&errDetail); err == nil {
-						rspCode := float64(errDetail.Code)
-						log = log.WithFields(logrus.Fields{
-							"status": int(rspCode),
-							"file":   errDetail.File,
-							"line":   errDetail.Line,
-							"fn":     errDetail.Fn,
-						})
-						// log.Error(msg)
-						// fmt.Printf("error code:%d", errDetail.Code)
-						msg := codes[int32(errDetail.Code)]
-						if errDetail.ToClientMessage != "" {
-							msg = errDetail.ToClientMessage
-						}
-
-						data.Code = errDetail.Code
-						data.Message = msg
-						data.Data = &structpb.Struct{}
-						break
-					}
-				} else {
-					log.Errorf("error type:%T, error:%v", err, err)
-
-				}
-
-			}
-			code = runtime.HTTPStatusFromCode(st.Code())
-			log.Errorf(msg)
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(code)
-			bData, _ := protojson.Marshal(data)
-			_, _ = w.Write(bData)
-			return
-
-		} else {
-			if err != nil {
-				log.Errorf("error type:%T, error:%v", err, err)
-			}
-		}
-		w.WriteHeader(code)
-	}
 }
 
 func OutgoingMetaInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {

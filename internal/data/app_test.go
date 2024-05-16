@@ -11,8 +11,8 @@ import (
 	"github.com/begonia-org/begonia"
 	cfg "github.com/begonia-org/begonia/config"
 	"github.com/begonia-org/begonia/internal/pkg/config"
-	"github.com/begonia-org/begonia/internal/pkg/logger"
 	"github.com/begonia-org/begonia/internal/pkg/utils"
+	"github.com/begonia-org/begonia/transport"
 	api "github.com/begonia-org/go-sdk/api/app/v1"
 	"github.com/cockroachdb/errors"
 	c "github.com/smartystreets/goconvey/convey"
@@ -47,7 +47,7 @@ func addTest(t *testing.T) {
 		if begonia.Env != "" {
 			env = begonia.Env
 		}
-		repo := NewAppRepo(cfg.ReadConfig(env), logger.Log)
+		repo := NewAppRepo(cfg.ReadConfig(env), transport.Log)
 		snk, _ := tiga.NewSnowflake(1)
 		access, _ := generateRandomString(32)
 		accessKey = access
@@ -73,7 +73,7 @@ func addTest(t *testing.T) {
 		value, err := layered.Get(context.Background(), cacheKey)
 		c.So(err, c.ShouldBeNil)
 		c.So(string(value), c.ShouldEqual, secret)
-		value,err = layered.GetFromLocal(context.Background(),cacheKey)
+		value, err = layered.GetFromLocal(context.Background(), cacheKey)
 		c.So(err, c.ShouldBeNil)
 		c.So(string(value), c.ShouldEqual, secret)
 		patch := gomonkey.ApplyFuncReturn((*LayeredCache).Get, nil, errors.New("error"))
@@ -92,7 +92,7 @@ func getTest(t *testing.T) {
 		if begonia.Env != "" {
 			env = begonia.Env
 		}
-		repo := NewAppRepo(cfg.ReadConfig(env), logger.Log)
+		repo := NewAppRepo(cfg.ReadConfig(env), transport.Log)
 		app, err := repo.Get(context.TODO(), appid)
 		c.So(err, c.ShouldBeNil)
 		c.So(app.Appid, c.ShouldEqual, appid)
@@ -112,7 +112,7 @@ func duplicateNameTest(t *testing.T) {
 		if begonia.Env != "" {
 			env = begonia.Env
 		}
-		repo := NewAppRepo(cfg.ReadConfig(env), logger.Log)
+		repo := NewAppRepo(cfg.ReadConfig(env), transport.Log)
 		// snk, _ := tiga.NewSnowflake(1)
 		access, _ := generateRandomString(32)
 		accessKey = access
@@ -141,7 +141,7 @@ func patchTest(t *testing.T) {
 		if begonia.Env != "" {
 			env = begonia.Env
 		}
-		repo := NewAppRepo(cfg.ReadConfig(env), logger.Log)
+		repo := NewAppRepo(cfg.ReadConfig(env), transport.Log)
 		err := repo.Patch(context.TODO(), &api.Apps{
 			Appid:       appid,
 			AccessKey:   accessKey,
@@ -178,11 +178,11 @@ func testListApp(t *testing.T) {
 	if begonia.Env != "" {
 		env = begonia.Env
 	}
-	repo := NewAppRepo(cfg.ReadConfig(env), logger.Log)
+	repo := NewAppRepo(cfg.ReadConfig(env), transport.Log)
 	snk, _ := tiga.NewSnowflake(1)
 	rand := rand.New(rand.NewSource(time.Now().UnixNano()))
 	status := []api.APPStatus{api.APPStatus_APP_ENABLED, api.APPStatus_APP_DISABLED}
-	tags := [3]string{"tags-1", "tags-3","tags-2"}
+	tags := [3]string{"tags-1", "tags-3", "tags-2"}
 
 	c.Convey("test app list", t, func() {
 		for i := 0; i < 10; i++ {
@@ -198,31 +198,31 @@ func testListApp(t *testing.T) {
 				IsDeleted:   false,
 				Name:        appName,
 				Description: "test",
-				Tags: []string{tags[rand.Intn(len(tags))],tags[rand.Intn(len(tags))]},
+				Tags:        []string{tags[rand.Intn(len(tags))], tags[rand.Intn(len(tags))]},
 				CreatedAt:   timestamppb.New(time.Now()),
 				UpdatedAt:   timestamppb.New(time.Now()),
 			})
 			c.So(err, c.ShouldBeNil)
 		}
-		apps, err := repo.List(context.TODO(), []string{"tags-1","tags-3"},[]api.APPStatus{api.APPStatus_APP_ENABLED}, 1, 5)
+		apps, err := repo.List(context.TODO(), []string{"tags-1", "tags-3"}, []api.APPStatus{api.APPStatus_APP_ENABLED}, 1, 5)
 		c.So(err, c.ShouldBeNil)
 		c.So(len(apps), c.ShouldBeGreaterThan, 0)
 
-		apps2,err:=repo.List(context.TODO(),nil,nil,1,5)
+		apps2, err := repo.List(context.TODO(), nil, nil, 1, 5)
 		c.So(err, c.ShouldBeNil)
 		c.So(len(apps2), c.ShouldEqual, 5)
 
-		apps3,err:=repo.List(context.TODO(),nil,nil,2,5)
+		apps3, err := repo.List(context.TODO(), nil, nil, 2, 5)
 		c.So(err, c.ShouldBeNil)
 		c.So(len(apps3), c.ShouldEqual, 5)
 
-		c.So(apps2[4].Id,c.ShouldBeLessThan,apps3[0].Id)
+		c.So(apps2[4].Id, c.ShouldBeLessThan, apps3[0].Id)
 
-		apps4,err:=repo.List(context.TODO(),nil,nil,10000,5)
+		apps4, err := repo.List(context.TODO(), nil, nil, 10000, 5)
 		c.So(err, c.ShouldBeNil)
 		c.So(len(apps4), c.ShouldEqual, 0)
 
-		apps5,err:=repo.List(context.TODO(),[]string{"unknown"},[]api.APPStatus{api.APPStatus_APP_DISABLED},1,5)
+		apps5, err := repo.List(context.TODO(), []string{"unknown"}, []api.APPStatus{api.APPStatus_APP_DISABLED}, 1, 5)
 		c.So(err, c.ShouldBeNil)
 		c.So(len(apps5), c.ShouldEqual, 0)
 
@@ -235,7 +235,7 @@ func delTest(t *testing.T) {
 		if begonia.Env != "" {
 			env = begonia.Env
 		}
-		repo := NewAppRepo(cfg.ReadConfig(env), logger.Log)
+		repo := NewAppRepo(cfg.ReadConfig(env), transport.Log)
 		err := repo.Del(context.TODO(), appid)
 		c.So(err, c.ShouldBeNil)
 		_, err = repo.Get(context.TODO(), appid)

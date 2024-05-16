@@ -17,10 +17,6 @@ type GrpcRequest interface {
 	GetMarshaler() runtime.Marshaler
 	GetReq() *http.Request
 	GetPathParams() map[string]string
-	SetMarshaler(m runtime.Marshaler) error
-	SetReq(r *http.Request) error
-	SetPathParams(pathParams map[string]string) error
-	SetCallOptions(options ...grpc.CallOption)
 
 	GetIn() proto.Message
 	GetOut() proto.Message
@@ -28,103 +24,103 @@ type GrpcRequest interface {
 	GetInType() protoreflect.MessageDescriptor
 	GetFullMethodName() string
 	GetCallOptions() []grpc.CallOption
-	FullMethodNameMatch(uri string) string
 }
-type GrpcRequestOptions func(req GrpcRequest) error
+
+type GrpcRequestOptions func(req *GrpcRequestImpl)
 
 func WithGatewayMarshaler(m runtime.Marshaler) GrpcRequestOptions {
-	return func(req GrpcRequest) error {
-		return req.SetMarshaler(m)
+	return func(req *GrpcRequestImpl) {
+		req.marshaler = m
 	}
 }
 func WithGatewayReq(r *http.Request) GrpcRequestOptions {
-	return func(req GrpcRequest) error {
-		return req.SetReq(r)
+	return func(req *GrpcRequestImpl) {
+		req.req = r
 	}
 }
 func WithGatewayPathParams(pathParams map[string]string) GrpcRequestOptions {
-	return func(req GrpcRequest) error {
-		return req.SetPathParams(pathParams)
+	return func(req *GrpcRequestImpl) {
+		req.pathParams = pathParams
 	}
 }
 func WithGatewayCallOptions(options ...grpc.CallOption) GrpcRequestOptions {
-	return func(req GrpcRequest) error {
-		req.SetCallOptions(options...)
-		return nil
+	return func(req *GrpcRequestImpl) {
+		req.callOptions = options
+	}
+}
+func WithIn(in proto.Message) GrpcRequestOptions {
+	return func(req *GrpcRequestImpl) {
+		req.in = in
+	}
+}
+func WithOut(out proto.Message) GrpcRequestOptions {
+	return func(req *GrpcRequestImpl) {
+		req.out = out
 	}
 
 }
 
 type GrpcRequestImpl struct {
-	Ctx             context.Context
-	Marshaler       runtime.Marshaler
-	Req             *http.Request
-	PathParams      map[string]string
-	In              proto.Message
-	Out             proto.Message
-	InType          protoreflect.MessageDescriptor
-	OutType         protoreflect.MessageDescriptor
-	FullMethodName  string
-	HttpPathPattern map[string]string
-	CallOptions     []grpc.CallOption
+	ctx            context.Context
+	marshaler      runtime.Marshaler
+	req            *http.Request
+	pathParams     map[string]string
+	in             proto.Message
+	out            proto.Message
+	inType         protoreflect.MessageDescriptor
+	outType        protoreflect.MessageDescriptor
+	fullMethodName string
+	callOptions    []grpc.CallOption
 }
 
+func NewGrpcRequest(ctx context.Context, inType protoreflect.MessageDescriptor, outType protoreflect.MessageDescriptor, fullMethodName string, opts ...GrpcRequestOptions) GrpcRequest {
+	req := &GrpcRequestImpl{
+		ctx:            ctx,
+		inType:         inType,
+		outType:        outType,
+		fullMethodName: fullMethodName,
+		pathParams:     make(map[string]string),
+		callOptions:    make([]grpc.CallOption, 0),
+	}
+	for _, opt := range opts {
+		opt(req)
+
+	}
+	return req
+}
 func (g *GrpcRequestImpl) GetContext() context.Context {
-	return g.Ctx
+	return g.ctx
 }
 
 func (g *GrpcRequestImpl) GetMarshaler() runtime.Marshaler {
-	return g.Marshaler
+	return g.marshaler
 }
 
 func (g *GrpcRequestImpl) GetReq() *http.Request {
-	return g.Req
+	return g.req
 }
 
 func (g *GrpcRequestImpl) GetPathParams() map[string]string {
-	return g.PathParams
+	return g.pathParams
 }
-func (g *GrpcRequestImpl) GetProtoReq() proto.Message {
-	return g.In
-}
+
 func (g *GrpcRequestImpl) GetOut() proto.Message {
-	return g.Out
+	return g.out
 }
 func (g *GrpcRequestImpl) GetIn() proto.Message {
-	return g.In
+	return g.in
 }
 func (g *GrpcRequestImpl) GetFullMethodName() string {
-	return g.FullMethodName
+	return g.fullMethodName
 }
 
-func (g *GrpcRequestImpl) SetMarshaler(m runtime.Marshaler) error {
-	g.Marshaler = m
-	return nil
-}
-func (g *GrpcRequestImpl) SetReq(r *http.Request) error {
-	g.Req = r
-	g.FullMethodName = g.FullMethodNameMatch(r.URL.Path)
-	return nil
-}
-
-func (g *GrpcRequestImpl) SetPathParams(pathParams map[string]string) error {
-	g.PathParams = pathParams
-	return nil
-}
-func (g *GrpcRequestImpl) FullMethodNameMatch(uri string) string {
-	return g.HttpPathPattern[uri]
-}
-
-func (g *GrpcRequestImpl) SetCallOptions(options ...grpc.CallOption) {
-	g.CallOptions = options
-}
 func (g *GrpcRequestImpl) GetCallOptions() []grpc.CallOption {
-	return g.CallOptions
+	return g.callOptions
 }
 
 func (g *GrpcRequestImpl) GetOutType() protoreflect.MessageDescriptor {
-	return g.OutType
+	return g.outType
 }
 func (g *GrpcRequestImpl) GetInType() protoreflect.MessageDescriptor {
-	return g.InType
+	return g.inType
 }

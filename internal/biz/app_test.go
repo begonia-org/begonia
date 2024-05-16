@@ -11,8 +11,8 @@ import (
 	"github.com/begonia-org/begonia/internal/biz"
 	"github.com/begonia-org/begonia/internal/data"
 	cfg "github.com/begonia-org/begonia/internal/pkg/config"
-	"github.com/begonia-org/begonia/internal/pkg/logger"
 	"github.com/begonia-org/begonia/internal/pkg/utils"
+	"github.com/begonia-org/begonia/transport"
 	api "github.com/begonia-org/go-sdk/api/app/v1"
 	c "github.com/smartystreets/goconvey/convey"
 	"github.com/spark-lence/tiga"
@@ -32,7 +32,7 @@ func newAppBiz() *biz.AppUsecase {
 		env = begonia.Env
 	}
 	config := config.ReadConfig(env)
-	repo := data.NewAppRepo(config, logger.Log)
+	repo := data.NewAppRepo(config, transport.Log)
 	cnf := cfg.NewConfig(config)
 	return biz.NewAppUsecase(repo, cnf)
 }
@@ -55,7 +55,7 @@ func testPutApp(t *testing.T) {
 		secret = app.Secret
 		appid = app.Appid
 
-		layered := data.NewLayered(config.ReadConfig("dev"), logger.Log)
+		layered := data.NewLayered(config.ReadConfig("dev"), transport.Log)
 		env := "dev"
 		if begonia.Env != "" {
 			env = begonia.Env

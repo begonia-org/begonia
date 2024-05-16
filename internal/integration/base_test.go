@@ -8,11 +8,12 @@ import (
 	"sync"
 	"testing"
 	"time"
-	api "github.com/begonia-org/go-sdk/api/app/v1"
+
 	"github.com/begonia-org/begonia"
 	"github.com/begonia-org/begonia/config"
 	"github.com/begonia-org/begonia/internal"
-	"github.com/begonia-org/begonia/internal/pkg/logger"
+	"github.com/begonia-org/begonia/transport"
+	api "github.com/begonia-org/go-sdk/api/app/v1"
 	example "github.com/begonia-org/go-sdk/example"
 )
 
@@ -60,7 +61,7 @@ func readInitAPP() {
 	if err != nil {
 		log.Fatalf(err.Error())
 		return
-	
+
 	}
 	accessKey = app.AccessKey
 	secret = app.Secret
@@ -77,9 +78,9 @@ func RunTestServer() {
 		config := config.ReadConfig(env)
 		go func() {
 
-			worker := internal.New(config, logger.Log, "0.0.0.0:12140")
+			worker := internal.New(config, transport.Log, "0.0.0.0:12140")
 			worker.Start()
-		
+
 		}()
 		runExampleServer()
 		time.Sleep(2 * time.Second)

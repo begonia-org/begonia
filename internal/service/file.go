@@ -90,7 +90,7 @@ func (f *FileService) Download(ctx context.Context, in *api.DownloadRequest) (*h
 	shaer.Write(buf)
 	rspMd := metadata.Pairs(
 		gosdk.GetMetadataKey("Content-Length"), fmt.Sprintf("%d", len(buf)),
-		gosdk.GetMetadataKey("x-content-sha256"), hex.EncodeToString(shaer.Sum(nil)),
+		gosdk.GetMetadataKey("X-File-Sha256"), hex.EncodeToString(shaer.Sum(nil)),
 	)
 	err = grpc.SendHeader(ctx, rspMd)
 	if err != nil {

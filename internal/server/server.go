@@ -10,12 +10,11 @@ import (
 	"strconv"
 
 	"github.com/begonia-org/begonia/internal/pkg/config"
-	"github.com/begonia-org/begonia/transport"
-	"github.com/begonia-org/begonia/internal/pkg/logger"
 	"github.com/begonia-org/begonia/internal/pkg/middleware"
-	"github.com/begonia-org/begonia/transport/serialization"
 	"github.com/begonia-org/begonia/internal/pkg/routers"
 	"github.com/begonia-org/begonia/internal/service"
+	"github.com/begonia-org/begonia/transport"
+	"github.com/begonia-org/begonia/transport/serialization"
 	loadbalance "github.com/begonia-org/go-loadbalancer"
 	common "github.com/begonia-org/go-sdk/common/api/v1"
 	"github.com/google/wire"
@@ -64,9 +63,9 @@ func NewGateway(cfg *transport.GatewayConfig, conf *config.Config, services []se
 	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithMarshalerOption(runtime.MIMEWildcard, serialization.NewRawBinaryUnmarshaler()))
 	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithMarshalerOption("application/octet-stream", serialization.NewRawBinaryUnmarshaler()))
 
-	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithMetadata(middleware.IncomingHeadersToMetadata))
-	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithErrorHandler(middleware.HandleErrorWithLogger(logger.Log)))
-	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithForwardResponseOption(middleware.HttpResponseBodyModify))
+	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithMetadata(transport.IncomingHeadersToMetadata))
+	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithErrorHandler(transport.HandleErrorWithLogger(transport.Log)))
+	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithForwardResponseOption(transport.HttpResponseBodyModify))
 	// opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithRoutingErrorHandler(middleware.HandleRoutingError))
 	// 连接池配置
 	opts.PoolOptions = append(opts.PoolOptions, loadbalance.WithMaxActiveConns(100))

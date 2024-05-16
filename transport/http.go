@@ -15,7 +15,6 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/utilities"
-	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
@@ -117,6 +116,7 @@ func loadGlobalMessages(pd ProtobufDescription) error {
 		for i := 0; i < fd.Messages().Len(); i++ {
 			msgType := fd.Messages().Get(i)
 			if _, err := protoregistry.GlobalTypes.FindMessageByName(msgType.FullName()); err == nil {
+
 				// 如果找到了，说明已经注册过，跳过
 				continue
 			}
@@ -152,22 +152,18 @@ func NewHttpEndpoint(client HttpForwardGrpcEndpoint) (HttpEndpoint, error) {
 }
 func (h *HttpEndpointImpl) stream(ctx context.Context, item *HttpEndpointItem, marshaler runtime.Marshaler, ws WebsocketForwarder) (StreamClient, runtime.ServerMetadata, error) {
 	var metadata runtime.ServerMetadata
-	grpcReq := &GrpcRequestImpl{
-		Ctx:            ctx,
-		InType:         item.In,
-		OutType:        item.Out,
-		FullMethodName: item.FullMethodName,
-	}
+	grpcReq := NewGrpcRequest(ctx, item.In, item.Out, item.FullMethodName)
 	stream, err := h.client.Stream(grpcReq)
 	if err != nil {
-		log.Errorf("Failed to start streaming: %v", err)
-		return nil, metadata, err
+		// Log.Errorf(ctx,"Failed to start websocket request: %v", err)
+		return nil, metadata, fmt.Errorf("Failed to start websocket request: %w", err)
 	}
 	handleSend := func() error {
 		var protoReq = dynamicpb.NewMessage(item.In)
 		reader, err := ws.NextReader()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseAbnormalClosure) {
+				// Log.Errorf(ctx,"Failed to read websocket: %w", err)
 				return fmt.Errorf("Failed to read websocket: %w", err)
 			}
 			return err
@@ -179,44 +175,44 @@ func (h *HttpEndpointImpl) stream(ctx context.Context, item *HttpEndpointItem, m
 
 		err = dec.Decode(protoReq)
 
-		if err != nil {
-			log.Errorf("Failed to decode websocket request: %v", err)
-			return err
+		if err != nil && err != io.EOF {
+			// Log.Errorf("Failed to decode websocket request: %v", err)
+			return fmt.Errorf("Failed to decode websocket request: %w", err)
 		}
+		if err != nil {
+			return io.EOF
+		}
+
 		if err := stream.Send(protoReq); err != nil {
-			log.Errorf("Failed to send request: %v", err)
-			return err
+			// Log.Errorf("Failed to send request: %v", err)
+			return fmt.Errorf("Failed to send request: %w", err)
 		}
 		return nil
 	}
 	go func() {
 		for {
 			if err := handleSend(); err != nil {
+				if !websocket.IsCloseError(err, websocket.CloseAbnormalClosure) {
+					Log.Warnf(ctx, "Failed to send websocket request: %v", err)
+				}
 				break
+
 			}
 		}
 		if err := stream.CloseSend(); err != nil {
-			log.Errorf("Failed to terminate client stream: %v", err)
+			Log.Warnf(ctx, "Failed to terminate client stream: %v", err)
 		}
 	}()
 	header, err := stream.Header()
 	if err != nil {
-		log.Errorf("Failed to get header from client: %v", err)
-		return nil, metadata, err
+		// Log.Errorf("Failed to get header from client: %v", err)
+		return nil, metadata, fmt.Errorf("Failed to get header from websocket client: %w", err)
 	}
 	metadata.HeaderMD = header
 	return stream, metadata, nil
 }
 func (h *HttpEndpointImpl) serverStreamRequest(ctx context.Context, item *HttpEndpointItem, marshaler runtime.Marshaler, req *http.Request, pathParams map[string]string) (ServerSideStream, runtime.ServerMetadata, error) {
-	grpcReq := &GrpcRequestImpl{
-		Ctx:            ctx,
-		InType:         item.In,
-		OutType:        item.Out,
-		FullMethodName: item.FullMethodName,
-		Marshaler:      marshaler,
-		Req:            req,
-		PathParams:     pathParams,
-	}
+
 	var metadata runtime.ServerMetadata
 	var protoReq = dynamicpb.NewMessage(item.In)
 
@@ -225,7 +221,7 @@ func (h *HttpEndpointImpl) serverStreamRequest(ctx context.Context, item *HttpEn
 		err := dec.Decode(protoReq)
 
 		if err != nil && err != io.EOF {
-			log.Errorf("Failed to decode request: %v", err)
+			// Log.Errorf(ctx,"Failed to decode request: %v", err)
 			return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 		}
 	}
@@ -234,34 +230,28 @@ func (h *HttpEndpointImpl) serverStreamRequest(ctx context.Context, item *HttpEn
 	if err != nil {
 		return nil, metadata, err
 	}
-	grpcReq.In = protoReq
+	// grpcReq.In = protoReq
+	grpcReq := NewGrpcRequest(ctx, item.In, item.Out, item.FullMethodName, WithIn(protoReq), WithOut(dynamicpb.NewMessage(item.Out)))
 	stream, err := h.client.ServerSideStream(grpcReq)
 	if err != nil {
-		log.Errorf("Failed to start streaming: %v", err)
+		// Log.Errorf("Failed to start streaming: %v", err)
 		return nil, metadata, err
 	}
 	header, err := stream.Header()
 	if err != nil {
-		log.Errorf("Failed to get header from client: %v", err)
+		// Log.Errorf("Failed to get header from client: %v", err)
 		return nil, metadata, err
 	}
 	metadata.HeaderMD = header
 	return stream, metadata, nil
 }
 func (h *HttpEndpointImpl) clientStreamRequest(ctx context.Context, item *HttpEndpointItem, marshaler runtime.Marshaler, req *http.Request, pathParams map[string]string) (protoreflect.ProtoMessage, runtime.ServerMetadata, error) {
-	grpcReq := &GrpcRequestImpl{
-		Ctx:            ctx,
-		InType:         item.In,
-		OutType:        item.Out,
-		FullMethodName: item.FullMethodName,
-		Marshaler:      marshaler,
-		Req:            req,
-		PathParams:     pathParams,
-	}
+
 	var metadata runtime.ServerMetadata
+	grpcReq := NewGrpcRequest(ctx, item.In, item.Out, item.FullMethodName, WithGatewayReq(req), WithGatewayPathParams(pathParams))
 	stream, err := h.client.ClientSideStream(grpcReq)
 	if err != nil {
-		log.Errorf("Failed to start streaming: %v", err)
+		// Log.Errorf("Failed to start streaming: %v", err)
 		return nil, metadata, err
 	}
 	if req.Body == nil {
@@ -275,7 +265,7 @@ func (h *HttpEndpointImpl) clientStreamRequest(ctx context.Context, item *HttpEn
 			break
 		}
 		if err != nil {
-			log.Errorf("client stream failed to decode request: %v", err)
+			// Log.Errorf("client stream failed to decode request: %v", err)
 			return nil, metadata, status.Errorf(codes.InvalidArgument, "Failed to decode request:%v", err)
 		}
 		err := h.inParamsHandle(pathParams, req, protoReq)
@@ -291,12 +281,12 @@ func (h *HttpEndpointImpl) clientStreamRequest(ctx context.Context, item *HttpEn
 	}
 
 	if err := stream.CloseSend(); err != nil {
-		log.Errorf("Failed to terminate client stream: %v", err)
+		// Log.Errorf("Failed to terminate client stream: %v", err)
 		return nil, metadata, err
 	}
 	header, err := stream.Header()
 	if err != nil {
-		log.Errorf("Failed to get header from client: %v", err)
+		// Log.Errorf("Failed to get header from client: %v", err)
 		return nil, metadata, err
 	}
 	metadata.HeaderMD = header
@@ -315,18 +305,18 @@ func (h *HttpEndpointImpl) inParamsHandle(params map[string]string, req *http.Re
 		fields := in.Descriptor().Fields()
 		field := fields.ByName(protoreflect.Name(param))
 		if field == nil {
-			// log.Errorf("inParamsHandle no parameter %s", param)
+			// Log.Errorf("inParamsHandle no parameter %s", param)
 			return status.Errorf(codes.InvalidArgument, "no parameter %s", param)
 		}
 		in.Set(field, protoreflect.ValueOfString(msg))
 
 	}
 	if err := req.ParseForm(); err != nil {
-		// log.Errorf("Failed to parse form: %v", err)
+		// Log.Errorf("Failed to parse form: %v", err)
 		return status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 	if err := runtime.PopulateQueryParameters(in, req.Form, &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}); err != nil {
-		// log.Errorf("Failed to populate query parameters: %v", err)
+		// Log.Errorf("Failed to populate query parameters: %v", err)
 		return status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 	return nil
@@ -363,11 +353,10 @@ func (h *HttpEndpointImpl) addHexEncodeSHA256HashV2(req *http.Request) error {
 
 	return nil
 }
-func (h *HttpEndpointImpl) newRequest(ctx context.Context, item *HttpEndpointItem, marshaler runtime.Marshaler, req *http.Request, pathParams map[string]string) (GrpcRequest, runtime.ServerMetadata, error) {
-	// var protoReq HelloRequest
-	var metadata runtime.ServerMetadata
+func (h *HttpEndpointImpl) newRequest(ctx context.Context, item *HttpEndpointItem, marshaler runtime.Marshaler, req *http.Request, pathParams map[string]string) (GrpcRequest, error) {
+	// var metadata runtime.ServerMetadata
 	if item.In == nil {
-		return nil, metadata, status.Errorf(codes.Internal, "no request type for %q", item.FullMethodName)
+		return nil, status.Errorf(codes.Internal, "no request type for %q", item.FullMethodName)
 	}
 	in := dynamicpb.NewMessage(item.In)
 	if req.Body != nil {
@@ -376,7 +365,7 @@ func (h *HttpEndpointImpl) newRequest(ctx context.Context, item *HttpEndpointIte
 			formdata.SetBoundary(req.Header.Get("Content-Type"))
 		}
 		if err := decoder.Decode(in); err != nil && err != io.EOF {
-			return nil, metadata, status.Errorf(codes.InvalidArgument, "decode request body err %v", err)
+			return nil, status.Errorf(codes.InvalidArgument, "decode request body err %v", err)
 		}
 	}
 
@@ -390,16 +379,16 @@ func (h *HttpEndpointImpl) newRequest(ctx context.Context, item *HttpEndpointIte
 	for _, param := range item.PathParams {
 		val, ok = pathParams[param]
 		if !ok {
-			return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", param)
+			return nil, status.Errorf(codes.InvalidArgument, "missing parameter %s", param)
 		}
 		msg, err := runtime.String(val)
 		if err != nil {
-			return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", param, err)
+			return nil, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", param, err)
 		}
 		fields := in.Descriptor().Fields()
 		field := fields.ByName(protoreflect.Name(param))
 		if field == nil {
-			return nil, metadata, status.Errorf(codes.InvalidArgument, "no parameter %s", param)
+			return nil, status.Errorf(codes.InvalidArgument, "no parameter %s", param)
 		}
 		in.Set(field, protoreflect.ValueOfString(msg))
 
@@ -408,25 +397,21 @@ func (h *HttpEndpointImpl) newRequest(ctx context.Context, item *HttpEndpointIte
 	for k, v := range query {
 		msg, err := runtime.String(v[0])
 		if err != nil {
-			return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", k, err)
+			return nil, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", k, err)
 		}
 		fields := in.Descriptor().Fields()
 		field := fields.ByName(protoreflect.Name(k))
 		if field == nil {
-			return nil, metadata, status.Errorf(codes.InvalidArgument, "no parameter %s", k)
+			return nil, status.Errorf(codes.InvalidArgument, "no parameter %s", k)
 		}
 		in.Set(field, protoreflect.ValueOfString(msg))
 	}
-
-	return &GrpcRequestImpl{
-		Ctx:            ctx,
-		In:             in,
-		Out:            dynamicpb.NewMessage(item.Out),
-		FullMethodName: item.FullMethodName,
-	}, metadata, nil
+	grpcReq := NewGrpcRequest(ctx, item.In, item.Out, item.FullMethodName, WithIn(in), WithOut(dynamicpb.NewMessage(item.Out)))
+	return grpcReq, nil
 }
 func (h *HttpEndpointImpl) NotFound(w http.ResponseWriter, r *http.Request, pathParams map[string]string) {
 	w.WriteHeader(http.StatusNotFound)
+	// runtime.HTTPError(r.Context(), nil, nil, w, r, status.Errorf(codes.NotFound, "not found"))
 }
 func (h *HttpEndpointImpl) DeleteEndpoint(ctx context.Context, pd ProtobufDescription, mux *runtime.ServeMux) error {
 	h.mux.Lock()
@@ -436,7 +421,15 @@ func (h *HttpEndpointImpl) DeleteEndpoint(ctx context.Context, pd ProtobufDescri
 		return err
 	}
 	for _, item := range items {
-		mux.Handle(strings.ToUpper(item.HttpMethod), item.Pattern, h.NotFound)
+		Log.Debugf(ctx, "delete endpoint %s: %s %v", strings.ToUpper(item.HttpMethod), item.HttpUri, item.Pattern)
+		mux.Handle(strings.ToUpper(item.HttpMethod), item.Pattern, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+			annotatedContext, _ := runtime.AnnotateIncomingContext(ctx, mux, req, item.FullMethodName, runtime.WithHTTPPathPattern(item.HttpUri))
+
+			annotatedContext, _ = runtime.AnnotateContext(annotatedContext, mux, req, item.FullMethodName, runtime.WithHTTPPathPattern(item.HttpUri))
+			Log.Warn(annotatedContext, "not found router")
+
+			h.NotFound(w, req, pathParams)
+		})
 	}
 	return nil
 }
@@ -452,6 +445,7 @@ func (h *HttpEndpointImpl) RegisterHandlerClient(ctx context.Context, pd Protobu
 		return err
 	}
 	for _, item := range items {
+		Log.Debugf(ctx, "register endpoint %s: %s %v", strings.ToUpper(item.HttpMethod), item.HttpUri, item.Pattern)
 		item := item
 		mux.Handle(strings.ToUpper(item.HttpMethod), item.Pattern, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 			if req.Header.Get("accept") == "" {
@@ -476,6 +470,11 @@ func (h *HttpEndpointImpl) RegisterHandlerClient(ctx context.Context, pd Protobu
 				req.Header.Set(GatewayXParams, strings.Join(params, ","))
 
 			}
+			// annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, item.FullMethodName, runtime.WithHTTPPathPattern(item.HttpUri))
+			// if err != nil {
+			// 	runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			// 	return
+			// }
 			annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, item.FullMethodName, runtime.WithHTTPPathPattern(item.HttpUri))
 			if err != nil {
 				runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
@@ -485,13 +484,14 @@ func (h *HttpEndpointImpl) RegisterHandlerClient(ctx context.Context, pd Protobu
 			// 普通请求
 			if !item.IsServerStream && !item.IsClientStream {
 				// log.Printf("inboundMarshaler: %v, outboundMarshaler: %v", inboundMarshaler.ContentType(nil), outboundMarshaler.ContentType(nil))
-				reqInstance, md, err := h.newRequest(annotatedContext, item, inboundMarshaler, req, pathParams)
+				reqInstance, err := h.newRequest(annotatedContext, item, inboundMarshaler, req, pathParams)
 				if err != nil {
 					runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
 					return
 				}
-				annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
 				resp, md, err := h.client.Request(reqInstance)
+
+				// annotatedContext = metadata.NewIncomingContext(annotatedContext, md.HeaderMD)
 
 				annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
 				if err != nil {
@@ -500,10 +500,11 @@ func (h *HttpEndpointImpl) RegisterHandlerClient(ctx context.Context, pd Protobu
 				}
 				runtime.ForwardResponseMessage(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 			} else if item.IsServerStream && !item.IsClientStream {
-				log.Println("request: ", req.URL.String())
+				// log.Println("request: ", req.URL.String())
 				// 服务端推流,升级为sse服务
 				resp, md, err := h.serverStreamRequest(annotatedContext, item, inboundMarshaler, req, pathParams)
 
+				// annotatedContext = metadata.NewIncomingContext(annotatedContext, md.HeaderMD)
 				annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
 				if err != nil {
 					runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
@@ -517,7 +518,9 @@ func (h *HttpEndpointImpl) RegisterHandlerClient(ctx context.Context, pd Protobu
 			} else if !item.IsServerStream && item.IsClientStream {
 				// 客户端推流
 				resp, md, err := h.clientStreamRequest(annotatedContext, item, inboundMarshaler, req, pathParams)
+				// annotatedContext = metadata.NewIncomingContext(annotatedContext, md.HeaderMD)
 				annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+
 				if err != nil {
 					runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
 					return
@@ -525,18 +528,22 @@ func (h *HttpEndpointImpl) RegisterHandlerClient(ctx context.Context, pd Protobu
 				runtime.ForwardResponseMessage(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 			} else {
 				// 双向流，升级为websocket
+				Log.Infof(annotatedContext, "upgrade to websocket: %s %s", item.HttpMethod, item.HttpUri)
 				ws, err := NewWebsocketForwarder(w, req, websocket.BinaryMessage)
 				if err != nil {
+					Log.Errorf(annotatedContext, "Failed to upgrade to websocket: %v", err)
 					runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
 					return
 				}
 				stream, md, err := h.stream(annotatedContext, item, inboundMarshaler, ws)
+				// annotatedContext = metadata.NewIncomingContext(annotatedContext, md.HeaderMD)
 				annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+
 				if err != nil {
+					Log.Warnf(annotatedContext, "Failed to start websocket request: %v", err)
 					runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
 					return
 				}
-
 				runtime.ForwardResponseStream(annotatedContext, mux, outboundMarshaler, ws, req, stream.Recv, mux.GetForwardResponseOptions()...)
 			}
 		})

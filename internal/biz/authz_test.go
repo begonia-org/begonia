@@ -24,8 +24,8 @@ import (
 	cfg "github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/crypto"
 	"github.com/begonia-org/begonia/internal/pkg/errors"
-	"github.com/begonia-org/begonia/internal/pkg/logger"
 	"github.com/begonia-org/begonia/internal/pkg/utils"
+	"github.com/begonia-org/begonia/transport"
 	v1 "github.com/begonia-org/go-sdk/api/user/v1"
 	"github.com/spark-lence/tiga"
 	"google.golang.org/grpc/metadata"
@@ -43,11 +43,11 @@ func newAuthzBiz() *biz.AuthzUsecase {
 		env = begonia.Env
 	}
 	config := config.ReadConfig(env)
-	repo := data.NewAuthzRepo(config, logger.Log)
-	user := data.NewUserRepo(config, logger.Log)
+	repo := data.NewAuthzRepo(config, transport.Log)
+	user := data.NewUserRepo(config, transport.Log)
 	crypto := crypto.NewUsersAuth()
 	cnf := cfg.NewConfig(config)
-	return biz.NewAuthzUsecase(repo, user, logger.Log, crypto, cnf)
+	return biz.NewAuthzUsecase(repo, user, transport.Log, crypto, cnf)
 }
 
 func testAuthSeed(t *testing.T) {

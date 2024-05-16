@@ -17,18 +17,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-var onceLB sync.Once
-var onceGrpc sync.Once
-var onceHttp sync.Once
-var onceGateway sync.Once
 
-// var onceGrpcProxy sync.Once
-
-var grpcProxyLB *GrpcLoadBalancer
-var grpcServer *grpc.Server
-var gatewayMux *runtime.ServeMux
-var httpGateway HttpEndpoint
-var gatewayS *GatewayServer
 
 type GrpcServerOptions struct {
 	Middlewares     []GrpcProxyMiddleware
@@ -52,54 +41,48 @@ type GatewayServer struct {
 	mux         *sync.Mutex
 }
 
-func NewBalancer() {
-	onceLB.Do(func() {
-		grpcProxyLB = NewGrpcLoadBalancer()
-	})
+
+func NewGrpcServer(opts *GrpcServerOptions, lb *GrpcLoadBalancer) *grpc.Server {
+
+	proxy := NewGrpcProxy(lb, opts.Middlewares...)
+
+	opts.Options = append(opts.Options, grpc.UnknownServiceHandler(proxy.Handler))
+	return grpc.NewServer(opts.Options...)
 }
 
-func NewGrpcServer(opts *GrpcServerOptions) {
-	onceGrpc.Do(func() {
-		NewBalancer()
-		proxy := NewGrpcProxy(grpcProxyLB, opts.Middlewares...)
+func NewHttpServer(addr string, poolOpt ...loadbalance.PoolOptionsBuildOption) (HttpEndpoint, error) {
+	pool := NewGrpcConnPool(addr, poolOpt...)
 
-		opts.Options = append(opts.Options, grpc.UnknownServiceHandler(proxy.Handler))
-		grpcServer = grpc.NewServer(opts.Options...)
-	})
-}
+	endpoint := NewEndpoint(pool)
 
-func NewHttpServer(addr string, httpMiddlewares []runtime.ServeMuxOption, poolOpt ...loadbalance.PoolOptionsBuildOption) {
-	onceHttp.Do(func() {
-		pool := NewGrpcConnPool(addr, poolOpt...)
+	return NewHttpEndpoint(endpoint)
 
-		endpoint := NewEndpoint(pool)
 
-		httpGateway, _ = NewHttpEndpoint(endpoint)
-
-		gatewayMux = runtime.NewServeMux(
-			httpMiddlewares...,
-		)
-
-	})
 }
 func NewGateway(cfg *GatewayConfig, opts *GrpcServerOptions) *GatewayServer {
-	onceGateway.Do(func() {
-		NewGrpcServer(opts)
-		_, port, _ := net.SplitHostPort(cfg.GrpcProxyAddr)
-		proxy := fmt.Sprintf("127.0.0.1:%s", port)
+	lb := NewGrpcLoadBalancer()
+	grpcServer := NewGrpcServer(opts, lb)
+	_, port, _ := net.SplitHostPort(cfg.GrpcProxyAddr)
+	proxy := fmt.Sprintf("127.0.0.1:%s", port)
 
-		NewHttpServer(proxy, opts.HttpMiddlewares, opts.PoolOptions...)
-		gatewayS = &GatewayServer{
-			grpcServer:  grpcServer,
-			httpGateway: httpGateway,
-			proxyLB:     grpcProxyLB,
-			gatewayMux:  gatewayMux,
-			addr:        cfg.GatewayAddr,
-			proxyAddr:   cfg.GrpcProxyAddr,
-			opts:        opts,
-			mux:         &sync.Mutex{},
-		}
-	})
+	mux := runtime.NewServeMux(
+		opts.HttpMiddlewares...,
+	)
+	httpGateway, err := NewHttpServer(proxy, opts.PoolOptions...)
+	if err != nil {
+		panic(err)
+	}
+	gatewayS := &GatewayServer{
+		grpcServer:  grpcServer,
+		httpGateway: httpGateway,
+		proxyLB:     lb,
+		gatewayMux:  mux,
+		addr:        cfg.GatewayAddr,
+		proxyAddr:   cfg.GrpcProxyAddr,
+		opts:        opts,
+		mux:         &sync.Mutex{},
+	}
+	// })
 	return gatewayS
 }
 
@@ -118,6 +101,7 @@ func (g *GatewayServer) DeleteLocalService(pd ProtobufDescription) {
 	g.mux.Lock()
 	defer g.mux.Unlock()
 	g.proxyLB.Delete(pd)
+	_= g.DeleteHandlerClient(context.Background(), pd)
 }
 func (g *GatewayServer) GetLoadbalanceName() loadbalance.BalanceType {
 	return g.proxyLB.Name()
@@ -128,7 +112,7 @@ func (g *GatewayServer) RegisterHandlerClient(ctx context.Context, pd ProtobufDe
 func (g *GatewayServer) Start() {
 	handler := h2c.NewHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.ProtoMajor == 2 && strings.Contains(r.Header.Get("Content-Type"), "application/grpc") {
-			grpcServer.ServeHTTP(w, r)
+			g.grpcServer.ServeHTTP(w, r)
 		} else {
 			g.gatewayMux.ServeHTTP(w, r)
 		}
@@ -154,7 +138,7 @@ func (g *GatewayServer) Start() {
 
 		}
 	}()
-	time.Sleep(3 * time.Second)
+	time.Sleep(1 * time.Second)
 	log.Printf("Start on %s\n", g.addr)
 	if err := s.ListenAndServe(); err != nil {
 		panic(err)
@@ -172,6 +156,7 @@ func (g *GatewayServer) DeleteLoadBalance(pd ProtobufDescription) {
 }
 
 func (g *GatewayServer) DeleteHandlerClient(ctx context.Context, pd ProtobufDescription) error {
+
 	return g.httpGateway.DeleteEndpoint(ctx, pd, g.gatewayMux)
 }
 

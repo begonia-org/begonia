@@ -143,11 +143,11 @@ func (d *dataOperatorRepo) LoadRemoteCache(ctx context.Context) {
 
 	err := d.local.kv.LoadDump(ctx)
 	if err != nil {
-		d.log.Errorf("load remote cache error %v", err)
+		d.log.Errorf(ctx,"load remote cache error %v", err)
 	}
 	err = d.local.filters.LoadDump(ctx)
 	if err != nil {
-		d.log.Errorf("load remote cache error %v", err)
+		d.log.Errorf(ctx,"load remote cache error %v", err)
 
 	}
 
@@ -182,7 +182,7 @@ func (d *dataOperatorRepo) Watcher(ctx context.Context, prefix string, handle bi
 			}
 			err := handle(ctx, ev.Type, string(ev.Kv.Key), string(val))
 			if err != nil {
-				d.log.Error(err)
+				d.log.Error(ctx,err)
 			}
 
 		}
@@ -205,17 +205,17 @@ func (d *dataOperatorRepo) Sync() {
 func (d *dataOperatorRepo) OnStart() {
 	d.onceOnStart.Do(func() {
 		// l.Sync()
-		d.log.Info("data operator repo start")
+		d.log.Info(context.TODO(),"data operator repo start")
 		errChan := d.local.filters.Watch(context.Background())
 		go func() {
 			for err := range errChan {
-				d.log.Errorf("bloom filter error %v", err)
+				d.log.Errorf(context.TODO(),"bloom filter error %v", err)
 			}
 		}()
 		errKvChan := d.local.kv.Watch(context.Background())
 		go func() {
 			for err := range errKvChan {
-				d.local.log.Errorf("kv error %v", err)
+				d.local.log.Errorf(context.TODO(),"kv error %v", err)
 			}
 		}()
 	})

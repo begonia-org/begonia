@@ -33,17 +33,24 @@ func NewEndpoint(pool loadbalance.Pool) HttpForwardGrpcEndpoint {
 // request is the request message with method, path, body and query params.
 // 发起普通的请求请求
 func (e *httpForwardGrpcEndpointImpl) Request(req GrpcRequest) (proto.Message, runtime.ServerMetadata, error) {
-	var metadata runtime.ServerMetadata
+	var metadata runtime.ServerMetadata = runtime.ServerMetadata{
+		HeaderMD:  make(map[string][]string),
+		TrailerMD: make(map[string][]string),
+	}
 	cc, err := e.pool.Get(req.GetContext())
 	defer e.pool.Release(req.GetContext(), cc)
 	if err != nil {
-		return nil, runtime.ServerMetadata{}, err
+		return nil, runtime.ServerMetadata{
+			HeaderMD:  make(map[string][]string),
+			TrailerMD: make(map[string][]string),
+		}, err
 	}
 	conn := cc.ConnInstance().(*grpc.ClientConn)
 	out := req.GetOut()
 	in := req.GetIn()
 	ctx := req.GetContext()
-	err = conn.Invoke(ctx, req.GetFullMethodName(), in, out, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+
+	err = conn.Invoke(ctx, req.GetFullMethodName(), in, out,grpc.Header(&metadata.HeaderMD),grpc.Trailer(&metadata.TrailerMD))
 	return out, metadata, err
 
 }

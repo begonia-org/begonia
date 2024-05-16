@@ -30,6 +30,15 @@ jobs:
         run: |
           mkdir -p /tmp/protos
           git clone https://github.com/begonia-org/protos.git /tmp/protos
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          version: "22.2"
+      - name: Install protoc-gen-grpc-gateway
+        run: |
+          git clone https://github.com/geebytes/grpc-gateway.git
+          cd grpc-gateway
+          go install ./protoc-gen-grpc-gateway
       - name: Test
         run: go test -v -gcflags=-l -coverprofile=coverage.txt -covermode=atomic -ldflags -X=github.com/begonia-org/begonia.Version=$(git describe --tags --abbrev=0)\ -X=github.com/begonia-org/begonia.BuildTime=$(date '+%Y%m%d%H%M%S')\ -X=github.com/begonia-org/begonia.Commit=$(git rev-parse --short HEAD)\ -X=github.com/begonia-org/begonia.Env=test ./...
 

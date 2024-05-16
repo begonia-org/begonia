@@ -85,7 +85,8 @@ func (x *clientSideStreamClient) CloseAndRecv() (protoreflect.ProtoMessage, erro
 }
 
 func (x *streamClient) Send(m protoreflect.ProtoMessage) error {
-	return x.ClientStream.SendMsg(m)
+	err := x.ClientStream.SendMsg(m)
+	return err
 }
 
 func (x *streamClient) Recv() (protoreflect.ProtoMessage, error) {

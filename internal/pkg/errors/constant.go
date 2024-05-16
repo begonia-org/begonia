@@ -54,6 +54,14 @@ func New(err error, code int32, grpcCode codes.Code, action string, opts ...Opti
 		Line:    int32(line),
 		Fn:      funcName,
 	}
+	// details,_:=structpb.NewStruct(map[string]interface{}{
+	// 	"code":code,
+	// 	"message":err.Error(),
+	// 	"action":action,
+	// 	"file":file,
+	// 	"line":line,
+	// 	"fn":funcName,
+	// })
 	for _, opt := range opts {
 		opt(srvErr)
 	}

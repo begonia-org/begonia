@@ -24,6 +24,7 @@ import (
 	loadbalance "github.com/begonia-org/go-loadbalancer"
 	api "github.com/begonia-org/go-sdk/api/endpoint/v1"
 	hello "github.com/begonia-org/go-sdk/api/example/v1"
+	common "github.com/begonia-org/go-sdk/common/api/v1"
 	"github.com/begonia-org/go-sdk/example"
 	"github.com/gorilla/websocket"
 	gwRuntime "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -31,48 +32,71 @@ import (
 	c "github.com/smartystreets/goconvey/convey" // 别名导入
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/reflect/protoregistry"
 	"gopkg.in/cenkalti/backoff.v1"
 )
 
 // var endpoint transport.HttpEndpoint
 var gwPort = 9527
 var gw *transport.GatewayServer
-func testRegisterClient(t *testing.T) {
-	c.Convey("test register client", t, func() {
-		opts := &transport.GrpcServerOptions{
-			Middlewares:     make([]transport.GrpcProxyMiddleware, 0),
-			Options:         make([]grpc.ServerOption, 0),
-			PoolOptions:     make([]loadbalance.PoolOptionsBuildOption, 0),
-			HttpMiddlewares: make([]gwRuntime.ServeMuxOption, 0),
-			HttpHandlers:    make([]func(http.Handler) http.Handler, 0),
-		}
+var onceInit sync.Once
+var randomNumber int
+
+func newTestServer(gwPort, randomNumber int) (*transport.GrpcServerOptions, *transport.GatewayConfig) {
+	opts := &transport.GrpcServerOptions{
+		Middlewares:     make([]transport.GrpcProxyMiddleware, 0),
+		Options:         make([]grpc.ServerOption, 0),
+		PoolOptions:     make([]loadbalance.PoolOptionsBuildOption, 0),
+		HttpMiddlewares: make([]gwRuntime.ServeMuxOption, 0),
+		HttpHandlers:    make([]func(http.Handler) http.Handler, 0),
+	}
+	gwCnf := &transport.GatewayConfig{
+		GatewayAddr:   fmt.Sprintf("127.0.0.1:%d", gwPort),
+		GrpcProxyAddr: fmt.Sprintf("127.0.0.1:%d", randomNumber+1),
+	}
+
+	opts.HttpMiddlewares = append(opts.HttpMiddlewares, gwRuntime.WithMarshalerOption("application/json", serialization.NewJSONMarshaler()))
+	opts.HttpMiddlewares = append(opts.HttpMiddlewares, gwRuntime.WithMarshalerOption("multipart/form-data", serialization.NewFormDataMarshaler()))
+	opts.HttpMiddlewares = append(opts.HttpMiddlewares, gwRuntime.WithMarshalerOption("application/x-www-form-urlencoded", serialization.NewFormUrlEncodedMarshaler()))
+	opts.HttpMiddlewares = append(opts.HttpMiddlewares, gwRuntime.WithMarshalerOption(gwRuntime.MIMEWildcard, serialization.NewRawBinaryUnmarshaler()))
+	opts.HttpMiddlewares = append(opts.HttpMiddlewares, gwRuntime.WithMarshalerOption("application/octet-stream", serialization.NewRawBinaryUnmarshaler()))
+	opts.HttpMiddlewares = append(opts.HttpMiddlewares, gwRuntime.WithMarshalerOption("text/event-stream", serialization.NewEventSourceMarshaler()))
+	opts.HttpMiddlewares = append(opts.HttpMiddlewares, gwRuntime.WithMarshalerOption(serialization.ClientStreamContentType, serialization.NewProtobufWithLengthPrefix()))
+	opts.HttpMiddlewares = append(opts.HttpMiddlewares, gwRuntime.WithMetadata(transport.IncomingHeadersToMetadata))
+	opts.HttpMiddlewares = append(opts.HttpMiddlewares, gwRuntime.WithErrorHandler(transport.HandleErrorWithLogger(transport.Log)))
+	opts.HttpMiddlewares = append(opts.HttpMiddlewares, gwRuntime.WithForwardResponseOption(transport.HttpResponseBodyModify))
+
+	opts.PoolOptions = append(opts.PoolOptions, loadbalance.WithMaxActiveConns(100))
+	opts.PoolOptions = append(opts.PoolOptions, loadbalance.WithPoolSize(128))
+	loggerMid:=transport.NewLoggerMiddleware(transport.Log)
+	opts.Options = append(opts.Options, grpc.ChainStreamInterceptor(loggerMid.StreamInterceptor))
+	opts.Options = append(opts.Options, grpc.ChainUnaryInterceptor(loggerMid.UnaryInterceptor))
+	return opts, gwCnf
+}
+func init() {
+	onceInit.Do(func() {
+
 		rander := rand.New(rand.NewSource(time.Now().Unix())) // 初始化随机数种子
 		min := 9527
 		max := 12138
-		randomNumber := rander.Intn(max-min+1) + min
+		randomNumber = rander.Intn(max-min+1) + min
 		// randomNumber := 39527
 		gwPort = randomNumber
-		gwCnf := &transport.GatewayConfig{
-			GatewayAddr:   fmt.Sprintf("127.0.0.1:%d", gwPort),
-			GrpcProxyAddr: fmt.Sprintf("127.0.0.1:%d", randomNumber+1),
-		}
+		// gw = newTestServer(gwPort, randomNumber)
+		opts, cnf := newTestServer(gwPort, randomNumber)
+		gw = transport.New(cnf, opts)
 
+	})
+
+}
+func testRegisterClient(t *testing.T) {
+	c.Convey("test register client", t, func() {
 		_, filename, _, _ := runtime.Caller(0)
 		pbFile := filepath.Join(filepath.Dir(filepath.Dir(filename)), "internal", "integration", "testdata", "helloworld.pb")
 		pb, err := os.ReadFile(pbFile)
 		c.So(err, c.ShouldBeNil)
 		pd, err := transport.NewDescriptionFromBinary(pb, filepath.Join("tmp", "test-pd"))
 		c.So(err, c.ShouldBeNil)
-		opts.HttpMiddlewares = append(opts.HttpMiddlewares, gwRuntime.WithMarshalerOption("application/json", serialization.NewJSONMarshaler()))
-		opts.HttpMiddlewares = append(opts.HttpMiddlewares, gwRuntime.WithMarshalerOption("multipart/form-data", serialization.NewFormDataMarshaler()))
-		opts.HttpMiddlewares = append(opts.HttpMiddlewares, gwRuntime.WithMarshalerOption("application/x-www-form-urlencoded", serialization.NewFormUrlEncodedMarshaler()))
-		opts.HttpMiddlewares = append(opts.HttpMiddlewares, gwRuntime.WithMarshalerOption(gwRuntime.MIMEWildcard, serialization.NewRawBinaryUnmarshaler()))
-		opts.HttpMiddlewares = append(opts.HttpMiddlewares, gwRuntime.WithMarshalerOption("application/octet-stream", serialization.NewRawBinaryUnmarshaler()))
-		opts.HttpMiddlewares = append(opts.HttpMiddlewares, gwRuntime.WithMarshalerOption("text/event-stream", serialization.NewEventSourceMarshaler()))
-		opts.HttpMiddlewares = append(opts.HttpMiddlewares, gwRuntime.WithMarshalerOption(serialization.ClientStreamContentType, serialization.NewProtobufWithLengthPrefix()))
-		opts.PoolOptions = append(opts.PoolOptions, loadbalance.WithMaxActiveConns(100))
-		opts.PoolOptions = append(opts.PoolOptions, loadbalance.WithPoolSize(128))
-		gw = transport.New(gwCnf, opts)
 		helloAddr := fmt.Sprintf("127.0.0.1:%d", randomNumber+2)
 		endps, err := transport.NewLoadBalanceEndpoint(loadbalance.RRBalanceType, []*api.EndpointMeta{{
 			Addr:   helloAddr,
@@ -84,6 +108,7 @@ func testRegisterClient(t *testing.T) {
 		c.So(err, c.ShouldBeNil)
 		err = gw.RegisterService(context.Background(), pd, load)
 		c.So(err, c.ShouldBeNil)
+		c.So(gw.GetLoadbalanceName(), c.ShouldEqual, loadbalance.RRBalanceType)
 		go example.Run(helloAddr)
 		time.Sleep(2 * time.Second)
 		go gw.Start()
@@ -317,9 +342,10 @@ func testDeleteEndpoint(t *testing.T) {
 		c.So(err, c.ShouldBeNil)
 		pd, err := transport.NewDescriptionFromBinary(pb, filepath.Join("tmp", "test-pd"))
 		c.So(err, c.ShouldBeNil)
-		err = gw.DeleteHandlerClient(context.TODO(),pd)
+		err = gw.DeleteHandlerClient(context.TODO(), pd)
 		c.So(err, c.ShouldBeNil)
-
+		gw.DeleteLoadBalance(pd)
+		example.Stop()
 		url := fmt.Sprintf("http://127.0.0.1:%d/api/v1/example/world?msg=hello", gwPort)
 		r, err := http.NewRequest(http.MethodGet, url, nil)
 		c.So(err, c.ShouldBeNil)
@@ -331,6 +357,93 @@ func testDeleteEndpoint(t *testing.T) {
 
 	})
 }
+func testRegisterLocalService(t *testing.T) {
+	var pd transport.ProtobufDescription
+	var gwPort int
+	var localGW *transport.GatewayServer
+	c.Convey("test register local service", t, func() {
+		_, filename, _, _ := runtime.Caller(0)
+		pbFile := filepath.Join(filepath.Dir(filepath.Dir(filename)), "internal", "integration", "testdata", "helloworld.pb")
+		pb, err := os.ReadFile(pbFile)
+		c.So(err, c.ShouldBeNil)
+		pd, err = transport.NewDescriptionFromBinary(pb, filepath.Join("tmp", "test-pd-2"))
+		c.So(err, c.ShouldBeNil)
+		exampleServer := example.NewExampleServer()
+
+		rander := rand.New(rand.NewSource(time.Now().Unix())) // 初始化随机数种子
+		min := 9527
+		max := 12138
+		randomNumber = rander.Intn(max-min+1) + min
+		// randomNumber := 39527
+		gwPort = randomNumber
+		// gw = newTestServer(gwPort, randomNumber)
+		opts, cnf := newTestServer(gwPort, randomNumber)
+		localGW = transport.NewGateway(cnf, opts)
+
+		err = localGW.RegisterLocalService(context.Background(), pd, exampleServer.Desc(), exampleServer)
+		c.So(err, c.ShouldBeNil)
+		go localGW.Start()
+		time.Sleep(3 * time.Second)
+		url := fmt.Sprintf("http://127.0.0.1:%d/api/v1/example/world?msg=hello", gwPort)
+		r, err := http.NewRequest(http.MethodGet, url, nil)
+		c.So(err, c.ShouldBeNil)
+
+		resp, err := http.DefaultClient.Do(r)
+
+		c.So(err, c.ShouldBeNil)
+		c.So(resp.StatusCode, c.ShouldEqual, http.StatusOK)
+
+		defer resp.Body.Close()
+		body, err := io.ReadAll(resp.Body)
+		c.So(err, c.ShouldBeNil)
+		rsp := &hello.HelloReply{}
+
+		err = json.Unmarshal(body, rsp)
+		c.So(err, c.ShouldBeNil)
+
+		c.So(rsp.Message, c.ShouldEqual, "hello")
+		c.So(rsp.Name, c.ShouldEqual, "world")
+
+	})
+	c.Convey("test del local service", t, func() {
+		localGW.DeleteLocalService(pd)
+		url := fmt.Sprintf("http://127.0.0.1:%d/api/v1/example/world?msg=hello", gwPort)
+		// t.Logf("local server url:%s", url)
+		r, err := http.NewRequest(http.MethodGet, url, nil)
+		c.So(err, c.ShouldBeNil)
+
+		resp, err := http.DefaultClient.Do(r)
+
+		c.So(err, c.ShouldBeNil)
+		// c.So(resp.ContentLength, c.ShouldBeGreaterThan, 0)
+		c.So(resp.StatusCode, c.ShouldEqual, http.StatusNotFound)
+	})
+}
+
+func testLoadGlobalTypes(t *testing.T) {
+	c.Convey("test load global types", t, func() {
+
+		_, filename, _, _ := runtime.Caller(0)
+		pbFile := filepath.Join(filepath.Dir(filepath.Dir(filename)), "internal", "integration", "testdata")
+		os.Remove(filepath.Join(pbFile, "desc.pb"))
+		os.Remove(filepath.Join(pbFile, "gateway.json"))
+		pd, err := transport.NewDescription(pbFile)
+		c.So(err, c.ShouldBeNil)
+		err = gw.RegisterHandlerClient(context.Background(), pd)
+		c.So(err, c.ShouldBeNil)
+
+		mt, err := protoregistry.GlobalTypes.FindMessageByName("integration.TestRequest")
+		c.So(err, c.ShouldBeNil)
+		c.So(mt, c.ShouldNotBeNil)
+
+		et, err := protoregistry.GlobalTypes.FindEnumByName("integration.TestStaus")
+		c.So(err, c.ShouldBeNil)
+		c.So(et, c.ShouldNotBeNil)
+		err = pd.SetHttpResponse(common.E_HttpResponse)
+		c.So(err, c.ShouldBeNil)
+	})
+}
+
 func TestHttp(t *testing.T) {
 	t.Run("testRegisterClient", testRegisterClient)
 	t.Run("testRequestGet", testRequestGet)
@@ -338,6 +451,8 @@ func TestHttp(t *testing.T) {
 	t.Run("testServerSideEvent", testServerSideEvent)
 	t.Run("testWebsocket", testWebsocket)
 	t.Run("testClientStreamRequest", testClientStreamRequest)
+	t.Run("testLoadGlobalTypes", testLoadGlobalTypes)
 	t.Run("testDeleteEndpoint", testDeleteEndpoint)
+	t.Run("testRegisterLocalService", testRegisterLocalService)
 	// time.Sleep(30 * time.Second)
 }

@@ -1,0 +1,29 @@
+syntax = "proto3";
+package begonia.org.sdk.common;
+option go_package = "github.com/begonia-org/go-sdk/common/api/v1";
+import "google/protobuf/descriptor.proto";
+
+  extend google.protobuf.ServiceOptions {
+    optional bool auth_reqiured = 50033;
+  }
+
+  extend google.protobuf.ServiceOptions {
+    optional bool method_auth_reqiured = 50034;
+  }
+
+  extend google.protobuf.FieldOptions {
+    optional bool jsontag = 50035;
+}
+
+
+extend google.protobuf.EnumValueOptions {
+  optional string msg = 50036;
+}
+
+// 定义一个自定义选项
+extend google.protobuf.FileOptions {
+  string go_mod_pkg = 50037;
+}
+extend google.protobuf.ServiceOptions {
+  optional string http_response = 50038;
+}

@@ -9,7 +9,7 @@ import (
 
 	"github.com/begonia-org/begonia"
 	cfg "github.com/begonia-org/begonia/config"
-	"github.com/begonia-org/begonia/internal/pkg/logger"
+	"github.com/begonia-org/begonia/transport"
 	appApi "github.com/begonia-org/go-sdk/api/app/v1"
 	api "github.com/begonia-org/go-sdk/api/user/v1"
 	c "github.com/smartystreets/goconvey/convey"
@@ -28,7 +28,7 @@ func testGetAllForbiddenUsers(t *testing.T) {
 		if begonia.Env != "" {
 			env = begonia.Env
 		}
-		repo := NewUserRepo(cfg.ReadConfig(env), logger.Log)
+		repo := NewUserRepo(cfg.ReadConfig(env), transport.Log)
 		snk, _ := tiga.NewSnowflake(1)
 		// rand.Seed(time.Now().UnixNano())
 		rand := rand.New(rand.NewSource(time.Now().UnixNano()))
@@ -52,7 +52,7 @@ func testGetAllForbiddenUsers(t *testing.T) {
 				t.Errorf("add user error:%v", err)
 			}
 		}
-		operator := NewOperator(cfg.ReadConfig(env), logger.Log)
+		operator := NewOperator(cfg.ReadConfig(env), transport.Log)
 		var err error
 		users, err = operator.GetAllForbiddenUsers(context.Background())
 		c.So(err, c.ShouldBeNil)
@@ -73,14 +73,14 @@ func testFlashUsersCache(t *testing.T) {
 		if begonia.Env != "" {
 			env = begonia.Env
 		}
-		operator := NewOperator(cfg.ReadConfig(env), logger.Log)
+		operator := NewOperator(cfg.ReadConfig(env), transport.Log)
 		// operator.(*dataOperatorRepo).local.OnStart()
 		operator.OnStart()
 		lock, err := operator.Locker(context.Background(), "test:user:blacklist:lock", 3*time.Second)
 		c.So(err, c.ShouldBeNil)
-		defer func(){
-            _=lock.UnLock(context.TODO())
-        }()
+		defer func() {
+			_ = lock.UnLock(context.TODO())
+		}()
 		err = operator.FlashUsersCache(context.Background(), "test:user:blacklist", users, 10*time.Second)
 		c.So(err, c.ShouldBeNil)
 		isOK := true
@@ -109,7 +109,7 @@ func testGetAllApp(t *testing.T) {
 		if begonia.Env != "" {
 			env = begonia.Env
 		}
-		repo := NewAppRepo(cfg.ReadConfig(env), logger.Log)
+		repo := NewAppRepo(cfg.ReadConfig(env), transport.Log)
 		snk, _ := tiga.NewSnowflake(1)
 		for i := 0; i < 10; i++ {
 			appAccess, _ := generateRandomString(32)
@@ -128,7 +128,7 @@ func testGetAllApp(t *testing.T) {
 
 			c.So(err, c.ShouldBeNil)
 		}
-		operator := NewOperator(cfg.ReadConfig(env), logger.Log)
+		operator := NewOperator(cfg.ReadConfig(env), transport.Log)
 		var err error
 		apps, err = operator.GetAllApps(context.Background())
 		c.So(err, c.ShouldBeNil)
@@ -142,7 +142,7 @@ func testFlashAppsCache(t *testing.T) {
 		if begonia.Env != "" {
 			env = begonia.Env
 		}
-		operator := NewOperator(cfg.ReadConfig(env), logger.Log)
+		operator := NewOperator(cfg.ReadConfig(env), transport.Log)
 		err := operator.FlashAppsCache(context.Background(), "test:app:blacklist", apps, 10*time.Second)
 		c.So(err, c.ShouldBeNil)
 		isOK := true
@@ -164,7 +164,7 @@ func testLastUpdated(t *testing.T) {
 		if begonia.Env != "" {
 			env = begonia.Env
 		}
-		operator := NewOperator(cfg.ReadConfig(env), logger.Log)
+		operator := NewOperator(cfg.ReadConfig(env), transport.Log)
 
 		t, err := operator.LastUpdated(context.Background(), "test:user:blacklist")
 		c.So(err, c.ShouldBeNil)
@@ -177,7 +177,7 @@ func testWatcher(t *testing.T) {
 		if begonia.Env != "" {
 			env = begonia.Env
 		}
-		operator := NewOperator(cfg.ReadConfig(env), logger.Log)
+		operator := NewOperator(cfg.ReadConfig(env), transport.Log)
 		updated := ""
 		deleted := ""
 		go func() {
@@ -197,11 +197,11 @@ func testWatcher(t *testing.T) {
 		uid := snk.GenerateIDString()
 		err := operator.(*dataOperatorRepo).data.etcd.Put(context.Background(), fmt.Sprintf("/test/user/info/%s", uid), fmt.Sprintf("user-%s", time.Now().Format("20060102150405")))
 		c.So(err, c.ShouldBeNil)
-		time.Sleep(1 * time.Second)
+		time.Sleep(2 * time.Second)
 
 		err = operator.(*dataOperatorRepo).data.etcd.Delete(context.Background(), fmt.Sprintf("/test/user/info/%s", uid))
 		c.So(err, c.ShouldBeNil)
-		time.Sleep(1 * time.Second)
+		time.Sleep(3 * time.Second)
 		c.So(updated, c.ShouldEqual, fmt.Sprintf("/test/user/info/%s", uid))
 		c.So(deleted, c.ShouldEqual, fmt.Sprintf("/test/user/info/%s", uid))
 	})
