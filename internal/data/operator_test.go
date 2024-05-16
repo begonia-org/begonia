@@ -197,11 +197,11 @@ func testWatcher(t *testing.T) {
 		uid := snk.GenerateIDString()
 		err := operator.(*dataOperatorRepo).data.etcd.Put(context.Background(), fmt.Sprintf("/test/user/info/%s", uid), fmt.Sprintf("user-%s", time.Now().Format("20060102150405")))
 		c.So(err, c.ShouldBeNil)
-		time.Sleep(1 * time.Second)
+		time.Sleep(2 * time.Second)
 
 		err = operator.(*dataOperatorRepo).data.etcd.Delete(context.Background(), fmt.Sprintf("/test/user/info/%s", uid))
 		c.So(err, c.ShouldBeNil)
-		time.Sleep(1 * time.Second)
+		time.Sleep(3 * time.Second)
 		c.So(updated, c.ShouldEqual, fmt.Sprintf("/test/user/info/%s", uid))
 		c.So(deleted, c.ShouldEqual, fmt.Sprintf("/test/user/info/%s", uid))
 	})
