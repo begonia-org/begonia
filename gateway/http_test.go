@@ -145,7 +145,8 @@ func testRequestGet(t *testing.T) {
 
 		c.So(err, c.ShouldBeNil)
 		c.So(resp.StatusCode, c.ShouldEqual, http.StatusOK)
-		c.So(resp.Header.Get("test"), c.ShouldBeEmpty)
+		c.So(resp.Header.Get("test"), c.ShouldEqual, "test")
+		c.So(resp.Header.Get("content-type"), c.ShouldEqual, "application/json")
 		c.So(resp.Header.Get("trace_id"), c.ShouldEqual, "123456")
 		defer resp.Body.Close()
 		body, err := io.ReadAll(resp.Body)
@@ -266,6 +267,7 @@ func testRequestPost(t *testing.T) {
 		resp, err := http.DefaultClient.Do(req)
 		c.So(err, c.ShouldBeNil)
 		c.So(resp.StatusCode, c.ShouldEqual, http.StatusOK)
+		c.So(resp.Header.Get("content-type"), c.ShouldEqual, "application/octet-stream")
 		defer resp.Body.Close()
 		body, err := io.ReadAll(resp.Body)
 		c.So(err, c.ShouldBeNil)

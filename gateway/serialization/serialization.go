@@ -51,7 +51,7 @@ func (d *BinaryDecoder) fn() string {
 func (d *BinaryDecoder) Decode(v interface{}) error {
 	if v == nil {
 		return nil
-	
+
 	}
 	rv := reflect.ValueOf(v).Elem() // assert it must be a pointer
 	if rv.Kind() != reflect.Struct {
@@ -123,7 +123,11 @@ func (m *RawBinaryUnmarshaler) ContentType(v interface{}) string {
 		typ := dpb.Type().Descriptor().Name()
 		if typ == "HttpBody" {
 			if httpBody, err := ConvertDynamicMessageToHttpBody(dpb); err == nil && httpBody != nil {
-				return httpBody.GetContentType()
+				if t := httpBody.GetContentType(); t != "" {
+					return t
+				}
+				return "application/octet-stream"
+
 			}
 		}
 	}

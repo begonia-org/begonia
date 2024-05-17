@@ -67,7 +67,7 @@ func (cors *CorsHandler) Handle(h http.Handler) http.Handler {
 					preflightHandler(w, r)
 					return
 				}
-			}else{
+			} else {
 				Log.Errorf(r.Context(), "origin:%s not allowed", clientOrigin)
 				w.WriteHeader(http.StatusForbidden)
 				return
@@ -288,12 +288,14 @@ func HandleErrorWithLogger(logger logger.Logger) runtime.ErrorHandlerFunc {
 	}
 }
 func writeHttpHeaders(w http.ResponseWriter, key string, value []string) {
-	// del Grpc-Metadata
 	if httpKey := gosdk.GetHttpHeaderKey(key); httpKey != "" {
 		for _, v := range value {
 			w.Header().Del(key)
 			if v != "" {
 				if strings.EqualFold(httpKey, "Content-Type") {
+					if v == "application/grpc" {
+						continue
+					}
 					w.Header().Set(httpKey, v)
 				} else {
 					w.Header().Add(httpKey, v)
@@ -320,6 +322,7 @@ func HttpResponseBodyModify(ctx context.Context, w http.ResponseWriter, msg prot
 	for key, value := range w.Header() {
 		if strings.HasPrefix(key, "Grpc-Metadata-") {
 			w.Header().Del(key)
+
 		}
 		writeHttpHeaders(w, key, value)
 		if strings.HasSuffix(http.CanonicalHeaderKey(key), "X-Http-Code") {
