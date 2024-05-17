@@ -82,7 +82,7 @@ func newTestServer(gwPort, randomNumber int) (*gateway.GrpcServerOptions, *gatew
 	// log.Printf("env: %s", env)
 	cnf := config.ReadConfig(env)
 	conf := cfg.NewConfig(cnf)
-	cors := &gateway.CorsMiddleware{
+	cors := &gateway.CorsHandler{
 		Cors: conf.GetCorsConfig(),
 	}
 	opts.HttpHandlers = append(opts.HttpHandlers, cors.Handle)
@@ -111,9 +111,10 @@ func testRegisterClient(t *testing.T) {
 		pb, err := os.ReadFile(pbFile)
 		c.So(err, c.ShouldBeNil)
 		pd, err := gateway.NewDescriptionFromBinary(pb, filepath.Join("tmp", "test-pd"))
-		t.Logf("pd:%+v", pd.GetGatewayJsonSchema())
+		// t.Logf("pd:%+v", pd.GetGatewayJsonSchema())
 		c.So(err, c.ShouldBeNil)
-
+		c.So(pd.GetMessageTypeByFullName("helloworld.HelloRequest"), c.ShouldNotBeNil)
+		c.So(pd.GetDescription(),c.ShouldNotBeEmpty)
 		helloAddr := fmt.Sprintf("127.0.0.1:%d", randomNumber+2)
 		endps, err := gateway.NewLoadBalanceEndpoint(loadbalance.RRBalanceType, []*api.EndpointMeta{{
 			Addr:   helloAddr,
@@ -136,13 +137,16 @@ func testRequestGet(t *testing.T) {
 	c.Convey("test request GET", t, func() {
 		url := fmt.Sprintf("http://127.0.0.1:%d/api/v1/example/world?msg=hello", gwPort)
 		r, err := http.NewRequest(http.MethodGet, url, nil)
+		r.Header.Set("x-uid","12345678")
+		// r.Header.Set("Origin", "http://www.example.com")
 		c.So(err, c.ShouldBeNil)
 
 		resp, err := http.DefaultClient.Do(r)
 
 		c.So(err, c.ShouldBeNil)
 		c.So(resp.StatusCode, c.ShouldEqual, http.StatusOK)
-
+		c.So(resp.Header.Get("test"), c.ShouldBeEmpty)
+		c.So(resp.Header.Get("trace_id"), c.ShouldEqual, "123456")
 		defer resp.Body.Close()
 		body, err := io.ReadAll(resp.Body)
 		c.So(err, c.ShouldBeNil)
@@ -154,6 +158,35 @@ func testRequestGet(t *testing.T) {
 		c.So(rsp.Message, c.ShouldEqual, "hello")
 		c.So(rsp.Name, c.ShouldEqual, "world")
 
+		url = fmt.Sprintf("http://127.0.0.1:%d/api/v1/example/http-code?msg=hello", gwPort)
+		r, err = http.NewRequest(http.MethodGet, url, nil)
+		// r.Header.Set("Origin", "http://www.example.com")
+		c.So(err, c.ShouldBeNil)
+
+		resp, err = http.DefaultClient.Do(r)
+		c.So(err, c.ShouldBeNil)
+		c.So(resp.StatusCode, c.ShouldEqual, http.StatusIMUsed)
+
+	})
+}
+func testCors(t *testing.T) {
+	c.Convey("test cors", t, func() {
+		url := fmt.Sprintf("http://127.0.0.1:%d/api/v1/example/world?msg=hello", gwPort)
+		r, err := http.NewRequest(http.MethodOptions, url, nil)
+		r.Header.Set("Origin", "http://www.example.com")
+		c.So(err, c.ShouldBeNil)
+
+		resp, err := http.DefaultClient.Do(r)
+		c.So(err, c.ShouldBeNil)
+		c.So(resp.StatusCode, c.ShouldEqual, http.StatusNoContent)
+		c.So(resp.Header.Get("Access-Control-Allow-Origin"), c.ShouldEqual, "http://www.example.com")
+
+		r, err = http.NewRequest(http.MethodOptions, url, nil)
+		r.Header.Set("Origin", "http://www.begonia-org.com")
+		c.So(err, c.ShouldBeNil)
+		resp, err = http.DefaultClient.Do(r)
+		c.So(err, c.ShouldBeNil)
+		c.So(resp.StatusCode, c.ShouldEqual, http.StatusForbidden)
 	})
 }
 func testRequestPost(t *testing.T) {
@@ -436,7 +469,6 @@ func testRegisterLocalService(t *testing.T) {
 		c.So(resp.StatusCode, c.ShouldEqual, http.StatusNotFound)
 	})
 }
-
 func testLoadGlobalTypes(t *testing.T) {
 	c.Convey("test load global types", t, func() {
 
@@ -530,9 +562,11 @@ func testHttpError(t *testing.T) {
 		}
 	})
 }
+
 func TestHttp(t *testing.T) {
 	t.Run("testRegisterClient", testRegisterClient)
 	t.Run("testRequestGet", testRequestGet)
+	t.Run("testCors", testCors)
 	t.Run("testRequestPost", testRequestPost)
 	t.Run("testServerSideEvent", testServerSideEvent)
 	t.Run("testWebsocket", testWebsocket)

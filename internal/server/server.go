@@ -74,7 +74,7 @@ func NewGateway(cfg *gateway.GatewayConfig, conf *config.Config, services []serv
 	opts.Options = append(opts.Options, grpc.ChainUnaryInterceptor(pluginApply.UnaryInterceptorChains()...))
 	opts.Options = append(opts.Options, grpc.ChainStreamInterceptor(pluginApply.StreamInterceptorChains()...))
 
-	cors := &gateway.CorsMiddleware{
+	cors := &gateway.CorsHandler{
 		Cors: conf.GetCorsConfig(),
 	}
 	opts.HttpHandlers = append(opts.HttpHandlers, cors.Handle)

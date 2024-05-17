@@ -43,13 +43,14 @@ func preflightHandler(w http.ResponseWriter, _ *http.Request) {
 	// methods := []string{"GET", "HEAD", "POST", "PUT", "DELETE"}
 	w.Header().Set("Access-Control-Allow-Methods", "*")
 	w.Header().Set("Access-Control-Expose-Headers", "*")
+	w.WriteHeader(http.StatusNoContent)
 }
 
-type CorsMiddleware struct {
+type CorsHandler struct {
 	Cors []string
 }
 
-func (cors *CorsMiddleware) Handle(h http.Handler) http.Handler {
+func (cors *CorsHandler) Handle(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if clientOrigin := r.Header.Get("Origin"); clientOrigin != "" {
 			var isAllowed bool
@@ -66,6 +67,10 @@ func (cors *CorsMiddleware) Handle(h http.Handler) http.Handler {
 					preflightHandler(w, r)
 					return
 				}
+			}else{
+				Log.Errorf(r.Context(), "origin:%s not allowed", clientOrigin)
+				w.WriteHeader(http.StatusForbidden)
+				return
 			}
 		}
 		h.ServeHTTP(w, r)
@@ -145,8 +150,9 @@ func (log *LoggerMiddleware) Name() string {
 }
 func (log *LoggerMiddleware) logger(ctx context.Context, fullMethod string, err error, elapsed time.Duration) {
 	code := status.Code(err)
+	httpCode := runtime.HTTPStatusFromCode(code)
 	logger := log.log.WithFields(logrus.Fields{
-		"status":  code,
+		"status":  httpCode,
 		"elapsed": elapsed.String(),
 		"name":    fullMethod,
 		"module":  "request",
@@ -180,9 +186,7 @@ func (log *LoggerMiddleware) StreamInterceptor(srv interface{}, ss grpc.ServerSt
 			log.logger(ss.Context(), info.FullMethod, err, elapsed)
 		}
 	}()
-	// md, ok := metadata.FromIncomingContext(ss.Context())
 
-	// reqId := uuid.New().String()
 	ctx := ss.Context()
 
 	err = handler(srv, ss)
@@ -284,6 +288,7 @@ func HandleErrorWithLogger(logger logger.Logger) runtime.ErrorHandlerFunc {
 	}
 }
 func writeHttpHeaders(w http.ResponseWriter, key string, value []string) {
+	// del Grpc-Metadata
 	if httpKey := gosdk.GetHttpHeaderKey(key); httpKey != "" {
 		for _, v := range value {
 			w.Header().Del(key)
