@@ -10,9 +10,9 @@ import (
 
 type WebsocketForwarder interface {
 	http.ResponseWriter
-	Read() ([]byte, error)
+	// Read() ([]byte, error)
 	Write([]byte) (int, error)
-	Close() error
+	// Close() error
 	NextReader() (io.Reader, error)
 }
 
@@ -34,19 +34,6 @@ func NewWebsocketForwarder(w http.ResponseWriter, req *http.Request, responseTyp
 	return &websocketForwarder{w, conn, responseType}, nil
 }
 func (w *websocketForwarder) Flush() {
-	// w.ResponseWriter.(http.Flusher).Flush()
-}
-func (w *websocketForwarder) Close() error {
-	// _ = w.stream.CloseSend()
-	return w.websocket.Close()
-}
-func (w *websocketForwarder) Read() ([]byte, error) {
-	_, msg, err := w.websocket.ReadMessage() // 读取消息
-	if err != nil {
-		return nil, err
-	}
-	return msg, nil
-
 }
 func (w *websocketForwarder) NextReader() (io.Reader, error) {
 
