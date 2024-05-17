@@ -9,11 +9,11 @@ import (
 
 	"github.com/begonia-org/begonia"
 	"github.com/begonia-org/begonia/config"
+	"github.com/begonia-org/begonia/gateway"
 	"github.com/begonia-org/begonia/internal/biz"
 	"github.com/begonia-org/begonia/internal/biz/endpoint"
 	"github.com/begonia-org/begonia/internal/data"
 	cfg "github.com/begonia-org/begonia/internal/pkg/config"
-	"github.com/begonia-org/begonia/transport"
 	loadbalance "github.com/begonia-org/go-loadbalancer"
 	appApi "github.com/begonia-org/go-sdk/api/app/v1"
 	api "github.com/begonia-org/go-sdk/api/user/v1"
@@ -30,11 +30,11 @@ func newDataOperatorUsecase() *biz.DataOperatorUsecase {
 		env = begonia.Env
 	}
 	config := config.ReadConfig(env)
-	repo := data.NewEndpointRepo(config, transport.Log)
-	repoData := data.NewOperator(config, transport.Log)
+	repo := data.NewEndpointRepo(config, gateway.Log)
+	repoData := data.NewOperator(config, gateway.Log)
 	cnf := cfg.NewConfig(config)
 	watcher := endpoint.NewWatcher(cnf, repo)
-	return biz.NewDataOperatorUsecase(repoData, cnf, transport.Log, watcher, repo)
+	return biz.NewDataOperatorUsecase(repoData, cnf, gateway.Log, watcher, repo)
 }
 
 func TestDo(t *testing.T) {
@@ -47,21 +47,21 @@ func TestDo(t *testing.T) {
 	}
 	config := config.ReadConfig(env)
 	cnf := cfg.NewConfig(config)
-	cache := data.NewLayered(config, transport.Log)
+	cache := data.NewLayered(config, gateway.Log)
 	_ = cache.Del(context.Background(), "begonia:user:black:lock")
 	_ = cache.Del(context.Background(), "begonia:user:black:last_updated")
-	opts := &transport.GrpcServerOptions{
-		Middlewares:     make([]transport.GrpcProxyMiddleware, 0),
+	opts := &gateway.GrpcServerOptions{
+		Middlewares:     make([]gateway.GrpcProxyMiddleware, 0),
 		Options:         make([]grpc.ServerOption, 0),
 		PoolOptions:     make([]loadbalance.PoolOptionsBuildOption, 0),
 		HttpMiddlewares: make([]gwRuntime.ServeMuxOption, 0),
 		HttpHandlers:    make([]func(http.Handler) http.Handler, 0),
 	}
-	gwCnf := &transport.GatewayConfig{
+	gwCnf := &gateway.GatewayConfig{
 		GatewayAddr:   "127.0.0.1:9527",
 		GrpcProxyAddr: "127.0.0.1:12148",
 	}
-	transport.New(gwCnf, opts)
+	gateway.New(gwCnf, opts)
 	c.Convey("test data operator do success", t, func() {
 		u1 := &api.Users{
 			Name:      fmt.Sprintf("user-data-operator-%s", time.Now().Format("20060102150405")),

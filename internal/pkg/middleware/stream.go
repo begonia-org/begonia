@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/begonia-org/begonia/internal/pkg/errors"
 	gosdk "github.com/begonia-org/go-sdk"
 	api "github.com/begonia-org/go-sdk/api/plugin/v1"
 	common "github.com/begonia-org/go-sdk/common/api/v1"
@@ -57,7 +56,7 @@ func (s *grpcPluginStream) RecvMsg(m interface{}) error {
 
 	anyReq, err := anypb.New(m.(protoreflect.ProtoMessage))
 	if err != nil {
-		return errors.New(fmt.Errorf("new any error: %w", err), int32(common.Code_PARAMS_ERROR), codes.InvalidArgument, "new_any")
+		return gosdk.NewError(fmt.Errorf("new any error: %w", err), int32(common.Code_PARAMS_ERROR), codes.InvalidArgument, "new_any")
 
 	}
 	rsp, err := s.plugin.Call(s.Context(), &api.PluginRequest{
@@ -65,7 +64,7 @@ func (s *grpcPluginStream) RecvMsg(m interface{}) error {
 		Request:        anyReq,
 	})
 	if err != nil {
-		return errors.New(fmt.Errorf("call %s plugin error: %w", s.plugin.Name(), err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "call_plugin")
+		return gosdk.NewError(fmt.Errorf("call %s plugin error: %w", s.plugin.Name(), err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "call_plugin")
 
 	}
 	md, ok := metadata.FromIncomingContext(s.ctx)
@@ -79,7 +78,7 @@ func (s *grpcPluginStream) RecvMsg(m interface{}) error {
 	if newRequest != nil {
 		err = newRequest.UnmarshalTo(m.(proto.Message))
 		if err != nil {
-			return errors.New(fmt.Errorf("unmarshal to request error: %w", err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "unmarshal_to_request")
+			return gosdk.NewError(fmt.Errorf("unmarshal to request error: %w", err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "unmarshal_to_request")
 		}
 	}
 	s.ctx = metadata.NewIncomingContext(s.ctx, md)

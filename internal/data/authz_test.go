@@ -7,9 +7,9 @@ import (
 
 	"github.com/begonia-org/begonia"
 	cfg "github.com/begonia-org/begonia/config"
-	"github.com/begonia-org/begonia/transport"
 	c "github.com/smartystreets/goconvey/convey"
 	"github.com/spark-lence/tiga"
+	"github.com/begonia-org/begonia/gateway"
 )
 
 var token = ""
@@ -21,7 +21,7 @@ func testCacheToken(t *testing.T) {
 		if begonia.Env != "" {
 			env = begonia.Env
 		}
-		repo := NewAuthzRepo(cfg.ReadConfig(env), transport.Log)
+		repo := NewAuthzRepo(cfg.ReadConfig(env), gateway.Log)
 		snk, _ := tiga.NewSnowflake(1)
 		token = snk.GenerateIDString()
 		err := repo.CacheToken(context.TODO(), "test:token", token, 5*time.Second)
@@ -33,7 +33,7 @@ func testGetToken(t *testing.T) {
 	if begonia.Env != "" {
 		env = begonia.Env
 	}
-	repo := NewAuthzRepo(cfg.ReadConfig(env), transport.Log)
+	repo := NewAuthzRepo(cfg.ReadConfig(env), gateway.Log)
 	c.Convey("test get token", t, func() {
 
 		tk := repo.GetToken(context.TODO(), "test:token")
@@ -52,7 +52,7 @@ func deleteToken(t *testing.T) {
 	if begonia.Env != "" {
 		env = begonia.Env
 	}
-	repo := NewAuthzRepo(cfg.ReadConfig(env), transport.Log)
+	repo := NewAuthzRepo(cfg.ReadConfig(env), gateway.Log)
 	c.Convey("test delete exp token", t, func() {
 		err := repo.DelToken(context.TODO(), "test:token")
 		c.So(err, c.ShouldBeNil)
@@ -73,7 +73,7 @@ func testPutBlacklist(t *testing.T) {
 	if begonia.Env != "" {
 		env = begonia.Env
 	}
-	repo := NewAuthzRepo(cfg.ReadConfig(env), transport.Log)
+	repo := NewAuthzRepo(cfg.ReadConfig(env), gateway.Log)
 	c.Convey("test put blacklist", t, func() {
 		err := repo.PutBlackList(context.TODO(), token)
 		c.So(err, c.ShouldBeNil)
@@ -84,7 +84,7 @@ func testCheckInBlackList(t *testing.T) {
 	if begonia.Env != "" {
 		env = begonia.Env
 	}
-	repo := NewAuthzRepo(cfg.ReadConfig(env), transport.Log)
+	repo := NewAuthzRepo(cfg.ReadConfig(env), gateway.Log)
 	c.Convey("test check in blacklist", t, func() {
 
 		b, err := repo.CheckInBlackList(context.TODO(), token)

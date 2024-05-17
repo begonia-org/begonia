@@ -9,12 +9,13 @@ import (
 
 	"github.com/begonia-org/begonia"
 	"github.com/begonia-org/begonia/config"
+	"github.com/begonia-org/begonia/gateway"
 	"github.com/begonia-org/begonia/internal/biz"
 	"github.com/begonia-org/begonia/internal/data"
 	cfg "github.com/begonia-org/begonia/internal/pkg/config"
-	"github.com/begonia-org/begonia/transport"
 	api "github.com/begonia-org/go-sdk/api/user/v1"
 	c "github.com/smartystreets/goconvey/convey"
+
 	"github.com/spark-lence/tiga"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -31,7 +32,7 @@ func newUserBiz() *biz.UserUsecase {
 		env = begonia.Env
 	}
 	config := config.ReadConfig(env)
-	repo := data.NewUserRepo(config, transport.Log)
+	repo := data.NewUserRepo(config, gateway.Log)
 	cnf := cfg.NewConfig(config)
 	return biz.NewUserUsecase(repo, cnf)
 }

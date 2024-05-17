@@ -5,7 +5,7 @@ import (
 	"fmt"
 	sysRuntime "runtime"
 
-	"github.com/begonia-org/begonia/internal/pkg/errors"
+	gosdk "github.com/begonia-org/go-sdk"
 	common "github.com/begonia-org/go-sdk/common/api/v1"
 	"github.com/begonia-org/go-sdk/logger"
 	"google.golang.org/grpc"
@@ -25,7 +25,7 @@ func (e *Exception) UnaryInterceptor(ctx context.Context, req interface{}, info 
 			n := sysRuntime.Stack(buf, false) // false 表示不需要所有goroutine的调用栈
 			stackTrace := string(buf[:n])
 			err = fmt.Errorf("panic: %v\nStack trace: %s", p, stackTrace)
-			err = errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "panic")
+			err = gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "panic")
 		}
 	}()
 	resp, err = handler(ctx, req)
@@ -42,7 +42,7 @@ func (e *Exception) StreamInterceptor(srv interface{}, ss grpc.ServerStream, inf
 			stackTrace := string(buf[:n])
 
 			err := fmt.Errorf("panic: %v\nStack trace: %s", p, stackTrace)
-			err = errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "panic")
+			err = gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "panic")
 			_ = ss.SendMsg(err)
 		}
 	}()

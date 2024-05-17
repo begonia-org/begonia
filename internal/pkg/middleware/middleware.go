@@ -9,12 +9,13 @@ import (
 	"github.com/begonia-org/begonia/internal/data"
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/middleware/auth"
-	"github.com/begonia-org/begonia/transport"
 	goloadbalancer "github.com/begonia-org/go-loadbalancer"
 	gosdk "github.com/begonia-org/go-sdk"
 	"github.com/begonia-org/go-sdk/logger"
 	"github.com/spark-lence/tiga"
 	"google.golang.org/grpc"
+	"github.com/begonia-org/begonia/gateway"
+
 )
 
 // var Plugins = map[string]gosdk.GrpcPlugin{
@@ -33,7 +34,7 @@ func New(config *config.Config,
 	plugins := map[string]gosdk.LocalPlugin{
 		"onlyJWT":           jwt,
 		"onlyAK":            ak,
-		"logger":            transport.NewLoggerMiddleware(log),
+		"logger":            gateway.NewLoggerMiddleware(log),
 		"exception":         NewException(log),
 		"http":              NewHttp(),
 		"auth":              NewAuth(ak, jwt, apiKey),
@@ -55,7 +56,7 @@ func New(config *config.Config,
 
 	rpcPlugins, err := config.GetRPCPlugins()
 	if err != nil {
-		log.Errorf(context.TODO(),"get rpc plugins error:%v", err)
+		log.Errorf(context.TODO(), "get rpc plugins error:%v", err)
 		return pluginsApply
 	}
 	for _, rpc := range rpcPlugins {

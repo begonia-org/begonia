@@ -15,13 +15,13 @@ import (
 	"github.com/agiledragon/gomonkey/v2"
 	"github.com/begonia-org/begonia"
 	"github.com/begonia-org/begonia/config"
+	"github.com/begonia-org/begonia/gateway"
 	"github.com/begonia-org/begonia/internal/biz/endpoint"
 	"github.com/begonia-org/begonia/internal/data"
 	cfg "github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/errors"
-	
+
 	"github.com/begonia-org/begonia/internal/pkg/routers"
-	"github.com/begonia-org/begonia/transport"
 	gwRuntime "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 
 	goloadbalancer "github.com/begonia-org/go-loadbalancer"
@@ -43,14 +43,14 @@ func newEndpointBiz() *endpoint.EndpointUsecase {
 	}
 	conf := config.ReadConfig(env)
 	cnf := cfg.NewConfig(conf)
-	repo := data.NewEndpointRepo(conf, transport.Log)
+	repo := data.NewEndpointRepo(conf, gateway.Log)
 	return endpoint.NewEndpointUsecase(repo, nil, cnf)
 }
 
 func testAddEndpoint(t *testing.T) {
 	endpointBiz := newEndpointBiz()
 	_, filename, _, _ := runtime.Caller(0)
-	pbFile := filepath.Join(filepath.Dir(filepath.Dir(filepath.Dir(filename))), "integration", "testdata", "helloworld.pb")
+	pbFile := filepath.Join(filepath.Dir(filepath.Dir(filepath.Dir(filepath.Dir(filename)))), "testdata", "helloworld.pb")
 	pb, err := os.ReadFile(pbFile)
 	c.Convey("Test Add Endpoint", t, func() {
 
@@ -217,7 +217,7 @@ func testPatchEndpoint(t *testing.T) {
 func testListEndpoints(t *testing.T) {
 	endpointBiz := newEndpointBiz()
 	_, filename, _, _ := runtime.Caller(0)
-	pbFile := filepath.Join(filepath.Dir(filepath.Dir(filepath.Dir(filename))), "integration", "testdata", "helloworld.pb")
+	pbFile := filepath.Join(filepath.Dir(filepath.Dir(filepath.Dir(filepath.Dir(filename)))),  "testdata", "helloworld.pb")
 	pb, err := os.ReadFile(pbFile)
 	if err != nil {
 		t.Error(err)
@@ -298,18 +298,18 @@ func testWatcherUpdate(t *testing.T) {
 		return
 	}
 	val, _ := json.Marshal(value)
-	opts := &transport.GrpcServerOptions{
-		Middlewares:     make([]transport.GrpcProxyMiddleware, 0),
+	opts := &gateway.GrpcServerOptions{
+		Middlewares:     make([]gateway.GrpcProxyMiddleware, 0),
 		Options:         make([]grpc.ServerOption, 0),
 		PoolOptions:     make([]loadbalance.PoolOptionsBuildOption, 0),
 		HttpMiddlewares: make([]gwRuntime.ServeMuxOption, 0),
 		HttpHandlers:    make([]func(http.Handler) http.Handler, 0),
 	}
-	gwCnf := &transport.GatewayConfig{
+	gwCnf := &gateway.GatewayConfig{
 		GatewayAddr:   "127.0.0.1:9527",
 		GrpcProxyAddr: "127.0.0.1:12148",
 	}
-	transport.New(gwCnf, opts)
+	gateway.New(gwCnf, opts)
 	routers.NewHttpURIRouteToSrvMethod()
 	c.Convey("Test Watcher Update", t, func() {
 
@@ -335,7 +335,7 @@ func testWatcherUpdate(t *testing.T) {
 		c.So(err.Error(), c.ShouldContainSubstring, "Unknown load balance type")
 		patch.Reset()
 
-		patch2 := gomonkey.ApplyFuncReturn((*transport.GatewayServer).RegisterService, fmt.Errorf("register error"))
+		patch2 := gomonkey.ApplyFuncReturn((*gateway.GatewayServer).RegisterService, fmt.Errorf("register error"))
 		defer patch2.Reset()
 
 		err = watcher.Handle(context.TODO(), mvccpb.PUT, cnf.GetServiceKey(epId), string(val))
@@ -374,7 +374,7 @@ func testWatcherDel(t *testing.T) {
 		err = watcher.Handle(context.TODO(), mvccpb.DELETE, cnf.GetServiceKey(epId), "{}")
 		c.So(err, c.ShouldNotBeNil)
 
-		patch := gomonkey.ApplyFuncReturn((*transport.HttpEndpointImpl).DeleteEndpoint, fmt.Errorf("unregister error"))
+		patch := gomonkey.ApplyFuncReturn((*gateway.HttpEndpointImpl).DeleteEndpoint, fmt.Errorf("unregister error"))
 		defer patch.Reset()
 		err = watcher.Handle(context.TODO(), mvccpb.DELETE, cnf.GetServiceKey(epId), string(val))
 		c.So(err, c.ShouldNotBeNil)

@@ -160,7 +160,7 @@ func (d *Data) BatchUpdates(ctx context.Context, models []SourceType) error {
 
 	if size == 1 {
 		if err != nil {
-			return errors.New("获取第一个元素失败")
+			return fmt.Errorf("获取第一个元素失败")
 		}
 		return d.db.Update(ctx, model, model)
 	}
@@ -264,7 +264,6 @@ func (d *Data) DelCacheByTx(ctx context.Context, keys ...string) redis.Pipeliner
 	}
 	return pipe
 }
-
 
 func (d *Data) BatchEtcdDelete(models []SourceType) error {
 	if len(models) == 0 {

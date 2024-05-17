@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/begonia-org/begonia/internal/pkg/errors"
 	"github.com/begonia-org/begonia/internal/pkg/routers"
 	gosdk "github.com/begonia-org/go-sdk"
 	_ "github.com/begonia-org/go-sdk/api/app/v1"
@@ -84,16 +83,6 @@ func getClientMessageMap() map[int32]string {
 
 }
 
-func clientMessageFromCode(code codes.Code) string {
-	switch code {
-	case codes.ResourceExhausted:
-		return "The requested resource size exceeds the server limit."
-	default:
-		return "Unknown error"
-
-	}
-}
-
 //	func isValidContentType(ct string) bool {
 //		mimeType, _, err := mime.ParseMediaType(ct)
 //		return err == nil && mimeType != ""
@@ -137,7 +126,7 @@ func HttpResponseBodyModify(ctx context.Context, w http.ResponseWriter, msg prot
 			codeStr := value[0]
 			code, err := strconv.ParseInt(codeStr, 10, 32)
 			if err != nil {
-				return errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "internal_error")
+				return gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "internal_error")
 			}
 			httpCode = int(code)
 
@@ -238,7 +227,7 @@ func grpcToHttpResponse(rsp interface{}, err error) (*common.HttpResponse, error
 		data := rsp.(protoreflect.ProtoMessage)
 		anyData, err = toStructMessage(data)
 		if err != nil {
-			return nil, errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "internal_error")
+			return nil, gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "internal_error")
 		}
 	}
 

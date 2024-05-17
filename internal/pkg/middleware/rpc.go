@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/begonia-org/begonia/internal/pkg/errors"
 	goloadbalancer "github.com/begonia-org/go-loadbalancer"
 	lb "github.com/begonia-org/go-loadbalancer"
 	gosdk "github.com/begonia-org/go-sdk"
@@ -59,14 +58,14 @@ func (p *pluginImpl) UnaryInterceptor(ctx context.Context, req any, info *grpc.U
 	}
 	cn, err := endpoint.Get(ctx)
 	if err != nil {
-		return nil, errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_connection")
+		return nil, gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_connection")
 	}
 	defer endpoint.AfterTransform(ctx, cn.((goloadbalancer.Connection)))
 	conn := cn.(goloadbalancer.Connection).ConnInstance().(*grpc.ClientConn)
 	plugin := api.NewPluginServiceClient(conn)
 	anyReq, err := anypb.New(req.(proto.Message))
 	if err != nil {
-		return nil, errors.New(fmt.Errorf("new any to plugin error: %w", err), int32(common.Code_PARAMS_ERROR), codes.InvalidArgument, "new_any")
+		return nil, gosdk.NewError(fmt.Errorf("new any to plugin error: %w", err), int32(common.Code_PARAMS_ERROR), codes.InvalidArgument, "new_any")
 
 	}
 	rsp, err := plugin.Call(ctx, &api.PluginRequest{
@@ -74,7 +73,7 @@ func (p *pluginImpl) UnaryInterceptor(ctx context.Context, req any, info *grpc.U
 		FullMethodName: info.FullMethod,
 	})
 	if err != nil {
-		return nil, errors.New(fmt.Errorf("call plugin error: %w", err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "call_plugin")
+		return nil, gosdk.NewError(fmt.Errorf("call plugin error: %w", err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "call_plugin")
 	}
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
@@ -88,7 +87,7 @@ func (p *pluginImpl) UnaryInterceptor(ctx context.Context, req any, info *grpc.U
 	if newRequest != nil {
 		err = newRequest.UnmarshalTo(req.(proto.Message))
 		if err != nil {
-			return nil, errors.New(fmt.Errorf("unmarshal to request error: %w", err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "unmarshal_to_request")
+			return nil, gosdk.NewError(fmt.Errorf("unmarshal to request error: %w", err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "unmarshal_to_request")
 		}
 	}
 
@@ -98,7 +97,7 @@ func (p *pluginImpl) UnaryInterceptor(ctx context.Context, req any, info *grpc.U
 func (p *pluginImpl) getEndpoint(ctx context.Context) (lb.Endpoint, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		return nil, errors.New(fmt.Errorf("get metadata from context error"), int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_metadata")
+		return nil, gosdk.NewError(fmt.Errorf("get metadata from context error"), int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_metadata")
 	}
 	xforwardeds := md.Get("X-Forwarded-For")
 	clientIP := ""
@@ -111,7 +110,7 @@ func (p *pluginImpl) getEndpoint(ctx context.Context) (lb.Endpoint, error) {
 	}
 	endpoint, err := p.lb.Select(clientIP)
 	if err != nil {
-		return nil, errors.New(fmt.Errorf("select endpoint error: %w", err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "select_endpoint")
+		return nil, gosdk.NewError(fmt.Errorf("select endpoint error: %w", err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "select_endpoint")
 	}
 	return endpoint, nil
 
@@ -124,7 +123,7 @@ func (p *pluginImpl) Call(ctx context.Context, in *api.PluginRequest, opts ...gr
 	}
 	cn, err := endpoint.Get(ctx)
 	if err != nil {
-		return nil, errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_connection")
+		return nil, gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_connection")
 	}
 	defer endpoint.AfterTransform(ctx, cn.((goloadbalancer.Connection)))
 	conn := cn.(goloadbalancer.Connection).ConnInstance().(*grpc.ClientConn)
@@ -139,7 +138,7 @@ func (p *pluginImpl) GetPluginInfo(ctx context.Context, in *emptypb.Empty, opts 
 	}
 	cn, err := endpoint.Get(ctx)
 	if err != nil {
-		return nil, errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_connection")
+		return nil, gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_connection")
 	}
 	defer endpoint.AfterTransform(ctx, cn.((goloadbalancer.Connection)))
 	conn := cn.(goloadbalancer.Connection).ConnInstance().(*grpc.ClientConn)

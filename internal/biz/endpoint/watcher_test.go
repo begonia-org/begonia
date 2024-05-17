@@ -3,10 +3,10 @@ package endpoint_test
 import (
 	"github.com/begonia-org/begonia"
 	"github.com/begonia-org/begonia/config"
+	"github.com/begonia-org/begonia/gateway"
 	"github.com/begonia-org/begonia/internal/biz/endpoint"
 	"github.com/begonia-org/begonia/internal/data"
 	cfg "github.com/begonia-org/begonia/internal/pkg/config"
-	"github.com/begonia-org/begonia/transport"
 )
 
 func newWatcher() *endpoint.EndpointWatcher {
@@ -16,8 +16,6 @@ func newWatcher() *endpoint.EndpointWatcher {
 	}
 	conf := config.ReadConfig(env)
 	cnf := cfg.NewConfig(conf)
-	repo := data.NewEndpointRepo(conf, transport.Log)
-	return endpoint.NewWatcher(cnf,repo)
+	repo := data.NewEndpointRepo(conf, gateway.Log)
+	return endpoint.NewWatcher(cnf, repo)
 }
-
-
