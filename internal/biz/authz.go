@@ -10,6 +10,7 @@ import (
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/crypto"
 	"github.com/begonia-org/begonia/internal/pkg/errors"
+	gosdk "github.com/begonia-org/go-sdk"
 	api "github.com/begonia-org/go-sdk/api/user/v1"
 	common "github.com/begonia-org/go-sdk/common/api/v1"
 	"github.com/begonia-org/go-sdk/logger"
@@ -45,7 +46,7 @@ func (u *AuthzUsecase) DelToken(ctx context.Context, key string) error {
 func (u *AuthzUsecase) AuthSeed(ctx context.Context, in *api.AuthLogAPIRequest) (string, error) {
 	token, err := u.authCrypto.GenerateAuthSeed(in.Token)
 	if err != nil {
-		return "", errors.New(fmt.Errorf("auth seed generate %w", err), int32(api.UserSvrCode_USER_LOGIN_ERR), codes.InvalidArgument, "generate_seed")
+		return "", gosdk.NewError(fmt.Errorf("auth seed generate %w", err), int32(api.UserSvrCode_USER_LOGIN_ERR), codes.InvalidArgument, "generate_seed")
 	}
 	return token, nil
 
@@ -62,18 +63,18 @@ func (u *AuthzUsecase) getUserAuth(_ context.Context, in *api.LoginAPIRequest) (
 	now := time.Now().Unix()
 	if now-timestamp > 60 {
 
-		return nil, errors.New(errors.ErrTokenExpired, int32(api.UserSvrCode_USER_TOKEN_EXPIRE_ERR.Number()), codes.InvalidArgument, "种子有效期校验")
+		return nil, gosdk.NewError(errors.ErrTokenExpired, int32(api.UserSvrCode_USER_TOKEN_EXPIRE_ERR.Number()), codes.InvalidArgument, "种子有效期校验")
 	}
 	auth := in.Auth
 	authBytes, err := u.authCrypto.RSADecrypt(auth)
 
 	if err != nil {
-		return nil, errors.New(errors.ErrAuthDecrypt, int32(api.UserSvrCode_USER_AUTH_DECRYPT_ERR.Number()), codes.InvalidArgument, "login_info_rsa")
+		return nil, gosdk.NewError(errors.ErrAuthDecrypt, int32(api.UserSvrCode_USER_AUTH_DECRYPT_ERR.Number()), codes.InvalidArgument, "login_info_rsa")
 	}
 	userAuth := &api.UserAuth{}
 	err = json.Unmarshal([]byte(authBytes), userAuth)
 	if err != nil {
-		return nil, errors.New(errors.ErrDecode, int32(common.Code_AUTH_ERROR), codes.InvalidArgument, "login_info_decode")
+		return nil, gosdk.NewError(errors.ErrDecode, int32(common.Code_AUTH_ERROR), codes.InvalidArgument, "login_info_decode")
 	}
 	return userAuth, nil
 }
@@ -100,7 +101,7 @@ func (u *AuthzUsecase) GenerateJWT(ctx context.Context, user *api.Users, isKeepL
 
 	token, err := tiga.GenerateJWT(payload, secret)
 	if err != nil {
-		return "", errors.New(err, int32(api.UserSvrCode_USER_UNKNOWN), codes.Internal, "jwt_generate")
+		return "", gosdk.NewError(err, int32(api.UserSvrCode_USER_UNKNOWN), codes.Internal, "jwt_generate")
 
 	}
 	return token, nil
@@ -116,7 +117,7 @@ func (u *AuthzUsecase) Login(ctx context.Context, in *api.LoginAPIRequest) (*api
 	key, iv := u.config.GetAesConfig()
 	account, err := tiga.EncryptAES([]byte(key), userAuth.Account, iv)
 	if err != nil {
-		err := errors.New(errors.ErrEncrypt, int32(api.UserSvrCode_USER_ACCOUNT_ERR), codes.InvalidArgument, "accout_encrypt")
+		err := gosdk.NewError(errors.ErrEncrypt, int32(api.UserSvrCode_USER_ACCOUNT_ERR), codes.InvalidArgument, "accout_encrypt")
 		return nil, err
 	}
 
@@ -125,15 +126,15 @@ func (u *AuthzUsecase) Login(ctx context.Context, in *api.LoginAPIRequest) (*api
 		if err == nil || strings.Contains(err.Error(), "not found") {
 			err = errors.ErrUserNotFound
 		}
-		err := errors.New(err, int32(api.UserSvrCode_USER_NOT_FOUND_ERR), codes.NotFound, "user_query")
+		err := gosdk.NewError(err, int32(api.UserSvrCode_USER_NOT_FOUND_ERR), codes.NotFound, "user_query")
 		return nil, err
 	}
 	if user.Password != userAuth.Password {
-		err := errors.New(errors.ErrUserPasswordInvalid, int32(api.UserSvrCode_USER_NOT_FOUND_ERR), codes.NotFound, "password_match")
+		err := gosdk.NewError(errors.ErrUserPasswordInvalid, int32(api.UserSvrCode_USER_NOT_FOUND_ERR), codes.NotFound, "password_match")
 		return nil, err
 	}
 	if user.Status != api.USER_STATUS_ACTIVE {
-		err := errors.New(errors.ErrUserDisabled, int32(api.UserSvrCode_USER_DISABLED_ERR), codes.Unauthenticated, "user_query")
+		err := gosdk.NewError(errors.ErrUserDisabled, int32(api.UserSvrCode_USER_DISABLED_ERR), codes.Unauthenticated, "user_query")
 		return nil, err
 
 	}
@@ -154,15 +155,15 @@ func (u *AuthzUsecase) Logout(ctx context.Context, req *api.LogoutAPIRequest) er
 	md, ok := metadata.FromIncomingContext(ctx)
 
 	if !ok {
-		return errors.New(errors.ErrNoMetadata, int32(common.Code_METADATA_MISSING), codes.InvalidArgument, "metadata_missing")
+		return gosdk.NewError(errors.ErrNoMetadata, int32(common.Code_METADATA_MISSING), codes.InvalidArgument, "metadata_missing")
 	}
 	token := md.Get("x-token")
 	if len(token) == 0 {
-		return errors.New(errors.ErrTokenMissing, int32(common.Code_TOKEN_NOT_FOUND), codes.InvalidArgument, "token_missing")
+		return gosdk.NewError(errors.ErrTokenMissing, int32(common.Code_TOKEN_NOT_FOUND), codes.InvalidArgument, "token_missing")
 	}
 	err := u.repo.PutBlackList(ctx, tiga.GetMd5(token[0]))
 	if err != nil {
-		return errors.New(err, int32(common.Code_AUTH_ERROR), codes.Internal, "add_black_list")
+		return gosdk.NewError(err, int32(common.Code_AUTH_ERROR), codes.Internal, "add_black_list")
 	}
 	return nil
 

@@ -11,7 +11,6 @@ import (
 	"github.com/begonia-org/begonia/internal/pkg/migrate"
 	"github.com/begonia-org/begonia/internal/server"
 	"github.com/begonia-org/begonia/internal/service"
-	"github.com/begonia-org/begonia/transport"
 
 	"github.com/google/wire"
 
@@ -24,7 +23,7 @@ func InitOperatorApp(config *tiga.Configuration) *migrate.InitOperator {
 
 }
 
-func New(config *tiga.Configuration, log transport.Logger, endpoint string) GatewayWorker {
+func New(config *tiga.Configuration, log gateway.Logger, endpoint string) GatewayWorker {
 
 	panic(wire.Build(biz.ProviderSet, pkg.ProviderSet, data.ProviderSet, service.ProviderSet, daemon.ProviderSet, server.ProviderSet, NewGatewayWorkerImpl))
 

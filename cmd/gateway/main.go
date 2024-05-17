@@ -5,8 +5,9 @@ import (
 
 	"github.com/begonia-org/begonia/config"
 	"github.com/begonia-org/begonia/internal"
-	"github.com/begonia-org/begonia/transport"
 	"github.com/spf13/cobra"
+	"github.com/begonia-org/begonia/gateway"
+
 )
 
 // var ProviderSet = wire.NewSet(NewMasterCmd)
@@ -42,7 +43,7 @@ func NewGatewayCmd() *cobra.Command {
 			// name, _ := cmd.Flags().GetString("name")
 			env, _ := cmd.Flags().GetString("env")
 			config := config.ReadConfig(env)
-			worker := internal.New(config, transport.Log, endpoint)
+			worker := internal.New(config, gateway.Log, endpoint)
 			worker.Start()
 
 		},

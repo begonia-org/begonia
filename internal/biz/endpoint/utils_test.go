@@ -6,7 +6,7 @@ package endpoint
 // 	"reflect"
 // 	"testing"
 
-// 	"github.com/begonia-org/begonia/transport"
+// 	"github.com/begonia-org/begonia/gateway"
 // 	loadbalance "github.com/begonia-org/go-loadbalancer"
 // 	api "github.com/begonia-org/go-sdk/api/endpoint/v1"
 // 	gwRuntime "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -15,18 +15,18 @@ package endpoint
 // )
 
 // func TestNewEndpoint(t *testing.T) {
-// 	opts := &transport.GrpcServerOptions{
-// 		Middlewares:     make([]transport.GrpcProxyMiddleware, 0),
+// 	opts := &gateway.GrpcServerOptions{
+// 		Middlewares:     make([]gateway.GrpcProxyMiddleware, 0),
 // 		Options:         make([]grpc.ServerOption, 0),
 // 		PoolOptions:     make([]loadbalance.PoolOptionsBuildOption, 0),
 // 		HttpMiddlewares: make([]gwRuntime.ServeMuxOption, 0),
 // 		HttpHandlers:    make([]func(http.Handler) http.Handler, 0),
 // 	}
-// 	gwCnf := &transport.GatewayConfig{
+// 	gwCnf := &gateway.GatewayConfig{
 // 		GatewayAddr:   "127.0.0.1:9527",
 // 		GrpcProxyAddr: "127.0.0.1:12148",
 // 	}
-// 	transport.New(gwCnf, opts)
+// 	gateway.New(gwCnf, opts)
 // 	meta := []*api.EndpointMeta{{
 // 		Addr:   "127.0.0.1:12138",
 // 		Weight: 0,
@@ -50,7 +50,7 @@ package endpoint
 // 			name:               string(loadbalance.RRBalanceType),
 // 			endpoints:          meta,
 // 			exceptErr:          nil,
-// 			exceptEndpointType: reflect.TypeOf(transport.NewGrpcEndpoint("", nil)).Elem(),
+// 			exceptEndpointType: reflect.TypeOf(gateway.NewGrpcEndpoint("", nil)).Elem(),
 // 		},
 // 		{
 // 			name:               string(loadbalance.WRRBalanceType),
@@ -68,7 +68,7 @@ package endpoint
 // 			name:               string(loadbalance.ConsistentHashBalanceType),
 // 			endpoints:          meta,
 // 			exceptErr:          nil,
-// 			exceptEndpointType: reflect.TypeOf(transport.NewGrpcEndpoint("", nil)).Elem(),
+// 			exceptEndpointType: reflect.TypeOf(gateway.NewGrpcEndpoint("", nil)).Elem(),
 // 		},
 // 		{
 // 			name:               string(loadbalance.LCBalanceType),

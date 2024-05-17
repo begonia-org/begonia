@@ -9,12 +9,12 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"github.com/begonia-org/begonia/gateway"
+	"github.com/begonia-org/begonia/gateway/serialization"
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/middleware"
 	"github.com/begonia-org/begonia/internal/pkg/routers"
 	"github.com/begonia-org/begonia/internal/service"
-	"github.com/begonia-org/begonia/transport"
-	"github.com/begonia-org/begonia/transport/serialization"
 	loadbalance "github.com/begonia-org/go-loadbalancer"
 	common "github.com/begonia-org/go-sdk/common/api/v1"
 	"github.com/google/wire"
@@ -24,21 +24,21 @@ import (
 
 var ProviderSet = wire.NewSet(NewGatewayConfig, NewGateway)
 
-func NewGatewayConfig(gw string) *transport.GatewayConfig {
+func NewGatewayConfig(gw string) *gateway.GatewayConfig {
 	_, port, _ := net.SplitHostPort(gw)
 	p, _ := strconv.Atoi(port)
-	return &transport.GatewayConfig{
+	return &gateway.GatewayConfig{
 		GrpcProxyAddr: fmt.Sprintf(":%d", p+1),
 		GatewayAddr:   gw,
 	}
 }
-func readDesc(conf *config.Config) (transport.ProtobufDescription, error) {
+func readDesc(conf *config.Config) (gateway.ProtobufDescription, error) {
 	desc := conf.GetLocalAPIDesc()
 	bin, err := os.ReadFile(desc)
 	if err != nil {
 		return nil, fmt.Errorf("read desc file error:%w", err)
 	}
-	pd, err := transport.NewDescriptionFromBinary(bin, filepath.Dir(desc))
+	pd, err := gateway.NewDescriptionFromBinary(bin, filepath.Dir(desc))
 	if err != nil {
 		return nil, err
 	}
@@ -48,10 +48,10 @@ func readDesc(conf *config.Config) (transport.ProtobufDescription, error) {
 	}
 	return pd, nil
 }
-func NewGateway(cfg *transport.GatewayConfig, conf *config.Config, services []service.Service, pluginApply *middleware.PluginsApply) *transport.GatewayServer {
+func NewGateway(cfg *gateway.GatewayConfig, conf *config.Config, services []service.Service, pluginApply *middleware.PluginsApply) *gateway.GatewayServer {
 	// 参数选项
-	opts := &transport.GrpcServerOptions{
-		Middlewares:     make([]transport.GrpcProxyMiddleware, 0),
+	opts := &gateway.GrpcServerOptions{
+		Middlewares:     make([]gateway.GrpcProxyMiddleware, 0),
 		Options:         make([]grpc.ServerOption, 0),
 		PoolOptions:     make([]loadbalance.PoolOptionsBuildOption, 0),
 		HttpMiddlewares: make([]runtime.ServeMuxOption, 0),
@@ -63,9 +63,9 @@ func NewGateway(cfg *transport.GatewayConfig, conf *config.Config, services []se
 	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithMarshalerOption(runtime.MIMEWildcard, serialization.NewRawBinaryUnmarshaler()))
 	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithMarshalerOption("application/octet-stream", serialization.NewRawBinaryUnmarshaler()))
 
-	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithMetadata(transport.IncomingHeadersToMetadata))
-	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithErrorHandler(transport.HandleErrorWithLogger(transport.Log)))
-	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithForwardResponseOption(transport.HttpResponseBodyModify))
+	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithMetadata(gateway.IncomingHeadersToMetadata))
+	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithErrorHandler(gateway.HandleErrorWithLogger(gateway.Log)))
+	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithForwardResponseOption(gateway.HttpResponseBodyModify))
 	// opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithRoutingErrorHandler(middleware.HandleRoutingError))
 	// 连接池配置
 	opts.PoolOptions = append(opts.PoolOptions, loadbalance.WithMaxActiveConns(100))
@@ -74,12 +74,11 @@ func NewGateway(cfg *transport.GatewayConfig, conf *config.Config, services []se
 	opts.Options = append(opts.Options, grpc.ChainUnaryInterceptor(pluginApply.UnaryInterceptorChains()...))
 	opts.Options = append(opts.Options, grpc.ChainStreamInterceptor(pluginApply.StreamInterceptorChains()...))
 
-	cors := &middleware.CorsMiddleware{
+	cors := &gateway.CorsMiddleware{
 		Cors: conf.GetCorsConfig(),
 	}
 	opts.HttpHandlers = append(opts.HttpHandlers, cors.Handle)
-	runtime.WithMetadata(middleware.IncomingHeadersToMetadata)
-	gw := transport.New(cfg, opts)
+	gw := gateway.New(cfg, opts)
 
 	pd, err := readDesc(conf)
 	if err != nil {

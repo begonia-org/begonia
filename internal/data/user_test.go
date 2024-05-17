@@ -9,8 +9,8 @@ import (
 
 	"github.com/begonia-org/begonia"
 	cfg "github.com/begonia-org/begonia/config"
+	"github.com/begonia-org/begonia/gateway"
 	"github.com/begonia-org/begonia/internal/pkg/config"
-	"github.com/begonia-org/begonia/transport"
 	api "github.com/begonia-org/go-sdk/api/user/v1"
 	c "github.com/smartystreets/goconvey/convey"
 	"github.com/spark-lence/tiga"
@@ -32,7 +32,7 @@ func testAddUser(t *testing.T) {
 		if begonia.Env != "" {
 			env = begonia.Env
 		}
-		repo := NewUserRepo(cfg.ReadConfig(env), transport.Log)
+		repo := NewUserRepo(cfg.ReadConfig(env), gateway.Log)
 		snk, _ := tiga.NewSnowflake(1)
 		uid = snk.GenerateIDString()
 		err := repo.Add(context.TODO(), &api.Users{
@@ -92,7 +92,7 @@ func testGetUser(t *testing.T) {
 			env = begonia.Env
 		}
 		conf := cfg.ReadConfig(env)
-		repo := NewUserRepo(conf, transport.Log)
+		repo := NewUserRepo(conf, gateway.Log)
 		user, err := repo.Get(context.TODO(), uid)
 		c.So(err, c.ShouldBeNil)
 		c.So(user, c.ShouldNotBeNil)
@@ -121,7 +121,7 @@ func testUpdateUser(t *testing.T) {
 		if begonia.Env != "" {
 			env = begonia.Env
 		}
-		repo := NewUserRepo(cfg.ReadConfig(env), transport.Log)
+		repo := NewUserRepo(cfg.ReadConfig(env), gateway.Log)
 		user, err := repo.Get(context.TODO(), uid)
 		c.So(err, c.ShouldBeNil)
 		c.So(user, c.ShouldNotBeNil)
@@ -163,7 +163,7 @@ func testDelUser(t *testing.T) {
 		if begonia.Env != "" {
 			env = begonia.Env
 		}
-		repo := NewUserRepo(cfg.ReadConfig(env), transport.Log)
+		repo := NewUserRepo(cfg.ReadConfig(env), gateway.Log)
 		err := repo.Del(context.TODO(), uid)
 		c.So(err, c.ShouldBeNil)
 		_, err = repo.Get(context.TODO(), uid)
@@ -178,7 +178,7 @@ func testListUser(t *testing.T) {
 		if begonia.Env != "" {
 			env = begonia.Env
 		}
-		repo := NewUserRepo(cfg.ReadConfig(env), transport.Log)
+		repo := NewUserRepo(cfg.ReadConfig(env), gateway.Log)
 		snk, _ := tiga.NewSnowflake(1)
 		// rand.Seed(time.Now().UnixNano())
 		rand := rand.New(rand.NewSource(time.Now().UnixNano()))

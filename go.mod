@@ -10,7 +10,7 @@ require (
 	github.com/cockroachdb/errors v1.11.1
 	github.com/google/wire v0.6.0
 	github.com/smartystreets/goconvey v1.8.1
-	github.com/spark-lence/tiga v0.0.0-20240510102710-93bf07b60b07
+	github.com/spark-lence/tiga v0.0.0-20240517061929-e81eba889226
 	github.com/spf13/cobra v1.8.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20240515191416-fc5f0ca64291
 	google.golang.org/grpc v1.64.0
@@ -80,7 +80,7 @@ require (
 require (
 	github.com/agiledragon/gomonkey/v2 v2.11.0
 	github.com/begonia-org/go-loadbalancer v0.0.0-20240515153502-b1d83dda8ae3
-	github.com/begonia-org/go-sdk v0.0.0-20240516160356-c90fe583fd2e
+	github.com/begonia-org/go-sdk v0.0.0-20240517035447-b6ee0a94bc66
 	github.com/go-git/go-git/v5 v5.11.0
 	github.com/go-playground/validator/v10 v10.19.0
 	github.com/gorilla/websocket v1.5.0

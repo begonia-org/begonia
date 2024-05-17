@@ -13,9 +13,9 @@ import (
 	"github.com/begonia-org/begonia"
 	cfg "github.com/begonia-org/begonia/config"
 	"github.com/begonia-org/begonia/internal/pkg/config"
-	"github.com/begonia-org/begonia/transport"
 	goloadbalancer "github.com/begonia-org/go-loadbalancer"
 	api "github.com/begonia-org/go-sdk/api/endpoint/v1"
+	"github.com/begonia-org/begonia/gateway"
 	c "github.com/smartystreets/goconvey/convey"
 	"github.com/spark-lence/tiga"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -33,10 +33,10 @@ func putTest(t *testing.T) {
 			env = begonia.Env
 		}
 		_, filename, _, _ := runtime.Caller(0)
-		pbFile := filepath.Join(filepath.Dir(filepath.Dir(filename)), "integration", "testdata", "helloworld.pb")
+		pbFile := filepath.Join(filepath.Dir(filepath.Dir(filepath.Dir(filename))),  "testdata", "helloworld.pb")
 		pb, _ := os.ReadFile(pbFile)
 		conf := cfg.ReadConfig(env)
-		repo := NewEndpointRepo(conf, transport.Log)
+		repo := NewEndpointRepo(conf, gateway.Log)
 		snk, _ := tiga.NewSnowflake(1)
 		endpointId = snk.GenerateIDString()
 		err := repo.Put(context.Background(), &api.Endpoints{
@@ -75,7 +75,7 @@ func getEndpointTest(t *testing.T) {
 			env = begonia.Env
 		}
 		conf := cfg.ReadConfig(env)
-		repo := NewEndpointRepo(conf, transport.Log)
+		repo := NewEndpointRepo(conf, gateway.Log)
 		cnf := config.NewConfig(conf)
 		endpointKey := cnf.GetServiceKey(endpointId)
 		data, err := repo.Get(context.Background(), endpointKey)
@@ -96,7 +96,7 @@ func getKeysByTagsTest(t *testing.T) {
 			env = begonia.Env
 		}
 		conf := cfg.ReadConfig(env)
-		repo := NewEndpointRepo(conf, transport.Log)
+		repo := NewEndpointRepo(conf, gateway.Log)
 		keys, err := repo.GetKeysByTags(context.Background(), []string{tag})
 		c.So(err, c.ShouldBeNil)
 		c.So(keys, c.ShouldNotBeEmpty)
@@ -111,10 +111,10 @@ func testList(t *testing.T) {
 		env = begonia.Env
 	}
 	_, filename, _, _ := runtime.Caller(0)
-	pbFile := filepath.Join(filepath.Dir(filepath.Dir(filename)), "integration", "testdata", "helloworld.pb")
+	pbFile := filepath.Join(filepath.Dir(filepath.Dir(filepath.Dir(filename))),  "testdata", "helloworld.pb")
 	pb, _ := os.ReadFile(pbFile)
 	conf := cfg.ReadConfig(env)
-	repo := NewEndpointRepo(conf, transport.Log)
+	repo := NewEndpointRepo(conf, gateway.Log)
 	snk, _ := tiga.NewSnowflake(1)
 	enps := make([]string, 0)
 	c.Convey("test list", t, func() {
@@ -168,7 +168,7 @@ func patchEndpointTest(t *testing.T) {
 			env = begonia.Env
 		}
 		conf := cfg.ReadConfig(env)
-		repo := NewEndpointRepo(conf, transport.Log)
+		repo := NewEndpointRepo(conf, gateway.Log)
 		cnf := config.NewConfig(conf)
 		endpointKey := cnf.GetServiceKey(endpointId)
 		tag1 := fmt.Sprintf("test-data-patch-%s", time.Now().Format("20060102150405"))
@@ -208,7 +208,7 @@ func delEndpointTest(t *testing.T) {
 			env = begonia.Env
 		}
 		conf := cfg.ReadConfig(env)
-		repo := NewEndpointRepo(conf, transport.Log)
+		repo := NewEndpointRepo(conf, gateway.Log)
 		cnf := config.NewConfig(conf)
 		endpointKey := cnf.GetServiceKey(endpointId)
 		err := repo.Del(context.Background(), endpointId)
@@ -233,7 +233,7 @@ func putTagsTest(t *testing.T) {
 			env = begonia.Env
 		}
 		conf := cfg.ReadConfig(env)
-		repo := NewEndpointRepo(conf, transport.Log)
+		repo := NewEndpointRepo(conf, gateway.Log)
 		cnf := config.NewConfig(conf)
 		endpointKey := cnf.GetServiceKey(endpointId)
 		tag1 := fmt.Sprintf("test1-data-%s", time.Now().Format("20060102150405"))

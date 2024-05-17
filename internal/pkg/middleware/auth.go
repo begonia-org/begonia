@@ -39,14 +39,14 @@ func (a *Auth) UnaryInterceptor(ctx context.Context, req any, info *grpc.UnarySe
 	if !ok {
 		return nil, status.Errorf(codes.Unauthenticated, "metadata not exists in context")
 	}
-	xApiKey:=md.Get("x-api-key")
+	xApiKey := md.Get("x-api-key")
 	if len(xApiKey) != 0 {
 		return a.apikey.UnaryInterceptor(ctx, req, info, handler)
 	}
 	authorization := a.jwt.GetAuthorizationFromMetadata(md)
 
 	if authorization == "" {
-		return nil, errors.New(errors.ErrTokenMissing, int32(api.UserSvrCode_USER_AUTH_MISSING_ERR), codes.Unauthenticated, "authorization_check")
+		return nil, gosdk.NewError(errors.ErrTokenMissing, int32(api.UserSvrCode_USER_AUTH_MISSING_ERR), codes.Unauthenticated, "authorization_check")
 	}
 
 	if strings.Contains(authorization, "Bearer") {
@@ -71,14 +71,14 @@ func (a *Auth) StreamInterceptor(srv any, ss grpc.ServerStream, info *grpc.Strea
 	if !ok {
 		return status.Errorf(codes.Unauthenticated, "metadata not exists in context")
 	}
-	xApiKey:=md.Get("x-api-key")
+	xApiKey := md.Get("x-api-key")
 	if len(xApiKey) != 0 {
 		return a.apikey.StreamInterceptor(srv, ss, info, handler)
 	}
 	authorization := a.jwt.GetAuthorizationFromMetadata(md)
 
 	if authorization == "" {
-		return errors.New(errors.ErrTokenMissing, int32(api.UserSvrCode_USER_AUTH_MISSING_ERR), codes.Unauthenticated, "authorization_check")
+		return gosdk.NewError(errors.ErrTokenMissing, int32(api.UserSvrCode_USER_AUTH_MISSING_ERR), codes.Unauthenticated, "authorization_check")
 	}
 	var err error
 	if strings.Contains(authorization, "Bearer") {

@@ -13,7 +13,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-type ApiKeyAuth interface{
+type ApiKeyAuth interface {
 	gosdk.LocalPlugin
 }
 
@@ -53,16 +53,16 @@ func NewApiKeyAuth(config *config.Config) ApiKeyAuth {
 func (a *ApiKeyAuthImpl) check(ctx context.Context) error {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		return errors.New(status.Errorf(codes.Unauthenticated, "metadata not exists in context"), int32(api.UserSvrCode_USER_AUTH_MISSING_ERR), codes.Unauthenticated, "authorization_check")
+		return gosdk.NewError(status.Errorf(codes.Unauthenticated, "metadata not exists in context"), int32(api.UserSvrCode_USER_AUTH_MISSING_ERR), codes.Unauthenticated, "authorization_check")
 	}
 	// authorization := a.GetAuthorizationFromMetadata(md)
 	apikeys := md.Get("x-api-key")
 	if len(apikeys) == 0 {
-		return errors.New(status.Errorf(codes.Unauthenticated, "apikey not exists in context"), int32(api.UserSvrCode_USER_AUTH_MISSING_ERR), codes.Unauthenticated, "authorization_check")
+		return gosdk.NewError(status.Errorf(codes.Unauthenticated, "apikey not exists in context"), int32(api.UserSvrCode_USER_AUTH_MISSING_ERR), codes.Unauthenticated, "authorization_check")
 	}
 	apikey := apikeys[0]
 	if apikey != a.config.GetAdminAPIKey() {
-		return errors.New(errors.ErrAPIKeyNotMatch, int32(api.UserSvrCode_USER_APIKEY_NOT_MATCH_ERR), codes.Unauthenticated, "authorization_check")
+		return gosdk.NewError(errors.ErrAPIKeyNotMatch, int32(api.UserSvrCode_USER_APIKEY_NOT_MATCH_ERR), codes.Unauthenticated, "authorization_check")
 
 	}
 	return nil

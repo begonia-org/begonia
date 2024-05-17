@@ -11,6 +11,7 @@ import (
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/errors"
 	loadbalance "github.com/begonia-org/go-loadbalancer"
+	gosdk "github.com/begonia-org/go-sdk"
 	api "github.com/begonia-org/go-sdk/api/endpoint/v1"
 	common "github.com/begonia-org/go-sdk/common/api/v1"
 	"google.golang.org/grpc/codes"
@@ -44,7 +45,7 @@ func NewEndpointUsecase(repo EndpointRepo, file *file.FileUsecase, config *confi
 
 func (e *EndpointUsecase) AddConfig(ctx context.Context, srvConfig *api.EndpointSrvConfig) (string, error) {
 	if !loadbalance.CheckBalanceType(srvConfig.Balance) {
-		return "", errors.New(errors.ErrUnknownLoadBalancer, int32(api.EndpointSvrStatus_NOT_SUPPORT_BALANCE), codes.InvalidArgument, "balance_type")
+		return "", gosdk.NewError(errors.ErrUnknownLoadBalancer, int32(api.EndpointSvrStatus_NOT_SUPPORT_BALANCE), codes.InvalidArgument, "balance_type")
 	}
 	id := e.snk.GenerateIDString()
 
@@ -64,7 +65,7 @@ func (e *EndpointUsecase) AddConfig(ctx context.Context, srvConfig *api.Endpoint
 	log.Printf("endpoint add tags :%v", srvConfig.Tags)
 	err := e.repo.Put(ctx, endpoint)
 	if err != nil {
-		return "", errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "put_endpoint")
+		return "", gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "put_endpoint")
 
 	}
 	return id, nil
@@ -74,12 +75,12 @@ func (e *EndpointUsecase) Patch(ctx context.Context, srvConfig *api.EndpointSrvU
 	patch := make(map[string]interface{})
 	bSrvConfig, err := json.Marshal(srvConfig)
 	if err != nil {
-		return "", errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "marshal_config")
+		return "", gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "marshal_config")
 	}
 	svrConfigPatch := make(map[string]interface{})
 	err = json.Unmarshal(bSrvConfig, &svrConfigPatch)
 	if err != nil {
-		return "", errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "unmarshal_config")
+		return "", gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "unmarshal_config")
 
 	}
 	// 过滤掉不允许修改的字段
@@ -92,7 +93,7 @@ func (e *EndpointUsecase) Patch(ctx context.Context, srvConfig *api.EndpointSrvU
 	patch["updated_at"] = updated_at
 	err = e.repo.Patch(ctx, srvConfig.UniqueKey, patch)
 	if err != nil {
-		return "", errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "patch_config")
+		return "", gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "patch_config")
 	}
 	return updated_at, nil
 }
@@ -105,17 +106,17 @@ func (u *EndpointUsecase) Get(ctx context.Context, uniqueKey string) (*api.Endpo
 	detailsKey := u.config.GetServiceKey(uniqueKey)
 	value, err := u.repo.Get(ctx, detailsKey)
 	if err != nil {
-		return nil, errors.New(fmt.Errorf("%s:%w", errors.ErrEndpointNotExists.Error(), err), int32(common.Code_NOT_FOUND), codes.NotFound, "get_endpoint")
+		return nil, gosdk.NewError(fmt.Errorf("%s:%w", errors.ErrEndpointNotExists.Error(), err), int32(common.Code_NOT_FOUND), codes.NotFound, "get_endpoint")
 
 	}
 	if value == "" {
-		return nil, errors.New(errors.ErrEndpointNotExists, int32(common.Code_NOT_FOUND), codes.NotFound, "get_endpoint")
+		return nil, gosdk.NewError(errors.ErrEndpointNotExists, int32(common.Code_NOT_FOUND), codes.NotFound, "get_endpoint")
 	}
 	// log.Printf("get endpoint value:%s", value)
 	endpoint := &api.Endpoints{}
 	err = json.Unmarshal([]byte(value), endpoint)
 	if err != nil {
-		return nil, errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "unmarshal_endpoint")
+		return nil, gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "unmarshal_endpoint")
 	}
 	return endpoint, nil
 
@@ -126,7 +127,7 @@ func (u *EndpointUsecase) List(ctx context.Context, in *api.ListEndpointRequest)
 	if len(in.Tags) > 0 {
 		ks, err := u.repo.GetKeysByTags(ctx, in.Tags)
 		if err != nil {
-			return nil, errors.New(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_keys_by_tags")
+			return nil, gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_keys_by_tags")
 		}
 		keys = append(keys, ks...)
 

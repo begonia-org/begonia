@@ -5,7 +5,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/begonia-org/begonia/transport"
+	"github.com/begonia-org/begonia/gateway"
 	_ "github.com/begonia-org/go-sdk/api/app/v1"
 	_ "github.com/begonia-org/go-sdk/api/endpoint/v1"
 	_ "github.com/begonia-org/go-sdk/api/example/v1"
@@ -169,7 +169,7 @@ func (r *HttpURIRouteToSrvMethod) addRouterDetails(serviceName string, authRequi
 	}
 
 }
-func (r *HttpURIRouteToSrvMethod) LoadAllRouters(pd transport.ProtobufDescription) {
+func (r *HttpURIRouteToSrvMethod) LoadAllRouters(pd gateway.ProtobufDescription) {
 	fds := pd.GetFileDescriptorSet()
 	r.mux.Lock()
 	defer r.mux.Unlock()
@@ -195,7 +195,7 @@ func (r *HttpURIRouteToSrvMethod) LoadAllRouters(pd transport.ProtobufDescriptio
 
 }
 
-func (h *HttpURIRouteToSrvMethod) DeleteRouters(pd transport.ProtobufDescription) {
+func (h *HttpURIRouteToSrvMethod) DeleteRouters(pd gateway.ProtobufDescription) {
 	// h.mux.Lock()
 	// defer h.mux.Unlock()
 	fds := pd.GetFileDescriptorSet()

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/begonia-org/begonia/internal/pkg/errors"
 	gosdk "github.com/begonia-org/go-sdk"
 	common "github.com/begonia-org/go-sdk/common/api/v1"
 	"github.com/go-playground/validator/v10"
@@ -92,7 +91,7 @@ func (p *ParamsValidatorImpl) ValidateParams(v interface{}) error {
 	}
 	if errs, ok := err.(validator.ValidationErrors); ok {
 		clientMsg := fmt.Sprintf("params %s validation failed with %v,except %s", errs[0].Field(), errs[0].Value(), errs[0].ActualTag())
-		return errors.New(fmt.Errorf("params %s validation failed: %v", errs[0].Field(), errs[0].Value()), int32(common.Code_PARAMS_ERROR), codes.InvalidArgument, "params_validation", errors.WithClientMessage(clientMsg))
+		return gosdk.NewError(fmt.Errorf("params %s validation failed: %v", errs[0].Field(), errs[0].Value()), int32(common.Code_PARAMS_ERROR), codes.InvalidArgument, "params_validation", gosdk.WithClientMessage(clientMsg))
 	}
 	return nil
 }

@@ -16,9 +16,9 @@ import (
 	cfg "github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/errors"
 	"github.com/begonia-org/begonia/internal/pkg/utils"
-	"github.com/begonia-org/begonia/transport"
 	gosdk "github.com/begonia-org/go-sdk"
 	api "github.com/begonia-org/go-sdk/api/app/v1"
+	"github.com/begonia-org/begonia/gateway"
 	c "github.com/smartystreets/goconvey/convey"
 	"github.com/spark-lence/tiga"
 
@@ -55,9 +55,9 @@ func newAKSK() *biz.AccessKeyAuth {
 		env = begonia.Env
 	}
 	config := config.ReadConfig(env)
-	repo := data.NewAppRepo(config, transport.Log)
+	repo := data.NewAppRepo(config, gateway.Log)
 	cnf := cfg.NewConfig(config)
-	return biz.NewAccessKeyAuth(repo, cnf, transport.Log)
+	return biz.NewAccessKeyAuth(repo, cnf, gateway.Log)
 }
 
 func testGetSecret(t *testing.T) {
@@ -66,7 +66,7 @@ func testGetSecret(t *testing.T) {
 		env = begonia.Env
 	}
 	config := config.ReadConfig(env)
-	repo := data.NewAppRepo(config, transport.Log)
+	repo := data.NewAppRepo(config, gateway.Log)
 	snk, _ := tiga.NewSnowflake(1)
 	access, _ := utils.GenerateRandomString(32)
 	akskAccess = access
