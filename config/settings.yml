@@ -106,4 +106,3 @@ common:
       prefix: "/begonia/endpoints"
     app:
       prefix: "/begonia/apps"
-

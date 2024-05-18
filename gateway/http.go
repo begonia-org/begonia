@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -288,6 +289,7 @@ func (h *HttpEndpointImpl) inParamsHandle(pathParams map[string]string, req *htt
 	for k, v := range pathParams {
 		params[k] = []string{v}
 	}
+	log.Printf("%s,params:%v", req.URL.String(), params)
 	if len(params) > 0 {
 		return serialization.UrlQueryToProtoMessageField(in, params)
 	}
