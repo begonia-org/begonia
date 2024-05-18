@@ -1,4 +1,4 @@
-package gateway_test
+package gateway
 
 import (
 	"bytes"
@@ -19,9 +19,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/agiledragon/gomonkey/v2"
 	"github.com/begonia-org/begonia"
 	"github.com/begonia-org/begonia/config"
-	"github.com/begonia-org/begonia/gateway"
 	"github.com/begonia-org/begonia/gateway/serialization"
 	cfg "github.com/begonia-org/begonia/internal/pkg/config"
 	loadbalance "github.com/begonia-org/go-loadbalancer"
@@ -40,21 +40,21 @@ import (
 	"gopkg.in/cenkalti/backoff.v1"
 )
 
-// var endpoint gateway.HttpEndpoint
+// var endpoint HttpEndpoint
 var gwPort = 9527
-var gw *gateway.GatewayServer
+var gw *GatewayServer
 var onceInit sync.Once
 var randomNumber int
 
-func newTestServer(gwPort, randomNumber int) (*gateway.GrpcServerOptions, *gateway.GatewayConfig) {
-	opts := &gateway.GrpcServerOptions{
-		Middlewares:     make([]gateway.GrpcProxyMiddleware, 0),
+func newTestServer(gwPort, randomNumber int) (*GrpcServerOptions, *GatewayConfig) {
+	opts := &GrpcServerOptions{
+		Middlewares:     make([]GrpcProxyMiddleware, 0),
 		Options:         make([]grpc.ServerOption, 0),
 		PoolOptions:     make([]loadbalance.PoolOptionsBuildOption, 0),
 		HttpMiddlewares: make([]gwRuntime.ServeMuxOption, 0),
 		HttpHandlers:    make([]func(http.Handler) http.Handler, 0),
 	}
-	gwCnf := &gateway.GatewayConfig{
+	gwCnf := &GatewayConfig{
 		GatewayAddr:   fmt.Sprintf("127.0.0.1:%d", gwPort),
 		GrpcProxyAddr: fmt.Sprintf("127.0.0.1:%d", randomNumber+1),
 	}
@@ -66,13 +66,13 @@ func newTestServer(gwPort, randomNumber int) (*gateway.GrpcServerOptions, *gatew
 	opts.HttpMiddlewares = append(opts.HttpMiddlewares, gwRuntime.WithMarshalerOption("application/octet-stream", serialization.NewRawBinaryUnmarshaler()))
 	opts.HttpMiddlewares = append(opts.HttpMiddlewares, gwRuntime.WithMarshalerOption("text/event-stream", serialization.NewEventSourceMarshaler()))
 	opts.HttpMiddlewares = append(opts.HttpMiddlewares, gwRuntime.WithMarshalerOption(serialization.ClientStreamContentType, serialization.NewProtobufWithLengthPrefix()))
-	opts.HttpMiddlewares = append(opts.HttpMiddlewares, gwRuntime.WithMetadata(gateway.IncomingHeadersToMetadata))
-	opts.HttpMiddlewares = append(opts.HttpMiddlewares, gwRuntime.WithErrorHandler(gateway.HandleErrorWithLogger(gateway.Log)))
-	opts.HttpMiddlewares = append(opts.HttpMiddlewares, gwRuntime.WithForwardResponseOption(gateway.HttpResponseBodyModify))
+	opts.HttpMiddlewares = append(opts.HttpMiddlewares, gwRuntime.WithMetadata(IncomingHeadersToMetadata))
+	opts.HttpMiddlewares = append(opts.HttpMiddlewares, gwRuntime.WithErrorHandler(HandleErrorWithLogger(Log)))
+	opts.HttpMiddlewares = append(opts.HttpMiddlewares, gwRuntime.WithForwardResponseOption(HttpResponseBodyModify))
 
 	opts.PoolOptions = append(opts.PoolOptions, loadbalance.WithMaxActiveConns(100))
 	opts.PoolOptions = append(opts.PoolOptions, loadbalance.WithPoolSize(128))
-	loggerMid := gateway.NewLoggerMiddleware(gateway.Log)
+	loggerMid := NewLoggerMiddleware(Log)
 	opts.Options = append(opts.Options, grpc.ChainStreamInterceptor(loggerMid.StreamInterceptor))
 	opts.Options = append(opts.Options, grpc.ChainUnaryInterceptor(loggerMid.UnaryInterceptor))
 	env := "dev"
@@ -82,7 +82,7 @@ func newTestServer(gwPort, randomNumber int) (*gateway.GrpcServerOptions, *gatew
 	// log.Printf("env: %s", env)
 	cnf := config.ReadConfig(env)
 	conf := cfg.NewConfig(cnf)
-	cors := &gateway.CorsHandler{
+	cors := &CorsHandler{
 		Cors: conf.GetCorsConfig(),
 	}
 	opts.HttpHandlers = append(opts.HttpHandlers, cors.Handle)
@@ -99,7 +99,7 @@ func init() {
 		gwPort = randomNumber
 		// gw = newTestServer(gwPort, randomNumber)
 		opts, cnf := newTestServer(gwPort, randomNumber)
-		gw = gateway.New(cnf, opts)
+		gw = New(cnf, opts)
 
 	})
 
@@ -110,13 +110,13 @@ func testRegisterClient(t *testing.T) {
 		pbFile := filepath.Join(filepath.Dir(filepath.Dir(filename)), "testdata", "helloworld.pb")
 		pb, err := os.ReadFile(pbFile)
 		c.So(err, c.ShouldBeNil)
-		pd, err := gateway.NewDescriptionFromBinary(pb, filepath.Join("tmp", "test-pd"))
+		pd, err := NewDescriptionFromBinary(pb, filepath.Join("tmp", "test-pd"))
 		// t.Logf("pd:%+v", pd.GetGatewayJsonSchema())
 		c.So(err, c.ShouldBeNil)
 		c.So(pd.GetMessageTypeByFullName("helloworld.HelloRequest"), c.ShouldNotBeNil)
-		c.So(pd.GetDescription(),c.ShouldNotBeEmpty)
+		c.So(pd.GetDescription(), c.ShouldNotBeEmpty)
 		helloAddr := fmt.Sprintf("127.0.0.1:%d", randomNumber+2)
-		endps, err := gateway.NewLoadBalanceEndpoint(loadbalance.RRBalanceType, []*api.EndpointMeta{{
+		endps, err := NewLoadBalanceEndpoint(loadbalance.RRBalanceType, []*api.EndpointMeta{{
 			Addr:   helloAddr,
 			Weight: 0,
 		}})
@@ -137,7 +137,7 @@ func testRequestGet(t *testing.T) {
 	c.Convey("test request GET", t, func() {
 		url := fmt.Sprintf("http://127.0.0.1:%d/api/v1/example/world?msg=hello", gwPort)
 		r, err := http.NewRequest(http.MethodGet, url, nil)
-		r.Header.Set("x-uid","12345678")
+		r.Header.Set("x-uid", "12345678")
 		// r.Header.Set("Origin", "http://www.example.com")
 		c.So(err, c.ShouldBeNil)
 
@@ -392,7 +392,7 @@ func testDeleteEndpoint(t *testing.T) {
 		pbFile := filepath.Join(filepath.Dir(filepath.Dir(filename)), "testdata", "helloworld.pb")
 		pb, err := os.ReadFile(pbFile)
 		c.So(err, c.ShouldBeNil)
-		pd, err := gateway.NewDescriptionFromBinary(pb, filepath.Join("tmp", "test-pd"))
+		pd, err := NewDescriptionFromBinary(pb, filepath.Join("tmp", "test-pd"))
 		c.So(err, c.ShouldBeNil)
 		err = gw.DeleteHandlerClient(context.TODO(), pd)
 		c.So(err, c.ShouldBeNil)
@@ -410,15 +410,15 @@ func testDeleteEndpoint(t *testing.T) {
 	})
 }
 func testRegisterLocalService(t *testing.T) {
-	var pd gateway.ProtobufDescription
+	var pd ProtobufDescription
 	var gwPort int
-	var localGW *gateway.GatewayServer
+	var localGW *GatewayServer
 	c.Convey("test register local service", t, func() {
 		_, filename, _, _ := runtime.Caller(0)
 		pbFile := filepath.Join(filepath.Dir(filepath.Dir(filename)), "testdata", "helloworld.pb")
 		pb, err := os.ReadFile(pbFile)
 		c.So(err, c.ShouldBeNil)
-		pd, err = gateway.NewDescriptionFromBinary(pb, filepath.Join("tmp", "test-pd-2"))
+		pd, err = NewDescriptionFromBinary(pb, filepath.Join("tmp", "test-pd-2"))
 		c.So(err, c.ShouldBeNil)
 		exampleServer := example.NewExampleServer()
 
@@ -430,7 +430,7 @@ func testRegisterLocalService(t *testing.T) {
 		gwPort = randomNumber
 		// gw = newTestServer(gwPort, randomNumber)
 		opts, cnf := newTestServer(gwPort, randomNumber)
-		localGW = gateway.NewGateway(cnf, opts)
+		localGW = NewGateway(cnf, opts)
 
 		err = localGW.RegisterLocalService(context.Background(), pd, exampleServer.Desc(), exampleServer)
 		c.So(err, c.ShouldBeNil)
@@ -477,9 +477,10 @@ func testLoadGlobalTypes(t *testing.T) {
 		_, filename, _, _ := runtime.Caller(0)
 		pbFile := filepath.Join(filepath.Dir(filepath.Dir(filename)), "testdata")
 		os.Remove(filepath.Join(pbFile, "desc.pb"))
-		os.Remove(filepath.Join(pbFile, "gateway.json"))
-		pd, err := gateway.NewDescription(pbFile)
+		os.Remove(filepath.Join(pbFile, "json"))
+		pd, err := NewDescription(pbFile)
 		c.So(err, c.ShouldBeNil)
+		pd.SetHttpResponse(common.E_HttpResponse)
 		err = gw.RegisterHandlerClient(context.Background(), pd)
 		c.So(err, c.ShouldBeNil)
 
@@ -492,6 +493,71 @@ func testLoadGlobalTypes(t *testing.T) {
 		c.So(et, c.ShouldNotBeNil)
 		err = pd.SetHttpResponse(common.E_HttpResponse)
 		c.So(err, c.ShouldBeNil)
+	})
+}
+func testRequestError(t *testing.T) {
+	c.Convey("test request error", t, func() {
+		errChan := make(chan error, 1)
+
+		cases := []struct {
+			patch  interface{}
+			output []interface{}
+		}{
+			{
+				patch:  (gwRuntime.DecoderWrapper).Decode,
+				output: []interface{}{fmt.Errorf("test json decode error")},
+			},
+			{
+				patch:  (*HttpEndpointImpl).inParamsHandle,
+				output: []interface{}{fmt.Errorf("test inParamsHandle error")},
+			},
+			{
+				patch:  (*HttpEndpointImpl).addHexEncodeSHA256HashV2,
+				output: []interface{}{fmt.Errorf("test io copy error")},
+			},
+			{
+				patch:  gwRuntime.AnnotateContext,
+				output: []interface{}{context.Background(), fmt.Errorf("test AnnotateContext error")},
+			},
+			{
+				patch:  grpc.MethodFromServerStream,
+				output: []interface{}{"", false},
+			},
+			{
+				patch:  (*GrpcProxy).getClientIP,
+				output: []interface{}{"", fmt.Errorf("test getClientIP error")},
+			},
+			{
+				patch:  (*GrpcProxy).getXForward,
+				output: []interface{}{fmt.Errorf("test getXForward error")},
+			},
+			{
+				patch:  (*GrpcLoadBalancer).Select,
+				output: []interface{}{nil, fmt.Errorf("test select error")},
+			},
+			{
+				patch:  (*GrpcProxy).forwardServerToClient,
+				output: []interface{}{errChan},
+			},
+		}
+		errChan <- fmt.Errorf("test forwardServerToClient error")
+		defer close(errChan)
+		for _, caseV := range cases {
+			url := fmt.Sprintf("http://127.0.0.1:%d/api/v1/example/world?msg=hello", gwPort)
+			r, err := http.NewRequest(http.MethodGet, url, nil)
+			r.Header.Set("x-uid", "12345678")
+			c.So(err, c.ShouldBeNil)
+			patch := gomonkey.ApplyFuncReturn(caseV.patch, caseV.output...)
+			defer patch.Reset()
+
+			resp, err := http.DefaultClient.Do(r)
+
+			patch.Reset()
+			c.So(err, c.ShouldBeNil)
+			c.So(resp.StatusCode, c.ShouldBeGreaterThanOrEqualTo, http.StatusBadRequest)
+
+			defer resp.Body.Close()
+		}
 	})
 }
 func testHttpError(t *testing.T) {
@@ -564,9 +630,233 @@ func testHttpError(t *testing.T) {
 		}
 	})
 }
+func testWebSocketError(t *testing.T) {
+	c.Convey("test websocket error", t, func() {
+		url := fmt.Sprintf("ws://127.0.0.1:%d/api/v1/example/server/websocket", gwPort)
+		i := 0
+		in := &hello.HelloRequest{
+			Name: "world",
+			Msg:  fmt.Sprintf("hello-%d", i),
+		}
+		body, _ := json.Marshal(in)
+		cases := []struct {
+			patch     interface{}
+			output    []interface{}
+			exceptErr error
+		}{
+			{
+				patch:  (*httpForwardGrpcEndpointImpl).Stream,
+				output: []interface{}{nil, fmt.Errorf("test stream error")},
+			},
+			{
+				patch:  (*streamClient).Header,
+				output: []interface{}{nil, fmt.Errorf("test header error")},
+			},
+			{
+				patch:  (*websocketForwarder).NextReader,
+				output: []interface{}{nil, fmt.Errorf("test send error")},
+			},
+			{
+				patch:  (*serialization.BinaryDecoder).Decode,
+				output: []interface{}{fmt.Errorf("test BIN DECODE error")},
+			},
+			{
+				patch:  (*streamClient).Send,
+				output: []interface{}{fmt.Errorf("test send error")},
+			},
+			{
+				patch:     (*websocket.Upgrader).Upgrade,
+				output:    []interface{}{nil, fmt.Errorf("test upgrade error")},
+				exceptErr: websocket.ErrBadHandshake,
+			},
+		}
+		for _, caseV := range cases {
+			patch := gomonkey.ApplyFuncReturn(caseV.patch, caseV.output...)
+			defer patch.Reset()
+			conn, _, err := websocket.DefaultDialer.Dial(url, nil)
+			c.So(err, c.ShouldEqual, caseV.exceptErr)
+			if err != nil {
+				patch.Reset()
+				continue
+			}
+			defer conn.Close()
+			err = conn.WriteMessage(websocket.BinaryMessage, body)
+			c.So(err, c.ShouldBeNil)
+			_, _, err = conn.ReadMessage()
 
+			c.So(err, c.ShouldNotBeNil)
+			err = conn.Close()
+			c.So(err, c.ShouldBeNil)
+			patch.Reset()
+
+		}
+
+	})
+}
+func testServerSideEventErr(t *testing.T) {
+	c.Convey("test server side event error", t, func() {
+		cases := []struct {
+			patch  interface{}
+			output []interface{}
+		}{
+			{
+				patch:  (*HttpEndpointImpl).inParamsHandle,
+				output: []interface{}{fmt.Errorf("test inParamsHandle error")},
+			},
+			{
+				patch:  (*httpForwardGrpcEndpointImpl).ServerSideStream,
+				output: []interface{}{nil, fmt.Errorf("test ServerSideStream error")},
+			},
+			{
+				patch:  (*serverSideStreamClient).Header,
+				output: []interface{}{nil, fmt.Errorf("test header error")},
+			},
+		}
+		for _, caseV := range cases {
+			url := fmt.Sprintf("http://127.0.0.1:%d/api/v1/example/server/sse/world?msg=hello", gwPort)
+
+			patch := gomonkey.ApplyFuncReturn(caseV.patch, caseV.output...)
+			defer patch.Reset()
+			client := sse.NewClient(url, func(c *sse.Client) {
+				c.ReconnectStrategy = &backoff.StopBackOff{}
+				// c.ReconnectStrategy = nil
+			})
+
+			err := client.Subscribe("message", func(msg *sse.Event) {
+
+			})
+			patch.Reset()
+			c.So(err, c.ShouldNotBeNil)
+		}
+	})
+}
+func testClientStreamErr(t *testing.T) {
+	c.Convey("test client stream error", t, func() {
+		cases := []struct {
+			patch  interface{}
+			output []interface{}
+		}{
+			{
+				patch:  (*httpForwardGrpcEndpointImpl).ClientSideStream,
+				output: []interface{}{nil, fmt.Errorf("test ClientSideStream error")},
+			},
+			{
+				patch: (*serialization.HttpProtobufStreamImpl).NewDecoder,
+				output: []interface{}{gwRuntime.DecoderFunc(func(value interface{}) error {
+					return fmt.Errorf("test NewDecoder error")
+				})},
+			},
+			{
+				patch:  (*HttpEndpointImpl).inParamsHandle,
+				output: []interface{}{fmt.Errorf("test inParamsHandle error")},
+			},
+			{
+				patch:  (*clientSideStreamClient).Send,
+				output: []interface{}{fmt.Errorf("test client stream send error")},
+			},
+			{
+				patch:  (*clientSideStreamClient).CloseSend,
+				output: []interface{}{fmt.Errorf("test client stream close error")},
+			},
+			{
+				patch:  (*clientSideStreamClient).Header,
+				output: []interface{}{nil, fmt.Errorf("test header error")},
+			},
+		}
+		for i, caseV := range cases {
+			url := fmt.Sprintf("http://127.0.0.1:%d/api/v1/example/client/stream", gwPort)
+			wg := &sync.WaitGroup{}
+			reader, writer := io.Pipe()
+			patch := gomonkey.ApplyFuncReturn(caseV.patch, caseV.output...)
+			defer patch.Reset()
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				defer writer.Close()
+
+				for i := 0; i < 1; i++ {
+					in := &hello.HelloRequest{
+						Name: "world",
+						Msg:  fmt.Sprintf("hello-%d", i),
+					}
+					data, _ := json.Marshal(in)
+					err := binary.Write(writer, binary.BigEndian, uint32(len(data)))
+					if err != nil {
+						t.Error(err)
+						return
+					}
+					_, err = writer.Write(data)
+					if err != nil {
+						t.Error(err)
+						return
+					}
+				}
+			}()
+			t.Logf("test case:%d", i)
+			req, err := http.NewRequest(http.MethodPost, url, reader)
+			c.So(err, c.ShouldBeNil)
+			req.Header.Set("Content-Type", serialization.ClientStreamContentType)
+			req.Header.Set("accept", "application/json")
+			resp, err := http.DefaultClient.Do(req)
+			patch.Reset()
+			c.So(err, c.ShouldBeNil)
+			c.So(resp.StatusCode, c.ShouldBeGreaterThanOrEqualTo, http.StatusBadRequest)
+			data, _ := io.ReadAll(resp.Body)
+			defer resp.Body.Close()
+			t.Logf("data:%s", data)
+			wg.Wait()
+		}
+	})
+}
+
+func testLoadHttpEndpointItemErr(t *testing.T) {
+	c.Convey("test load http endpoint item", t, func() {
+		_, filename, _, _ := runtime.Caller(0)
+		pbFile := filepath.Join(filepath.Dir(filepath.Dir(filename)), "testdata", "helloworld.pb")
+		pb, err := os.ReadFile(pbFile)
+		c.So(err, c.ShouldBeNil)
+		pd, err := NewDescriptionFromBinary(pb, filepath.Join("tmp", "test-pd"))
+		c.So(err, c.ShouldBeNil)
+		cases := []struct {
+			patch  interface{}
+			output []interface{}
+		}{
+			{
+				patch:  os.Open,
+				output: []interface{}{nil, fmt.Errorf("test open error")},
+			},
+			{
+				patch:  io.ReadAll,
+				output: []interface{}{nil, fmt.Errorf("test read error")},
+			},
+			{
+				patch:  json.Unmarshal,
+				output: []interface{}{fmt.Errorf("test unmarshal error")},
+			},
+		}
+		for index, caseV := range cases {
+			rander := rand.New(rand.NewSource(time.Now().Unix())) // 初始化随机数种子
+			min := 9527
+			max := 12138
+			randomNumber = rander.Intn(max-min+1) + min
+			// randomNumber := 39527
+			gwPort := randomNumber
+			// gw = newTestServer(gwPort, randomNumber)
+			opts, cnf := newTestServer(gwPort, randomNumber)
+			localGW := NewGateway(cnf, opts)
+			patch := gomonkey.ApplyFuncReturn(caseV.patch, caseV.output...)
+			defer patch.Reset()
+			err := localGW.RegisterHandlerClient(context.Background(), pd)
+			t.Logf("err test case:%d", index)
+			c.So(err, c.ShouldNotBeNil)
+			patch.Reset()
+		}
+
+	})
+}
 func TestHttp(t *testing.T) {
 	t.Run("testRegisterClient", testRegisterClient)
+
 	t.Run("testRequestGet", testRequestGet)
 	t.Run("testCors", testCors)
 	t.Run("testRequestPost", testRequestPost)
@@ -575,6 +865,12 @@ func TestHttp(t *testing.T) {
 	t.Run("testClientStreamRequest", testClientStreamRequest)
 	t.Run("testLoadGlobalTypes", testLoadGlobalTypes)
 	t.Run("testHttpError", testHttpError)
+	t.Run("testWebSocketError", testWebSocketError)
+	t.Run("testServerSideEventErr", testServerSideEventErr)
+	t.Run("testClientStreamErr", testClientStreamErr)
+	// t.Run("testInParamsHandle", testInParamsHandle)
+	t.Run("testRequestError", testRequestError)
+	t.Run("testLoadHttpEndpointItemErr", testLoadHttpEndpointItemErr)
 	t.Run("testDeleteEndpoint", testDeleteEndpoint)
 	t.Run("testRegisterLocalService", testRegisterLocalService)
 	// time.Sleep(30 * time.Second)

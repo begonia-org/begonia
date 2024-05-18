@@ -226,14 +226,14 @@ func HandleErrorWithLogger(logger logger.Logger) runtime.ErrorHandlerFunc {
 	codes := getClientMessageMap()
 	return func(ctx context.Context, mux *runtime.ServeMux, marshaler runtime.Marshaler, w http.ResponseWriter, req *http.Request, err error) {
 
-		statusCode := http.StatusOK
+		statusCode := http.StatusInternalServerError
 
 		log := logger.WithFields(logrus.Fields{
 
 			"status": statusCode,
 		},
 		)
-		code := http.StatusOK
+		code := statusCode
 		data := &common.HttpResponse{}
 		data.Code = int32(common.Code_INTERNAL_ERROR)
 		data.Message = "internal error"
@@ -241,7 +241,7 @@ func HandleErrorWithLogger(logger logger.Logger) runtime.ErrorHandlerFunc {
 			msg := st.Message()
 			details := st.Details()
 			data.Message = clientMessageFromCode(st.Code())
-
+			// data.Data = &structpb.Struct{}
 			for _, detail := range details {
 				if anyType, ok := detail.(*anypb.Any); ok {
 					var errDetail common.Errors

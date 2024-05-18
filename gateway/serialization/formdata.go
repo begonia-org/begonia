@@ -164,6 +164,9 @@ func getProtoreflectValue(value string, field protoreflect.FieldDescriptor) (pro
 	}
 	// 根据需要处理其他类型的字段
 }
+func UrlQueryToProtoMessageField(pb proto.Message, value url.Values) error {
+	return parseFormToProto(value, pb)
+}
 func parseFormToProto(values url.Values, pb proto.Message) error {
 	pbReflect := pb.ProtoReflect()
 	fields := pbReflect.Descriptor().Fields()
