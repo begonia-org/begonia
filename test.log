@@ -1,0 +1,1341 @@
+?   	github.com/begonia-org/begonia	[no test files]
+?   	github.com/begonia-org/begonia/cmd/gateway	[no test files]
+?   	github.com/begonia-org/begonia/config	[no test files]
+?   	github.com/begonia-org/begonia/internal	[no test files]
+?   	github.com/begonia-org/begonia/internal/auth	[no test files]
+?   	github.com/begonia-org/begonia/internal/daemon	[no test files]
+?   	github.com/begonia-org/begonia/internal/pkg	[no test files]
+?   	github.com/begonia-org/begonia/internal/pkg/config	[no test files]
+?   	github.com/begonia-org/begonia/internal/pkg/crypto	[no test files]
+?   	github.com/begonia-org/begonia/internal/pkg/errors	[no test files]
+?   	github.com/begonia-org/begonia/internal/pkg/middleware	[no test files]
+?   	github.com/begonia-org/begonia/internal/pkg/middleware/auth	[no test files]
+?   	github.com/begonia-org/begonia/internal/pkg/migrate	[no test files]
+?   	github.com/begonia-org/begonia/internal/pkg/routers	[no test files]
+?   	github.com/begonia-org/begonia/internal/pkg/runtime	[no test files]
+?   	github.com/begonia-org/begonia/internal/pkg/utils	[no test files]
+?   	github.com/begonia-org/begonia/internal/server	[no test files]
+=== RUN   TestRequest
+
+  test request [32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+4 total assertions[0m
+
+--- PASS: TestRequest (3.00s)
+=== RUN   TestHttp
+=== RUN   TestHttp/testRegisterClient
+
+  test register client [32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m2024/05/19 02:38:21 Start on 127.0.0.1:11434
+
+
+[31m[0m[33m[0m[32m
+12 total assertions[0m
+
+=== RUN   TestHttp/testRequestGet
+
+  test request GET [32m✔[0m2024/05/19 02:38:24 /api/v1/example/world?msg=hello,params:map[msg:[hello] name:[world]]
+{"elapsed":"1.217255ms","file":"/data/work/begonia-org/begonia/gateway/middlewares.go","fn":"logger","level":"INFO","line":163,"message":"success","module":"request","name":"/helloworld.Greeter/SayHelloGet","status":200,"timestamp":"2024-05-19 02:38:24","x-access-key":"","x-http-forwarded-for":"127.0.0.1","x-http-method":"GET","x-http-uri":"/api/v1/example/world?msg=hello","x-request-id":"16269d21-0701-48dc-853a-ef06c662c3b9","x-uid":""}
+[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m2024/05/19 02:38:24 /api/v1/example/http-code?msg=hello,params:map[msg:[hello] name:[http-code]]
+{"elapsed":"845.495µs","file":"/data/work/begonia-org/begonia/gateway/middlewares.go","fn":"logger","level":"INFO","line":163,"message":"success","module":"request","name":"/helloworld.Greeter/SayHelloGet","status":200,"timestamp":"2024-05-19 02:38:24","x-access-key":"","x-http-forwarded-for":"127.0.0.1","x-http-method":"GET","x-http-uri":"/api/v1/example/http-code?msg=hello","x-request-id":"bc5dbfc6-3578-4e4d-9710-b1449a425fa9","x-uid":""}
+[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+25 total assertions[0m
+
+=== RUN   TestHttp/testCors
+
+  test cors [32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m{"file":"/data/work/begonia-org/begonia/gateway/middlewares.go","fn":"func1","level":"ERROR","line":71,"message":"origin:http://www.begonia-org.com not allowed","timestamp":"2024-05-19 02:38:24"}
+[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+32 total assertions[0m
+
+=== RUN   TestHttp/testRequestPost
+
+  test request POST json [32m✔[0m2024/05/19 02:38:24 /api/v1/example/post,params:map[]
+{"elapsed":"784.548µs","file":"/data/work/begonia-org/begonia/gateway/middlewares.go","fn":"logger","level":"INFO","line":163,"message":"success","module":"request","name":"/helloworld.Greeter/SayHello","status":200,"timestamp":"2024-05-19 02:38:24","x-access-key":"","x-http-forwarded-for":"127.0.0.1","x-http-method":"POST","x-http-uri":"/api/v1/example/post","x-request-id":"fc2eac73-6994-4304-97c2-449748b351d3","x-uid":""}
+[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+39 total assertions[0m
+
+
+  test request POST form-data [32m✔[0m[32m✔[0m2024/05/19 02:38:24 /api/v1/example/post,params:map[]
+{"elapsed":"841.178µs","file":"/data/work/begonia-org/begonia/gateway/middlewares.go","fn":"logger","level":"INFO","line":163,"message":"success","module":"request","name":"/helloworld.Greeter/SayHello","status":200,"timestamp":"2024-05-19 02:38:24","x-access-key":"","x-http-forwarded-for":"127.0.0.1","x-http-method":"POST","x-http-uri":"/api/v1/example/post","x-request-id":"b5b9c238-80ab-43ed-9986-d0006fa9ee96","x-uid":""}
+[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+47 total assertions[0m
+
+
+  test request POST form-urlencoded [32m✔[0m2024/05/19 02:38:24 /api/v1/example/post,params:map[]
+{"elapsed":"1.714879ms","file":"/data/work/begonia-org/begonia/gateway/middlewares.go","fn":"logger","level":"INFO","line":163,"message":"success","module":"request","name":"/helloworld.Greeter/SayHello","status":200,"timestamp":"2024-05-19 02:38:24","x-access-key":"","x-http-forwarded-for":"127.0.0.1","x-http-method":"POST","x-http-uri":"/api/v1/example/post","x-request-id":"0a12cddd-6c1c-412f-b8c4-338904ff20ec","x-uid":""}
+[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+54 total assertions[0m
+
+
+  test request POST binary [32m✔[0m2024/05/19 02:38:24 /api/v1/example/body,params:map[]
+{"elapsed":"893.747µs","file":"/data/work/begonia-org/begonia/gateway/middlewares.go","fn":"logger","level":"INFO","line":163,"message":"success","module":"request","name":"/helloworld.Greeter/SayHelloBody","status":200,"timestamp":"2024-05-19 02:38:24","x-access-key":"","x-http-forwarded-for":"127.0.0.1","x-http-method":"POST","x-http-uri":"/api/v1/example/body","x-request-id":"a25cd0e6-e1d9-4b73-abe2-91aca0eb6aa1","x-uid":""}
+[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+62 total assertions[0m
+
+=== RUN   TestHttp/testServerSideEvent
+
+  test server side event 2024/05/19 02:38:24 /api/v1/example/server/sse/world?msg=hello&stream=message,params:map[msg:[hello] name:[world] stream:[message]]
+{"elapsed":"860.922µs","file":"/data/work/begonia-org/begonia/gateway/middlewares.go","fn":"logger","level":"INFO","line":163,"message":"success","module":"request","name":"/helloworld.Greeter/SayHelloServerSideEvent","status":200,"timestamp":"2024-05-19 02:38:24","x-access-key":"","x-http-forwarded-for":"127.0.0.1","x-http-method":"GET","x-http-uri":"/api/v1/example/server/sse/world?msg=hello\u0026stream=message","x-request-id":"3d734e23-423c-408c-b4d7-72f565b01dd4","x-uid":""}
+[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+83 total assertions[0m
+
+=== RUN   TestHttp/testWebsocket
+
+  test websocket [32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+124 total assertions[0m
+
+=== RUN   TestHttp/testClientStreamRequest
+
+  test client stream request [32m✔[0m{"elapsed":"2.903023ms","file":"/data/work/begonia-org/begonia/gateway/middlewares.go","fn":"logger","level":"INFO","line":163,"message":"success","module":"request","name":"/helloworld.Greeter/SayHelloWebsocket","status":200,"timestamp":"2024-05-19 02:38:24","x-access-key":"","x-http-forwarded-for":"127.0.0.1","x-http-method":"GET","x-http-uri":"/api/v1/example/server/websocket","x-request-id":"fbfc27d3-3395-4fe3-bd7b-abdd0739deba","x-uid":""}
+2024/05/19 02:38:24 /api/v1/example/client/stream,params:map[]
+2024/05/19 02:38:24 /api/v1/example/client/stream,params:map[]
+2024/05/19 02:38:24 /api/v1/example/client/stream,params:map[]
+2024/05/19 02:38:24 /api/v1/example/client/stream,params:map[]
+2024/05/19 02:38:24 /api/v1/example/client/stream,params:map[]
+2024/05/19 02:38:24 /api/v1/example/client/stream,params:map[]
+2024/05/19 02:38:24 /api/v1/example/client/stream,params:map[]
+2024/05/19 02:38:24 /api/v1/example/client/stream,params:map[]
+2024/05/19 02:38:24 /api/v1/example/client/stream,params:map[]
+2024/05/19 02:38:24 /api/v1/example/client/stream,params:map[]
+{"elapsed":"828.009µs","file":"/data/work/begonia-org/begonia/gateway/middlewares.go","fn":"logger","level":"INFO","line":163,"message":"success","module":"request","name":"/helloworld.Greeter/SayHelloClientStream","status":200,"timestamp":"2024-05-19 02:38:24","x-access-key":"","x-http-forwarded-for":"127.0.0.1","x-http-method":"POST","x-http-uri":"/api/v1/example/client/stream","x-request-id":"f4cd1ed3-8140-46f7-990b-52214e431325","x-uid":""}
+[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+140 total assertions[0m
+
+=== RUN   TestHttp/testLoadGlobalTypes
+
+  test load global types [32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+147 total assertions[0m
+
+=== RUN   TestHttp/testHttpError
+
+  test http error [32m✔[0m[32m✔[0m2024/05/19 02:38:24 /api/v1/example/error/test?msg=ok&code=0,params:map[code:[0] msg:[ok]]
+2024/05/19 02:38:24 SayHelloError: ok,code:0
+{"elapsed":"885.941µs","file":"/data/work/begonia-org/begonia/gateway/middlewares.go","fn":"logger","level":"INFO","line":163,"message":"success","module":"request","name":"/helloworld.Greeter/SayHelloError","status":200,"timestamp":"2024-05-19 02:38:24","x-access-key":"","x-http-forwarded-for":"127.0.0.1","x-http-method":"GET","x-http-uri":"/api/v1/example/error/test?msg=ok\u0026code=0","x-request-id":"881152e9-e15f-45c8-b598-227335ebb680","x-uid":""}
+[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m2024/05/19 02:38:24 /api/v1/example/error/test?msg=ok&code=13,params:map[code:[13] msg:[ok]]
+2024/05/19 02:38:24 SayHelloError: ok,code:13
+{"elapsed":"1.973208ms","file":"/data/work/begonia-org/begonia-go-sdk/example/server.go","fn":"github.com/begonia-org/go-sdk/example.(*server).SayHelloError","level":"ERROR","line":145,"message":"rpc error: code = Internal desc = ok","module":"request","name":"/helloworld.Greeter/SayHelloError","status":5000,"timestamp":"2024-05-19 02:38:24","x-access-key":"","x-http-forwarded-for":"127.0.0.1","x-http-method":"GET","x-http-uri":"/api/v1/example/error/test?msg=ok\u0026code=13","x-request-id":"1e041459-5636-4f83-ac6c-9e6668aa1719","x-uid":""}
+{"file":"/data/work/begonia-org/begonia-go-sdk/example/server.go","fn":"github.com/begonia-org/go-sdk/example.(*server).SayHelloError","level":"ERROR","line":145,"message":"ok","status":500,"timestamp":"2024-05-19 02:38:24"}
+[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m2024/05/19 02:38:24 /api/v1/example/error/test?msg=ok&code=3,params:map[code:[3] msg:[ok]]
+2024/05/19 02:38:24 SayHelloError: ok,code:3
+{"elapsed":"740.439µs","file":"/data/work/begonia-org/begonia-go-sdk/example/server.go","fn":"github.com/begonia-org/go-sdk/example.(*server).SayHelloError","level":"ERROR","line":142,"message":"rpc error: code = InvalidArgument desc = ok","module":"request","name":"/helloworld.Greeter/SayHelloError","status":4000,"timestamp":"2024-05-19 02:38:24","x-access-key":"","x-http-forwarded-for":"127.0.0.1","x-http-method":"GET","x-http-uri":"/api/v1/example/error/test?msg=ok\u0026code=3","x-request-id":"b4c381e2-da0b-47d4-8ecf-86c0159d9b13","x-uid":""}
+{"file":"/data/work/begonia-org/begonia-go-sdk/example/server.go","fn":"github.com/begonia-org/go-sdk/example.(*server).SayHelloError","level":"ERROR","line":142,"message":"ok","status":400,"timestamp":"2024-05-19 02:38:24"}
+[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m2024/05/19 02:38:24 /api/v1/example/error/test?msg=ok&code=5,params:map[code:[5] msg:[ok]]
+2024/05/19 02:38:24 SayHelloError: ok,code:5
+{"elapsed":"694.227µs","file":"/data/work/begonia-org/begonia-go-sdk/example/server.go","fn":"github.com/begonia-org/go-sdk/example.(*server).SayHelloError","level":"ERROR","line":147,"message":"rpc error: code = NotFound desc = ok","module":"request","name":"/helloworld.Greeter/SayHelloError","status":4004,"timestamp":"2024-05-19 02:38:24","x-access-key":"","x-http-forwarded-for":"127.0.0.1","x-http-method":"GET","x-http-uri":"/api/v1/example/error/test?msg=ok\u0026code=5","x-request-id":"9f5ee7ae-3673-49e3-9e6c-f6e74689d40d","x-uid":""}
+{"file":"/data/work/begonia-org/begonia-go-sdk/example/server.go","fn":"github.com/begonia-org/go-sdk/example.(*server).SayHelloError","level":"ERROR","line":147,"message":"ok","status":404,"timestamp":"2024-05-19 02:38:24"}
+[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m2024/05/19 02:38:24 /api/v1/example/error/test?msg=ok&code=7,params:map[code:[7] msg:[ok]]
+2024/05/19 02:38:24 SayHelloError: ok,code:7
+{"elapsed":"693.296µs","file":"/data/work/begonia-org/begonia-go-sdk/example/server.go","fn":"github.com/begonia-org/go-sdk/example.(*server).SayHelloError","level":"ERROR","line":149,"message":"rpc error: code = PermissionDenied desc = ok","module":"request","name":"/helloworld.Greeter/SayHelloError","status":4001,"timestamp":"2024-05-19 02:38:24","x-access-key":"","x-http-forwarded-for":"127.0.0.1","x-http-method":"GET","x-http-uri":"/api/v1/example/error/test?msg=ok\u0026code=7","x-request-id":"52c8c82c-7850-444f-92f0-955fec4305b6","x-uid":""}
+{"file":"/data/work/begonia-org/begonia-go-sdk/example/server.go","fn":"github.com/begonia-org/go-sdk/example.(*server).SayHelloError","level":"ERROR","line":149,"message":"ok","status":403,"timestamp":"2024-05-19 02:38:24"}
+[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m2024/05/19 02:38:24 /api/v1/example/error/test?msg=ok&code=16,params:map[code:[16] msg:[ok]]
+2024/05/19 02:38:24 SayHelloError: ok,code:16
+{"elapsed":"702.632µs","file":"/data/work/begonia-org/begonia-go-sdk/example/server.go","fn":"github.com/begonia-org/go-sdk/example.(*server).SayHelloError","level":"ERROR","line":151,"message":"rpc error: code = Unauthenticated desc = ok","module":"request","name":"/helloworld.Greeter/SayHelloError","status":4001,"timestamp":"2024-05-19 02:38:24","x-access-key":"","x-http-forwarded-for":"127.0.0.1","x-http-method":"GET","x-http-uri":"/api/v1/example/error/test?msg=ok\u0026code=16","x-request-id":"97f7be09-bd82-401f-a1d4-58c464822fe9","x-uid":""}
+{"file":"/data/work/begonia-org/begonia-go-sdk/example/server.go","fn":"github.com/begonia-org/go-sdk/example.(*server).SayHelloError","level":"ERROR","line":151,"message":"ok","status":401,"timestamp":"2024-05-19 02:38:24"}
+[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m2024/05/19 02:38:24 /api/v1/example/error/test?msg=ok&code=8,params:map[code:[8] msg:[ok]]
+2024/05/19 02:38:24 SayHelloError: ok,code:8
+{"elapsed":"727.422µs","file":"/data/work/begonia-org/begonia-go-sdk/example/server.go","fn":"github.com/begonia-org/go-sdk/example.(*server).SayHelloError","level":"ERROR","line":161,"message":"rpc error: code = ResourceExhausted desc = ok","module":"request","name":"/helloworld.Greeter/SayHelloError","status":4008,"timestamp":"2024-05-19 02:38:24","x-access-key":"","x-http-forwarded-for":"127.0.0.1","x-http-method":"GET","x-http-uri":"/api/v1/example/error/test?msg=ok\u0026code=8","x-request-id":"703946a5-b068-47c9-8625-c0d96ef7b627","x-uid":""}
+{"file":"/data/work/begonia-org/begonia-go-sdk/example/server.go","fn":"github.com/begonia-org/go-sdk/example.(*server).SayHelloError","level":"ERROR","line":161,"message":"ok","status":429,"timestamp":"2024-05-19 02:38:24"}
+[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m2024/05/19 02:38:24 /api/v1/example/error/test?msg=ok&code=4,params:map[code:[4] msg:[ok]]
+2024/05/19 02:38:24 SayHelloError: ok,code:4
+{"elapsed":"715.424µs","file":"/data/work/begonia-org/begonia-go-sdk/example/server.go","fn":"github.com/begonia-org/go-sdk/example.(*server).SayHelloError","level":"ERROR","line":159,"message":"rpc error: code = DeadlineExceeded desc = ok","module":"request","name":"/helloworld.Greeter/SayHelloError","status":5004,"timestamp":"2024-05-19 02:38:24","x-access-key":"","x-http-forwarded-for":"127.0.0.1","x-http-method":"GET","x-http-uri":"/api/v1/example/error/test?msg=ok\u0026code=4","x-request-id":"a7ab48bd-31b9-4d8d-96e0-dfa89518e78c","x-uid":""}
+{"file":"/data/work/begonia-org/begonia-go-sdk/example/server.go","fn":"github.com/begonia-org/go-sdk/example.(*server).SayHelloError","level":"ERROR","line":159,"message":"ok","status":504,"timestamp":"2024-05-19 02:38:24"}
+[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+179 total assertions[0m
+
+=== RUN   TestHttp/testWebSocketError
+
+  test websocket error [32m✔[0m[32m✔[0m{"file":"/data/work/begonia-org/begonia/gateway/http.go","fn":"func1","level":"WARNING","line":472,"message":"Failed to start websocket request: Failed to start websocket request: test stream error","timestamp":"2024-05-19 02:38:24"}
+[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m{"file":"/data/work/begonia-org/begonia/gateway/http.go","fn":"func1","level":"WARNING","line":472,"message":"Failed to start websocket request: Failed to get header from websocket client: test header error","timestamp":"2024-05-19 02:38:24"}
+[32m✔[0m{"file":"/data/work/begonia-org/begonia/gateway/http.go","fn":"func2","level":"WARNING","line":190,"message":"Failed to send websocket request: Failed to send request: rpc error: code = Internal desc = SendMsg called after CloseSend","timestamp":"2024-05-19 02:38:24"}
+[32m✔[0m[32m✔[0m[32m✔[0m{"file":"/data/work/begonia-org/begonia/gateway/http.go","fn":"func2","level":"WARNING","line":190,"message":"Failed to send websocket request: test send error","timestamp":"2024-05-19 02:38:24"}
+[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m{"file":"/data/work/begonia-org/begonia/gateway/http.go","fn":"func2","level":"WARNING","line":190,"message":"Failed to send websocket request: Failed to decode websocket request: test BIN DECODE error","timestamp":"2024-05-19 02:38:24"}
+[32m✔[0m{"elapsed":"1.430371ms","file":"/data/work/begonia-org/begonia/gateway/middlewares.go","fn":"logger","level":"ERROR","line":161,"message":"rpc error: code = Canceled desc = context canceled","module":"request","name":"/helloworld.Greeter/SayHelloWebsocket","status":499,"timestamp":"2024-05-19 02:38:24","x-access-key":"","x-http-forwarded-for":"127.0.0.1","x-http-method":"GET","x-http-uri":"/api/v1/example/server/websocket","x-request-id":"af97df27-8b8b-44d4-998b-c92240713c0d","x-uid":""}
+[32m✔[0m[32m✔[0m[32m✔[0m{"file":"/data/work/begonia-org/begonia/gateway/http.go","fn":"func2","level":"WARNING","line":190,"message":"Failed to send websocket request: Failed to send request: test send error","timestamp":"2024-05-19 02:38:24"}
+[32m✔[0m[32m✔[0m{"elapsed":"2.173096ms","file":"/data/work/begonia-org/begonia/gateway/middlewares.go","fn":"logger","level":"INFO","line":163,"message":"success","module":"request","name":"/helloworld.Greeter/SayHelloWebsocket","status":200,"timestamp":"2024-05-19 02:38:24","x-access-key":"","x-http-forwarded-for":"127.0.0.1","x-http-method":"GET","x-http-uri":"/api/v1/example/server/websocket","x-request-id":"e288de95-f166-42b4-8d2c-a58c562d7d5e","x-uid":""}
+{"file":"/data/work/begonia-org/begonia/gateway/http.go","fn":"func1","level":"ERROR","line":464,"message":"Failed to upgrade to websocket: test upgrade error","timestamp":"2024-05-19 02:38:24"}
+[32m✔[0m
+
+[31m[0m[33m[0m[32m
+200 total assertions[0m
+
+=== RUN   TestHttp/testServerSideEventErr
+
+  test server side event error {"elapsed":"1.256636ms","file":"/data/work/begonia-org/begonia/gateway/middlewares.go","fn":"logger","level":"INFO","line":163,"message":"success","module":"request","name":"/helloworld.Greeter/SayHelloWebsocket","status":200,"timestamp":"2024-05-19 02:38:24","x-access-key":"","x-http-forwarded-for":"127.0.0.1","x-http-method":"GET","x-http-uri":"/api/v1/example/server/websocket","x-request-id":"2c3dc345-2bdb-4dcf-9ed4-fbcd522b4991","x-uid":""}
+{"file":"/data/work/begonia-org/begonia/gateway/middlewares.go","fn":"func1","level":"ERROR","line":284,"message":"error type:*fmt.wrapError, error:Failed to add request params: test inParamsHandle error","status":500,"timestamp":"2024-05-19 02:38:24"}
+[32m✔[0m{"elapsed":"896.263µs","file":"/data/work/begonia-org/begonia/gateway/middlewares.go","fn":"logger","level":"INFO","line":163,"message":"success","module":"request","name":"/helloworld.Greeter/SayHelloWebsocket","status":200,"timestamp":"2024-05-19 02:38:24","x-access-key":"","x-http-forwarded-for":"127.0.0.1","x-http-method":"GET","x-http-uri":"/api/v1/example/server/websocket","x-request-id":"22d655b2-494a-4751-bf56-ad988d4071d6","x-uid":""}
+2024/05/19 02:38:24 /api/v1/example/server/sse/world?msg=hello&stream=message,params:map[msg:[hello] name:[world] stream:[message]]
+{"file":"/data/work/begonia-org/begonia/gateway/middlewares.go","fn":"func1","level":"ERROR","line":284,"message":"error type:*fmt.wrapError, error:Failed to start streaming: test ServerSideStream error","status":500,"timestamp":"2024-05-19 02:38:24"}
+[32m✔[0m2024/05/19 02:38:24 /api/v1/example/server/sse/world?msg=hello&stream=message,params:map[msg:[hello] name:[world] stream:[message]]
+{"file":"/data/work/begonia-org/begonia/gateway/middlewares.go","fn":"func1","level":"ERROR","line":284,"message":"error type:*fmt.wrapError, error:Failed to get header from client: test header error","status":500,"timestamp":"2024-05-19 02:38:24"}
+[32m✔[0m
+
+[31m[0m[33m[0m[32m
+203 total assertions[0m
+
+=== RUN   TestHttp/testClientStreamErr
+{"elapsed":"21.263µs","file":"/data/work/begonia-org/begonia/gateway/middlewares.go","fn":"logger","level":"ERROR","line":161,"message":"rpc error: code = Unavailable desc = no endpoint available from endpoint,context canceled","module":"request","name":"/helloworld.Greeter/SayHelloServerSideEvent","status":503,"timestamp":"2024-05-19 02:38:24","x-access-key":"","x-http-forwarded-for":"127.0.0.1","x-http-method":"GET","x-http-uri":"/api/v1/example/server/sse/world?msg=hello\u0026stream=message","x-request-id":"0e48a10a-88fb-45a8-a4b5-57544f47b7d0","x-uid":""}
+
+  test client stream error     http_test.go:795: test case:0
+[32m✔[0m{"file":"/data/work/begonia-org/begonia/gateway/middlewares.go","fn":"func1","level":"ERROR","line":284,"message":"error type:*errors.errorString, error:test ClientSideStream error","status":500,"timestamp":"2024-05-19 02:38:24"}
+[32m✔[0m[32m✔[0m    http_test.go:806: data:
+    http_test.go:795: test case:1
+[32m✔[0m{"file":"/data/work/begonia-org/begonia/gateway/middlewares.go","fn":"func1","level":"ERROR","line":275,"message":"Failed to decode request:test NewDecoder error","status":400,"timestamp":"2024-05-19 02:38:24"}
+[32m✔[0m[32m✔[0m    http_test.go:806: data:{"message":"Unknown error", "code":5000}
+{"elapsed":"19.795µs","file":"/data/work/begonia-org/begonia/gateway/middlewares.go","fn":"logger","level":"ERROR","line":161,"message":"rpc error: code = Unavailable desc = no endpoint available from endpoint,context canceled","module":"request","name":"/helloworld.Greeter/SayHelloClientStream","status":503,"timestamp":"2024-05-19 02:38:24","x-access-key":"","x-http-forwarded-for":"127.0.0.1","x-http-method":"POST","x-http-uri":"/api/v1/example/client/stream","x-request-id":"de477512-29a1-4efe-8456-07e304ab4c2d","x-uid":""}
+    http_test.go:795: test case:2
+[32m✔[0m{"file":"/data/work/begonia-org/begonia/gateway/middlewares.go","fn":"func1","level":"ERROR","line":275,"message":"Failed to add request params:test inParamsHandle error","status":400,"timestamp":"2024-05-19 02:38:24"}
+[32m✔[0m[32m✔[0m    http_test.go:806: data:{"message":"Unknown error", "code":5000}
+{"elapsed":"18.88µs","file":"/data/work/begonia-org/begonia/gateway/middlewares.go","fn":"logger","level":"ERROR","line":161,"message":"rpc error: code = Unavailable desc = no endpoint available from endpoint,context canceled","module":"request","name":"/helloworld.Greeter/SayHelloClientStream","status":503,"timestamp":"2024-05-19 02:38:24","x-access-key":"","x-http-forwarded-for":"127.0.0.1","x-http-method":"POST","x-http-uri":"/api/v1/example/client/stream","x-request-id":"5fdd1cb1-bcd3-49a3-87ba-545be7d3aa45","x-uid":""}
+    http_test.go:795: test case:3
+[32m✔[0m2024/05/19 02:38:24 /api/v1/example/client/stream,params:map[]
+{"file":"/data/work/begonia-org/begonia/gateway/middlewares.go","fn":"func1","level":"ERROR","line":275,"message":"Failed to send request:test client stream send error","status":500,"timestamp":"2024-05-19 02:38:24"}
+[32m✔[0m[32m✔[0m    http_test.go:806: data:{"message":"Unknown error", "code":5000}
+    http_test.go:795: test case:4
+[32m{"elapsed":"14.077µs","file":"/data/work/begonia-org/begonia/gateway/middlewares.go","fn":"logger","level":"ERROR","line":161,"message":"rpc error: code = Unavailable desc = no endpoint available from endpoint,context canceled","module":"request","name":"/helloworld.Greeter/SayHelloClientStream","status":503,"timestamp":"2024-05-19 02:38:24","x-access-key":"","x-http-forwarded-for":"127.0.0.1","x-http-method":"POST","x-http-uri":"/api/v1/example/client/stream","x-request-id":"15f334f4-8be1-4151-9f9e-49c7ab882cfe","x-uid":""}
+✔[0m2024/05/19 02:38:24 /api/v1/example/client/stream,params:map[]
+{"file":"/data/work/begonia-org/begonia/gateway/middlewares.go","fn":"func1","level":"ERROR","line":284,"message":"error type:*fmt.wrapError, error:Failed to close send: test client stream close error","status":500,"timestamp":"2024-05-19 02:38:24"}
+[32m✔[0m[32m✔[0m    http_test.go:806: data:
+{"elapsed":"14.828µs","file":"/data/work/begonia-org/begonia/gateway/middlewares.go","fn":"logger","level":"ERROR","line":161,"message":"rpc error: code = Unavailable desc = no endpoint available from endpoint,context canceled","module":"request","name":"/helloworld.Greeter/SayHelloClientStream","status":503,"timestamp":"2024-05-19 02:38:24","x-access-key":"","x-http-forwarded-for":"127.0.0.1","x-http-method":"POST","x-http-uri":"/api/v1/example/client/stream","x-request-id":"30a9ae5d-1c29-4cdd-9918-45ae4206d7ab","x-uid":""}
+    http_test.go:795: test case:5
+[32m✔[0m2024/05/19 02:38:24 /api/v1/example/client/stream,params:map[]
+{"file":"/data/work/begonia-org/begonia/gateway/middlewares.go","fn":"func1","level":"ERROR","line":284,"message":"error type:*fmt.wrapError, error:Failed to get header from client: test header error","status":500,"timestamp":"2024-05-19 02:38:24"}
+[32m✔[0m[32m✔[0m    http_test.go:806: data:
+
+
+[31m[0m[33m[0m[32m
+221 total assertions[0m
+
+=== RUN   TestHttp/testRequestError
+
+  test request error [32m✔[0m{"file":"/data/work/begonia-org/begonia/gateway/middlewares.go","fn":"func1","level":"ERROR","line":275,"message":"decode request body err test json decode error","status":400,"timestamp":"2024-05-19 02:38:24"}
+[32m✔[0m[32m✔[0m[32m✔[0m{"file":"/data/work/begonia-org/begonia/gateway/middlewares.go","fn":"func1","level":"ERROR","line":275,"message":"Failed to add request params: test inParamsHandle error","status":400,"timestamp":"2024-05-19 02:38:24"}
+[32m✔[0m{"elapsed":"567.563µs","file":"/data/work/begonia-org/begonia/gateway/middlewares.go","fn":"logger","level":"ERROR","line":161,"message":"rpc error: code = Canceled desc = context canceled","module":"request","name":"/helloworld.Greeter/SayHelloClientStream","status":499,"timestamp":"2024-05-19 02:38:24","x-access-key":"","x-http-forwarded-for":"127.0.0.1","x-http-method":"POST","x-http-uri":"/api/v1/example/client/stream","x-request-id":"fe47d748-01fa-47e8-9bc4-ce9a9ea97a07","x-uid":""}
+[32m✔[0m[32m✔[0m{"file":"/data/work/begonia-org/begonia/gateway/middlewares.go","fn":"func1","level":"ERROR","line":284,"message":"error type:*fmt.wrapError, error:Failed to add sha256 hash: test io copy error","status":500,"timestamp":"2024-05-19 02:38:24"}
+[32m✔[0m[32m✔[0m[32m✔[0m{"file":"/data/work/begonia-org/begonia/gateway/middlewares.go","fn":"func1","level":"ERROR","line":284,"message":"error type:*errors.errorString, error:test AnnotateContext error","status":500,"timestamp":"2024-05-19 02:38:24"}
+[32m✔[0m[32m✔[0m[32m✔[0m2024/05/19 02:38:24 /api/v1/example/world?msg=hello,params:map[msg:[hello] name:[world]]
+{"elapsed":"10.203µs","file":"/data/work/begonia-org/begonia/gateway/middlewares.go","fn":"logger","level":"ERROR","line":161,"message":"rpc error: code = Internal desc = stream not exists in context","module":"request","name":"/helloworld.Greeter/SayHelloGet","status":500,"timestamp":"2024-05-19 02:38:24","x-access-key":"","x-http-forwarded-for":"127.0.0.1","x-http-method":"GET","x-http-uri":"/api/v1/example/world?msg=hello","x-request-id":"c1559073-7f5e-40c6-9f53-b1eefa73bd79","x-uid":""}
+{"file":"/data/work/begonia-org/begonia/gateway/middlewares.go","fn":"func1","level":"ERROR","line":275,"message":"stream not exists in context","status":500,"timestamp":"2024-05-19 02:38:24"}
+[32m✔[0m[32m✔[0m[32m✔[0m2024/05/19 02:38:24 /api/v1/example/world?msg=hello,params:map[msg:[hello] name:[world]]
+{"elapsed":"10.088µs","file":"/data/work/begonia-org/begonia/gateway/middlewares.go","fn":"logger","level":"ERROR","line":161,"message":"rpc error: code = Unavailable desc = no source ip","module":"request","name":"/helloworld.Greeter/SayHelloGet","status":503,"timestamp":"2024-05-19 02:38:24","x-access-key":"","x-http-forwarded-for":"127.0.0.1","x-http-method":"GET","x-http-uri":"/api/v1/example/world?msg=hello","x-request-id":"6ddeb6b8-8460-4bfc-81dd-39490816a4c2","x-uid":""}
+{"file":"/data/work/begonia-org/begonia/gateway/middlewares.go","fn":"func1","level":"ERROR","line":275,"message":"no source ip","status":503,"timestamp":"2024-05-19 02:38:24"}
+[32m✔[0m[32m✔[0m[32m✔[0m2024/05/19 02:38:24 /api/v1/example/world?msg=hello,params:map[msg:[hello] name:[world]]
+{"elapsed":"11.683µs","file":"/data/work/begonia-org/begonia/gateway/middlewares.go","fn":"logger","level":"INFO","line":163,"message":"success","module":"request","name":"/helloworld.Greeter/SayHelloGet","status":200,"timestamp":"2024-05-19 02:38:24","x-access-key":"","x-http-forwarded-for":"127.0.0.1","x-http-method":"GET","x-http-uri":"/api/v1/example/world?msg=hello","x-request-id":"04f0fab8-977e-49ab-9a7a-4a863e631777","x-uid":""}
+{"file":"/data/work/begonia-org/begonia/gateway/middlewares.go","fn":"func1","level":"ERROR","line":284,"message":"error type:*errors.errorString, error:EOF","status":500,"timestamp":"2024-05-19 02:38:24"}
+[32m✔[0m[32m✔[0m[32m✔[0m2024/05/19 02:38:24 /api/v1/example/world?msg=hello,params:map[msg:[hello] name:[world]]
+{"elapsed":"15.673µs","file":"/data/work/begonia-org/begonia/gateway/middlewares.go","fn":"logger","level":"ERROR","line":161,"message":"rpc error: code = Unavailable desc = no endpoint available to select,test select error","module":"request","name":"/helloworld.Greeter/SayHelloGet","status":503,"timestamp":"2024-05-19 02:38:24","x-access-key":"","x-http-forwarded-for":"127.0.0.1","x-http-method":"GET","x-http-uri":"/api/v1/example/world?msg=hello","x-request-id":"e452aa7e-9c38-4765-8686-3b6e0c681939","x-uid":""}
+{"file":"/data/work/begonia-org/begonia/gateway/middlewares.go","fn":"func1","level":"ERROR","line":275,"message":"no endpoint available to select,test select error","status":503,"timestamp":"2024-05-19 02:38:24"}
+[32m✔[0m[32m✔[0m[32m✔[0m2024/05/19 02:38:24 /api/v1/example/world?msg=hello,params:map[msg:[hello] name:[world]]
+{"elapsed":"1.460953ms","file":"/data/work/begonia-org/begonia/gateway/middlewares.go","fn":"logger","level":"ERROR","line":161,"message":"rpc error: code = Internal desc = failed proxying s2c: test forwardServerToClient error","module":"request","name":"/helloworld.Greeter/SayHelloGet","status":500,"timestamp":"2024-05-19 02:38:24","x-access-key":"","x-http-forwarded-for":"127.0.0.1","x-http-method":"GET","x-http-uri":"/api/v1/example/world?msg=hello","x-request-id":"3c748083-df40-4da4-ac23-c0d58c5480d9","x-uid":""}
+{"file":"/data/work/begonia-org/begonia/gateway/middlewares.go","fn":"func1","level":"ERROR","line":275,"message":"failed proxying s2c: test forwardServerToClient error","status":500,"timestamp":"2024-05-19 02:38:24"}
+[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+248 total assertions[0m
+
+=== RUN   TestHttp/testLoadHttpEndpointItemErr
+
+  test load http endpoint item [32m✔[0m[32m✔[0m    http_test.go:850: err test case:0
+[32m✔[0m    http_test.go:850: err test case:1
+[32m✔[0m    http_test.go:850: err test case:2
+[32m✔[0m
+
+[31m[0m[33m[0m[32m
+253 total assertions[0m
+
+=== RUN   TestHttp/testDeleteEndpoint
+
+  test delete endpoint [32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m{"file":"/data/work/begonia-org/begonia/gateway/http.go","fn":"func1","level":"WARNING","line":372,"message":"not found router","timestamp":"2024-05-19 02:38:24","x-access-key":"","x-http-forwarded-for":"127.0.0.1","x-http-method":"GET","x-http-uri":"/api/v1/example/world?msg=hello","x-request-id":"ddbfac9d-349d-45c4-b261-caad05b535ac","x-uid":""}
+[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+259 total assertions[0m
+
+=== RUN   TestHttp/testRegisterLocalService
+
+  test register local service [32m✔[0m[32m✔[0m[32m✔[0m2024/05/19 02:38:25 Start on 127.0.0.1:9983
+[32m✔[0m2024/05/19 02:38:27 /api/v1/example/world?msg=hello,params:map[msg:[hello] name:[world]]
+{"elapsed":"20.896µs","file":"/data/work/begonia-org/begonia/gateway/middlewares.go","fn":"logger","level":"INFO","line":163,"message":"success","module":"request","name":"/helloworld.Greeter/SayHelloGet","status":200,"timestamp":"2024-05-19 02:38:27","x-access-key":"","x-http-forwarded-for":"127.0.0.1","x-http-method":"GET","x-http-uri":"/api/v1/example/world?msg=hello","x-request-id":"246a8942-3e27-44bf-8bac-990b052fa977","x-uid":""}
+[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+269 total assertions[0m
+
+
+  test del local service [32m✔[0m{"file":"/data/work/begonia-org/begonia/gateway/http.go","fn":"func1","level":"WARNING","line":372,"message":"not found router","timestamp":"2024-05-19 02:38:27","x-access-key":"","x-http-forwarded-for":"127.0.0.1","x-http-method":"GET","x-http-uri":"/api/v1/example/world?msg=hello","x-request-id":"80cd7df9-5597-456f-8bfe-872e8d66a0b0","x-uid":""}
+[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+272 total assertions[0m
+
+--- PASS: TestHttp (9.10s)
+    --- PASS: TestHttp/testRegisterClient (6.01s)
+    --- PASS: TestHttp/testRequestGet (0.00s)
+    --- PASS: TestHttp/testCors (0.00s)
+    --- PASS: TestHttp/testRequestPost (0.01s)
+    --- PASS: TestHttp/testServerSideEvent (0.00s)
+    --- PASS: TestHttp/testWebsocket (0.00s)
+    --- PASS: TestHttp/testClientStreamRequest (0.00s)
+    --- PASS: TestHttp/testLoadGlobalTypes (0.03s)
+    --- PASS: TestHttp/testHttpError (0.01s)
+    --- PASS: TestHttp/testWebSocketError (0.00s)
+    --- PASS: TestHttp/testServerSideEventErr (0.00s)
+    --- PASS: TestHttp/testClientStreamErr (0.00s)
+    --- PASS: TestHttp/testRequestError (0.00s)
+    --- PASS: TestHttp/testLoadHttpEndpointItemErr (0.01s)
+    --- PASS: TestHttp/testDeleteEndpoint (0.01s)
+    --- PASS: TestHttp/testRegisterLocalService (3.01s)
+=== RUN   TestBuildGrpcRequest
+
+  TestBuildGrpcRequest [32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+281 total assertions[0m
+
+--- PASS: TestBuildGrpcRequest (0.00s)
+=== RUN   TestNewEndpoint
+
+  TestNewEndpoint [32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+289 total assertions[0m
+
+--- PASS: TestNewEndpoint (0.00s)
+=== RUN   TestJSONCamelCase
+
+  TestJSONCamelCase [32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+293 total assertions[0m
+
+--- PASS: TestJSONCamelCase (0.00s)
+PASS
+	github.com/begonia-org/begonia/gateway	coverage: 89.9% of statements
+ok  	github.com/begonia-org/begonia/gateway	12.177s	coverage: 89.9% of statements
+=== RUN   TestFormDataContentType
+
+  TestFormDataContentType [32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+7 total assertions[0m
+
+--- PASS: TestFormDataContentType (0.00s)
+=== RUN   TestFormUrlEncodedContentType
+
+  TestFormUrlEncodedContentType [32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+12 total assertions[0m
+
+--- PASS: TestFormUrlEncodedContentType (0.00s)
+=== RUN   TestMask
+
+  TestMask [32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+20 total assertions[0m
+
+--- PASS: TestMask (0.00s)
+PASS
+	github.com/begonia-org/begonia/gateway/serialization	coverage: 33.8% of statements
+ok  	github.com/begonia-org/begonia/gateway/serialization	0.008s	coverage: 33.8% of statements
+=== RUN   TestAKSK
+=== RUN   TestAKSK/get_secret
+
+  get secret [32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+2 total assertions[0m
+
+
+  get secret fail {"file":"/data/work/begonia-org/go-layered-cache/kv.go","fn":"Get","level":"ERROR","line":102,"message":"local.Get begonia:kv:app:access_key:ddddeeeeeedede error:Entry not found","timestamp":"2024-05-19 02:38:16"}
+[32m✔[0m
+
+[31m[0m[33m[0m[32m
+3 total assertions[0m
+
+=== RUN   TestAKSK/get_appid
+
+  get appid [32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+5 total assertions[0m
+
+
+  get appid fail {"file":"/data/work/begonia-org/go-layered-cache/kv.go","fn":"Get","level":"ERROR","line":102,"message":"local.Get begonia:kv:app:appid:dddddeeedwecccwcqdq error:Entry not found","timestamp":"2024-05-19 02:38:16"}
+[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+7 total assertions[0m
+
+=== RUN   TestAKSK/validator
+
+  test validator success [32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+11 total assertions[0m
+
+
+  test validator fail with missing key params [32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+23 total assertions[0m
+
+--- PASS: TestAKSK (1.01s)
+    --- PASS: TestAKSK/get_secret (1.00s)
+    --- PASS: TestAKSK/get_appid (0.00s)
+    --- PASS: TestAKSK/validator (0.00s)
+=== RUN   TestAppBiz
+=== RUN   TestAppBiz/testPutApp
+
+  test app put success [32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+26 total assertions[0m
+
+
+  test app put failed [32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+33 total assertions[0m
+
+=== RUN   TestAppBiz/testGetApp
+
+  test app get success [32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+39 total assertions[0m
+
+
+  test app get failed [32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+41 total assertions[0m
+
+=== RUN   TestAppBiz/testPatchApp
+
+  test app patch success [32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+54 total assertions[0m
+
+
+  test app patch failed [32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+58 total assertions[0m
+
+=== RUN   TestAppBiz/testListApp
+
+  test app list success [32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+61 total assertions[0m
+
+
+  test app list failed [32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+63 total assertions[0m
+
+=== RUN   TestAppBiz/testDelApp
+
+  test app del success [32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+66 total assertions[0m
+
+--- PASS: TestAppBiz (0.04s)
+    --- PASS: TestAppBiz/testPutApp (0.02s)
+    --- PASS: TestAppBiz/testGetApp (0.00s)
+    --- PASS: TestAppBiz/testPatchApp (0.01s)
+    --- PASS: TestAppBiz/testListApp (0.00s)
+    --- PASS: TestAppBiz/testDelApp (0.01s)
+=== RUN   TestAuthz
+=== RUN   TestAuthz/test_auth_seed
+
+  test auth seed [32m✔[0m
+
+[31m[0m[33m[0m[32m
+67 total assertions[0m
+
+=== RUN   TestAuthz/test_login
+
+  test login success [32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+70 total assertions[0m
+
+
+  test login failed with invalid password [32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+74 total assertions[0m
+
+
+  test login failed with invalid account [32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+78 total assertions[0m
+
+
+  test login failed with invalid pub key [32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+81 total assertions[0m
+
+
+  test login failed with invalid seed token expiration [32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+85 total assertions[0m
+
+=== RUN   TestAuthz/test_logout
+
+  test logout success [32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+88 total assertions[0m
+
+
+  test logout fail [32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+92 total assertions[0m
+
+--- PASS: TestAuthz (0.16s)
+    --- PASS: TestAuthz/test_auth_seed (0.00s)
+    --- PASS: TestAuthz/test_login (0.16s)
+    --- PASS: TestAuthz/test_logout (0.00s)
+=== RUN   TestDo
+
+  test data operator do success [32m✔[0m[32m✔[0m[32m✔[0m{"file":"/data/work/begonia-org/begonia/internal/biz/data.go","fn":"Do","level":"INFO","line":56,"message":"start watch","timestamp":"2024-05-19 02:38:21"}
+{"file":"/data/work/begonia-org/begonia/internal/biz/data.go","fn":"loadUsersBlacklist","level":"INFO","line":101,"message":"lock key:3599","timestamp":"2024-05-19 02:38:21"}
+2024/05/19 02:38:21 lock key: begonia:user:black:lock,ttl:3599000000000
+{"file":"/data/work/begonia-org/begonia/internal/biz/data.go","fn":"Do","level":"INFO","line":56,"message":"start watch","timestamp":"2024-05-19 02:38:21"}
+{"file":"/data/work/begonia-org/begonia/internal/biz/data.go","fn":"loadUsersBlacklist","level":"INFO","line":101,"message":"lock key:3599","timestamp":"2024-05-19 02:38:21"}
+2024/05/19 02:38:21 lock key: begonia:user:black:lock,ttl:3599000000000
+{"file":"/data/work/begonia-org/begonia/internal/biz/data.go","fn":"func1","level":"INFO","line":120,"message":"unlock success","timestamp":"2024-05-19 02:38:21"}
+[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+99 total assertions[0m
+
+--- PASS: TestDo (5.03s)
+=== RUN   TestUser
+=== RUN   TestUser/testPutUser
+
+  test user put success [32m✔[0m{"file":"/data/work/begonia-org/begonia/internal/biz/data.go","fn":"func1","level":"INFO","line":120,"message":"unlock success","timestamp":"2024-05-19 02:38:23"}
+[32m✔[0m
+
+[31m[0m[33m[0m[32m
+101 total assertions[0m
+
+
+  test user put failed [32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+103 total assertions[0m
+
+=== RUN   TestUser/testGetUser
+
+  test user get success [32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+105 total assertions[0m
+
+
+  test user get failed [32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+107 total assertions[0m
+
+=== RUN   TestUser/testPatchUser
+
+  test user patch success [32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+109 total assertions[0m
+
+
+  test user patch failed [32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+114 total assertions[0m
+
+=== RUN   TestUser/testListUser
+    user_test.go:172: add user error:rpc error: code = AlreadyExists desc = Error 1062 (23000): Duplicate entry '87ae8aae3687431d547b7e09104138954240c59fd9908a9982566b2b0ebd07bb' for key 'users.uni_users_email'
+    user_test.go:172: add user error:rpc error: code = AlreadyExists desc = Error 1062 (23000): Duplicate entry '87ae8aae3684431d547b7e0910413895341a40482604b554fe5bfc1d6c9b5135' for key 'users.uni_users_email'
+    user_test.go:172: add user error:rpc error: code = AlreadyExists desc = Error 1062 (23000): Duplicate entry '87ae8aae3685431d547b7e09104138953161656bdd1e79ce1d279fb0ff4f722a' for key 'users.uni_users_email'
+    user_test.go:172: add user error:rpc error: code = AlreadyExists desc = Error 1062 (23000): Duplicate entry '87ae8aae3682431d547b7e09104138957eb92fd592554c621dde9d2e8843f9df' for key 'users.uni_users_email'
+    user_test.go:172: add user error:rpc error: code = AlreadyExists desc = Error 1062 (23000): Duplicate entry '87ae8aae3683431d547b7e0910413895cb3363dc9af4455f00577d0ce91fba26' for key 'users.uni_users_email'
+    user_test.go:172: add user error:rpc error: code = AlreadyExists desc = Error 1062 (23000): Duplicate entry '87ae8aae3680431d547b7e0910413895bbc08b4f7bba6a46f69d7303cb47ca75' for key 'users.uni_users_email'
+    user_test.go:172: add user error:rpc error: code = AlreadyExists desc = Error 1062 (23000): Duplicate entry '87ae8aae3681431d547b7e0910413895d52b7a854bd632c3b7d1af96a034abd9' for key 'users.uni_users_email'
+    user_test.go:172: add user error:rpc error: code = AlreadyExists desc = Error 1062 (23000): Duplicate entry '87ae8aae368e431d547b7e0910413895f87c25e719c8949425b45bd35e4cd20e' for key 'users.uni_users_email'
+    user_test.go:172: add user error:rpc error: code = AlreadyExists desc = Error 1062 (23000): Duplicate entry '87ae8aae368f431d547b7e09104138951c34c4c6118f9b97ecb5ccc391e2d83c' for key 'users.uni_users_email'
+    user_test.go:172: add user error:rpc error: code = AlreadyExists desc = Error 1062 (23000): Duplicate entry '87ae8aae36875e025679780d1545309c188206be2df0d6d459befc5bd6add841' for key 'users.uni_users_email'
+    user_test.go:172: add user error:rpc error: code = AlreadyExists desc = Error 1062 (23000): Duplicate entry '87ae8aae36875f025679780d1545309c949c0ba14298da138815e277dc1d89ce' for key 'users.uni_users_email'
+    user_test.go:172: add user error:rpc error: code = AlreadyExists desc = Error 1062 (23000): Duplicate entry '87ae8aae36875c025679780d1545309c928cdf6cf82389b8d62f38c01ca73d47' for key 'users.uni_users_email'
+    user_test.go:172: add user error:rpc error: code = AlreadyExists desc = Error 1062 (23000): Duplicate entry '87ae8aae36875d025679780d1545309cf919d51b52d8512e584d1cfada3ac831' for key 'users.uni_users_email'
+    user_test.go:172: add user error:rpc error: code = AlreadyExists desc = Error 1062 (23000): Duplicate entry '87ae8aae36875a025679780d1545309cb0e34819e32e5105352e75961becebc0' for key 'users.uni_users_email'
+    user_test.go:172: add user error:rpc error: code = AlreadyExists desc = Error 1062 (23000): Duplicate entry '87ae8aae36875b025679780d1545309c66b3b017b4c8233020c47765a0d80da8' for key 'users.uni_users_email'
+    user_test.go:172: add user error:rpc error: code = AlreadyExists desc = Error 1062 (23000): Duplicate entry '87ae8aae368758025679780d1545309c27d3bcac41e8e9fcacf18a0ea720da0b' for key 'users.uni_users_email'
+    user_test.go:172: add user error:rpc error: code = AlreadyExists desc = Error 1062 (23000): Duplicate entry '87ae8aae368759025679780d1545309cbaaf930d8d1e89703187dba1d73d08c1' for key 'users.uni_users_email'
+    user_test.go:172: add user error:rpc error: code = AlreadyExists desc = Error 1062 (23000): Duplicate entry '87ae8aae368756025679780d1545309c22133b72be51bbca232674a84d9c26e9' for key 'users.uni_users_email'
+    user_test.go:172: add user error:rpc error: code = AlreadyExists desc = Error 1062 (23000): Duplicate entry '87ae8aae368757025679780d1545309cb8cfbc335554b32ef2a09dfc67228a15' for key 'users.uni_users_email'
+
+  test user list success [32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+116 total assertions[0m
+
+
+  test user list failed [32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+118 total assertions[0m
+
+=== RUN   TestUser/testDeleteUser
+
+  test user delete success [32m✔[0m
+
+[31m[0m[33m[0m[32m
+119 total assertions[0m
+
+
+  test user delete failed [32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+121 total assertions[0m
+
+--- FAIL: TestUser (2.10s)
+    --- PASS: TestUser/testPutUser (2.03s)
+    --- PASS: TestUser/testGetUser (0.00s)
+    --- PASS: TestUser/testPatchUser (0.01s)
+    --- FAIL: TestUser/testListUser (0.05s)
+    --- PASS: TestUser/testDeleteUser (0.01s)
+FAIL
+	github.com/begonia-org/begonia/internal/biz	coverage: 82.6% of statements
+FAIL	github.com/begonia-org/begonia/internal/biz	8.749s
+=== RUN   TestEndpoint
+=== RUN   TestEndpoint/Test_Add_Endpoint
+
+  Test Add Endpoint [32m✔[0m2024/05/19 02:38:15 endpoint add tags :[test-biz=0]
+[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+3 total assertions[0m
+
+
+  Test Add Endpoint Fail [32m✔[0m[32m✔[0m2024/05/19 02:38:15 endpoint add tags :[test-biz=0]
+[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+7 total assertions[0m
+
+=== RUN   TestEndpoint/Test_Watcher_Update
+
+  Test Watcher Update [32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+9 total assertions[0m
+
+
+  test watcher update fail [32m✔[0m[32m✔[0m{"file":"/data/work/begonia-org/begonia/internal/biz/endpoint/watcher.go","fn":"Update","level":"ERROR","line":41,"message":"get descriptor set error: rpc error: code = Internal desc = Failed to register: no gateway content","timestamp":"2024-05-19 02:38:15"}
+[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+16 total assertions[0m
+
+=== RUN   TestEndpoint/Test_Get_Endpoint
+
+  Test Get Endpoint Fail [32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+21 total assertions[0m
+
+
+  Test Get Endpoint [32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+23 total assertions[0m
+
+=== RUN   TestEndpoint/Test_Patch_Endpoint
+
+  Test Patch Endpoint [32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+30 total assertions[0m
+
+
+  Test Patch Endpoint Fail [32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+38 total assertions[0m
+
+=== RUN   TestEndpoint/Test_List_Endpoint
+
+  Test List Endpoint 2024/05/19 02:38:15 endpoint add tags :[test-biz-0-20240519023815 test-biz-2-20240519023815]
+[32m✔[0m[32m✔[0m2024/05/19 02:38:15 endpoint add tags :[test-biz-0-20240519023815 test-biz-2-20240519023815]
+[32m✔[0m[32m✔[0m2024/05/19 02:38:15 endpoint add tags :[test-biz-1-20240519023815 test-biz-2-20240519023815]
+[32m✔[0m[32m✔[0m2024/05/19 02:38:15 endpoint add tags :[test-biz-1-20240519023815 test-biz-3-20240519023815]
+[32m✔[0m[32m✔[0m2024/05/19 02:38:15 endpoint add tags :[test-biz-0-20240519023815 test-biz-2-20240519023815]
+[32m✔[0m[32m✔[0m2024/05/19 02:38:15 endpoint add tags :[test-biz-1-20240519023815 test-biz-3-20240519023815]
+[32m✔[0m[32m✔[0m2024/05/19 02:38:15 endpoint add tags :[test-biz-1-20240519023815 test-biz-3-20240519023815]
+[32m✔[0m[32m✔[0m2024/05/19 02:38:15 endpoint add tags :[test-biz-1-20240519023815 test-biz-2-20240519023815]
+[32m✔[0m[32m✔[0m2024/05/19 02:38:15 endpoint add tags :[test-biz-0-20240519023815 test-biz-3-20240519023815]
+[32m✔[0m[32m✔[0m2024/05/19 02:38:15 endpoint add tags :[test-biz-0-20240519023815 test-biz-2-20240519023815]
+[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+64 total assertions[0m
+
+=== RUN   TestEndpoint/Test_Watcher_Update#01
+
+  Test Watcher Update [32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+66 total assertions[0m
+
+
+  test watcher update fail [32m✔[0m[32m✔[0m{"file":"/data/work/begonia-org/begonia/internal/biz/endpoint/watcher.go","fn":"Update","level":"ERROR","line":41,"message":"get descriptor set error: rpc error: code = Internal desc = Failed to register: no gateway content","timestamp":"2024-05-19 02:38:15"}
+[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+73 total assertions[0m
+
+=== RUN   TestEndpoint/Test_Watcher_Del
+
+  Test Watcher Del [32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+75 total assertions[0m
+
+
+  test watcher del fail [32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+80 total assertions[0m
+
+=== RUN   TestEndpoint/Test_Del_Endpoint
+
+  Test Del Endpoint [32m✔[0m
+
+[31m[0m[33m[0m[32m
+81 total assertions[0m
+
+--- PASS: TestEndpoint (0.16s)
+    --- PASS: TestEndpoint/Test_Add_Endpoint (0.01s)
+    --- PASS: TestEndpoint/Test_Watcher_Update (0.05s)
+    --- PASS: TestEndpoint/Test_Get_Endpoint (0.00s)
+    --- PASS: TestEndpoint/Test_Patch_Endpoint (0.01s)
+    --- PASS: TestEndpoint/Test_List_Endpoint (0.04s)
+    --- PASS: TestEndpoint/Test_Watcher_Update#01 (0.03s)
+    --- PASS: TestEndpoint/Test_Watcher_Del (0.02s)
+    --- PASS: TestEndpoint/Test_Del_Endpoint (0.00s)
+PASS
+	github.com/begonia-org/begonia/internal/biz/endpoint	coverage: 95.2% of statements
+ok  	github.com/begonia-org/begonia/internal/biz/endpoint	0.269s	coverage: 95.2% of statements
+=== RUN   TestFile
+=== RUN   TestFile/test_upload
+
+  test upload without version 2024/05/19 02:38:15 uploadRootDir:/tmp/upload,filePath:/tmp/upload/tester-20240519023815/test/upload.test1
+[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+5 total assertions[0m
+
+
+  test upload with version 2024/05/19 02:38:15 uploadRootDir:/tmp/upload,filePath:/tmp/upload/tester-20240519023815/test/upload.test2
+[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+11 total assertions[0m
+
+
+  test upload with version1 2024/05/19 02:38:15 uploadRootDir:/tmp/upload,filePath:/tmp/upload/tester-20240519023815/test/upload.test2
+[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+17 total assertions[0m
+
+
+  test upload with version2 2024/05/19 02:38:16 uploadRootDir:/tmp/upload,filePath:/tmp/upload/tester-20240519023815/test/upload.test2
+[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+23 total assertions[0m
+
+
+  test upload with version3 2024/05/19 02:38:16 uploadRootDir:/tmp/upload,filePath:/tmp/upload/tester-20240519023815/test/upload.test2
+[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+29 total assertions[0m
+
+
+  test upload with invalid key [32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+31 total assertions[0m
+
+
+  test upload with invalid author [32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+33 total assertions[0m
+
+
+  test upload fail with not match sha256 2024/05/19 02:38:16 uploadRootDir:/tmp/upload,filePath:/tmp/upload/tester-20240519023815/test/upload.test7
+[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+35 total assertions[0m
+
+
+  test upload fail     file_test.go:284: version:8fcf65ace4a1e43520c27b2a9f464b90c7dde016,sha256:87f58041a7980bdaa850cba352604cbffdce04b1c4df699d48759a0db7fddb80
+    file_test.go:284: version:e1bc074e4c1246c34d5b28d4f3c808493284cb0b,sha256:87f58041a7980bdaa850cba352604cbffdce04b1c4df699d48759a0db7fddb80
+    file_test.go:284: version:e9847c89d4ba99a77c449183b289eb51c5175ca9,sha256:87f58041a7980bdaa850cba352604cbffdce04b1c4df699d48759a0db7fddb80
+    file_test.go:284: version:5a53fb31f9e469398a24d9ace5d9a410a3ee4ecc,sha256:b4f72453f0a28f17b898715a9882328f061433f0a2812e2021595dc2984c884f
+[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+44 total assertions[0m
+
+=== RUN   TestFile/test_download
+
+  download success [32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+47 total assertions[0m
+
+
+  download with version1 [32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+50 total assertions[0m
+
+
+  download with version2 [32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+53 total assertions[0m
+
+
+  download with version3 [32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+56 total assertions[0m
+
+
+  download with latest version [32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+59 total assertions[0m
+
+
+  download fail with invalidate key [32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+61 total assertions[0m
+
+
+  download fail with version and invalidate key [32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+63 total assertions[0m
+
+=== RUN   TestFile/test_initiate_upload_file
+
+  test init parts upload file success [32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+67 total assertions[0m
+
+
+  test init parts upload file fail [32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+69 total assertions[0m
+
+=== RUN   TestFile/test_upload_parts_file
+
+  test upload parts file success 
+  upload 447105660895629312 for 1 part 
+  upload 447105660895629312 for 2 part 2024/05/19 02:38:16 uploadRootDir:/tmp/upload,filePath:/tmp/upload/447105660895629312/parts/00000001.part
+[32m✔[0m
+
+[31m[0m[33m[0m[32m
+70 total assertions[0m
+
+
+  upload 447105660895629312 for 3 part 2024/05/19 02:38:16 uploadRootDir:/tmp/upload,filePath:/tmp/upload/447105660895629312/parts/00000002.part
+[32m✔[0m
+
+[31m[0m[33m[0m[32m
+71 total assertions[0m
+
+
+  upload 447105660895629312 for 4 part 2024/05/19 02:38:16 uploadRootDir:/tmp/upload,filePath:/tmp/upload/447105660895629312/parts/00000004.part
+[32m✔[0m
+
+[31m[0m[33m[0m[32m
+72 total assertions[0m
+
+2024/05/19 02:38:16 uploadRootDir:/tmp/upload,filePath:/tmp/upload/447105660895629312/parts/00000003.part
+[32m✔[0m
+
+[31m[0m[33m[0m[32m
+73 total assertions[0m
+
+
+  upload 447105660895629312 for 5 part 
+  upload 447105660895629312 for 6 part 2024/05/19 02:38:16 uploadRootDir:/tmp/upload,filePath:/tmp/upload/447105660895629312/parts/00000005.part
+[32m✔[0m
+
+[31m[0m[33m[0m[32m
+74 total assertions[0m
+
+2024/05/19 02:38:16 uploadRootDir:/tmp/upload,filePath:/tmp/upload/447105660895629312/parts/00000006.part
+[32m✔[0m
+
+[31m[0m[33m[0m[32m
+75 total assertions[0m
+
+[32m✔[0m
+
+[31m[0m[33m[0m[32m
+76 total assertions[0m
+
+
+  test upload parts file fail [32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+85 total assertions[0m
+
+=== RUN   TestFile/test_complete_parts_file
+
+  test complete parts file success 2024/05/19 02:38:16 uploadRootDir:/tmp/upload,filePath:/tmp/upload/tester-20240519023815/test/upload.parts.test1
+[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+89 total assertions[0m
+
+
+  test complete parts file fail [32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+91 total assertions[0m
+
+=== RUN   TestFile/test_file_metadata
+
+  test file metadata [32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+95 total assertions[0m
+
+
+  test file metadata fail [32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+97 total assertions[0m
+
+=== RUN   TestFile/test_version_reader
+
+  test version reader [32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+104 total assertions[0m
+
+=== RUN   TestFile/test_abort_parts_file
+
+  test abort parts file success [32m✔[0m[32m✔[0m
+  upload 447105665060573184 for 1 part 
+  upload 447105665060573184 for 2 part 2024/05/19 02:38:17 uploadRootDir:/tmp/upload,filePath:/tmp/upload/447105665060573184/parts/00000001.part
+[32m✔[0m
+
+[31m[0m[33m[0m[32m
+107 total assertions[0m
+
+
+  upload 447105665060573184 for 3 part 2024/05/19 02:38:17 uploadRootDir:/tmp/upload,filePath:/tmp/upload/447105665060573184/parts/00000002.part
+[32m✔[0m
+
+[31m[0m[33m[0m[32m
+108 total assertions[0m
+
+2024/05/19 02:38:17 uploadRootDir:/tmp/upload,filePath:/tmp/upload/447105665060573184/parts/00000003.part
+[32m✔[0m
+
+[31m[0m[33m[0m[32m
+109 total assertions[0m
+
+
+  upload 447105665060573184 for 4 part 
+  upload 447105665060573184 for 5 part 2024/05/19 02:38:17 uploadRootDir:/tmp/upload,filePath:/tmp/upload/447105665060573184/parts/00000004.part
+[32m✔[0m
+
+[31m[0m[33m[0m[32m
+110 total assertions[0m
+
+2024/05/19 02:38:17 uploadRootDir:/tmp/upload,filePath:/tmp/upload/447105665060573184/parts/00000005.part
+[32m✔[0m
+
+[31m[0m[33m[0m[32m
+111 total assertions[0m
+
+
+  upload 447105665060573184 for 6 part 2024/05/19 02:38:17 uploadRootDir:/tmp/upload,filePath:/tmp/upload/447105665060573184/parts/00000006.part
+[32m✔[0m
+
+[31m[0m[33m[0m[32m
+112 total assertions[0m
+
+[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+116 total assertions[0m
+
+
+  test abort parts file fail [32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+118 total assertions[0m
+
+=== RUN   TestFile/test_download_range_parts_file
+
+  test download range parts file success [32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+125 total assertions[0m
+
+
+  test download range parts file fail [32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+129 total assertions[0m
+
+=== RUN   TestFile/test_delete_file
+
+  test delete file success [32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+133 total assertions[0m
+
+
+  test delete file fail [32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+137 total assertions[0m
+
+--- PASS: TestFile (3.18s)
+    --- PASS: TestFile/test_upload (0.32s)
+    --- PASS: TestFile/test_download (0.21s)
+    --- PASS: TestFile/test_initiate_upload_file (0.01s)
+    --- PASS: TestFile/test_upload_parts_file (0.13s)
+    --- PASS: TestFile/test_complete_parts_file (0.48s)
+    --- PASS: TestFile/test_file_metadata (0.14s)
+    --- PASS: TestFile/test_version_reader (0.23s)
+    --- PASS: TestFile/test_abort_parts_file (0.17s)
+    --- PASS: TestFile/test_download_range_parts_file (1.39s)
+    --- PASS: TestFile/test_delete_file (0.11s)
+PASS
+	github.com/begonia-org/begonia/internal/biz/file	coverage: 81.5% of statements
+ok  	github.com/begonia-org/begonia/internal/biz/file	3.264s	coverage: 81.5% of statements
+=== RUN   TestApp
+=== RUN   TestApp/add_app
+
+  test app add success     app_test.go:44: add test
+[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+7 total assertions[0m
+
+=== RUN   TestApp/get_app
+
+  test app get success     app_test.go:89: get test
+[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+12 total assertions[0m
+
+=== RUN   TestApp/add_duplicate_name
+
+  test app add duplicate name     app_test.go:109: add test
+[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+14 total assertions[0m
+
+=== RUN   TestApp/patch_app
+
+  test app patch success     app_test.go:138: patch test
+[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+21 total assertions[0m
+
+=== RUN   TestApp/list_app
+
+  test app list [32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+42 total assertions[0m
+
+=== RUN   TestApp/del_app
+
+  test app delete success     app_test.go:232: delete test
+[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+44 total assertions[0m
+
+--- PASS: TestApp (1.01s)
+    --- PASS: TestApp/add_app (0.94s)
+    --- PASS: TestApp/get_app (0.00s)
+    --- PASS: TestApp/add_duplicate_name (0.00s)
+    --- PASS: TestApp/patch_app (0.01s)
+    --- PASS: TestApp/list_app (0.05s)
+    --- PASS: TestApp/del_app (0.01s)
+=== RUN   TestAuthzRepo
+=== RUN   TestAuthzRepo/testCacheToken
+
+  test cache token [32m✔[0m
+
+[31m[0m[33m[0m[32m
+45 total assertions[0m
+
+=== RUN   TestAuthzRepo/testGetToken
+
+  test get token [32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+47 total assertions[0m
+
+
+  test token expiration [32m✔[0m
+
+[31m[0m[33m[0m[32m
+48 total assertions[0m
+
+=== RUN   TestAuthzRepo/deleteToken
+
+  test delete exp token [32m✔[0m
+
+[31m[0m[33m[0m[32m
+49 total assertions[0m
+
+
+  test token delete [32m✔[0m[32m✔[0m{"file":"/data/work/begonia-org/go-layered-cache/kv.go","fn":"Get","level":"ERROR","line":102,"message":"local.Get test:token2 error:Entry not found","timestamp":"2024-05-19 02:38:23"}
+[32m✔[0m
+
+[31m[0m[33m[0m[32m
+52 total assertions[0m
+
+=== RUN   TestAuthzRepo/testPutBlacklist
+
+  test put blacklist [32m✔[0m
+
+[31m[0m[33m[0m[32m
+53 total assertions[0m
+
+=== RUN   TestAuthzRepo/testCheckInBlackList
+
+  test check in blacklist [32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+57 total assertions[0m
+
+--- PASS: TestAuthzRepo (7.01s)
+    --- PASS: TestAuthzRepo/testCacheToken (0.00s)
+    --- PASS: TestAuthzRepo/testGetToken (7.00s)
+    --- PASS: TestAuthzRepo/deleteToken (0.00s)
+    --- PASS: TestAuthzRepo/testPutBlacklist (0.00s)
+    --- PASS: TestAuthzRepo/testCheckInBlackList (0.00s)
+=== RUN   TestEndpoint
+=== RUN   TestEndpoint/put
+
+  test app add success     endpoint_test.go:30: add test
+[32m✔[0m
+
+[31m[0m[33m[0m[32m
+58 total assertions[0m
+
+=== RUN   TestEndpoint/get
+
+  test endpoint get success [32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+62 total assertions[0m
+
+=== RUN   TestEndpoint/getKeysByTags
+
+  test get keys by tags success [32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+65 total assertions[0m
+
+=== RUN   TestEndpoint/list
+
+  test list [32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+81 total assertions[0m
+
+=== RUN   TestEndpoint/patch
+
+  test endpoint patch success [32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m    endpoint_test.go:199: keys:[/begonia/endpoints/service/447105692357103616]
+[32m✔[0m
+
+[31m[0m[33m[0m[32m
+94 total assertions[0m
+
+=== RUN   TestEndpoint/putTags
+
+  test endpoint add tags [32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+106 total assertions[0m
+
+=== RUN   TestEndpoint/del
+
+  test endpoint delete [32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+111 total assertions[0m
+
+--- PASS: TestEndpoint (0.12s)
+    --- PASS: TestEndpoint/put (0.01s)
+    --- PASS: TestEndpoint/get (0.00s)
+    --- PASS: TestEndpoint/getKeysByTags (0.00s)
+    --- PASS: TestEndpoint/list (0.08s)
+    --- PASS: TestEndpoint/patch (0.01s)
+    --- PASS: TestEndpoint/putTags (0.01s)
+    --- PASS: TestEndpoint/del (0.01s)
+=== RUN   TestOperator
+=== RUN   TestOperator/testGetAllForbiddenUsers
+
+  test get all forbidden users [32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+114 total assertions[0m
+
+=== RUN   TestOperator/testFlashUsersCache
+
+  test flash users cache {"file":"/data/work/begonia-org/begonia/internal/data/operator.go","fn":"func1","level":"INFO","line":208,"message":"data operator repo start","timestamp":"2024-05-19 02:38:24"}
+[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+117 total assertions[0m
+
+=== RUN   TestOperator/testGetAllApp
+
+  test get all app [32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+129 total assertions[0m
+
+=== RUN   TestOperator/testFlashAppsCache
+
+  test flash apps cache [32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+131 total assertions[0m
+
+=== RUN   TestOperator/testLastUpdated
+
+  test last updated [32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+133 total assertions[0m
+
+=== RUN   TestOperator/testWatcher
+
+  test watcher [32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+137 total assertions[0m
+
+--- PASS: TestOperator (6.33s)
+    --- PASS: TestOperator/testGetAllForbiddenUsers (0.15s)
+    --- PASS: TestOperator/testFlashUsersCache (1.06s)
+    --- PASS: TestOperator/testGetAllApp (0.08s)
+    --- PASS: TestOperator/testFlashAppsCache (0.02s)
+    --- PASS: TestOperator/testLastUpdated (0.00s)
+    --- PASS: TestOperator/testWatcher (5.01s)
+=== RUN   TestUser
+=== RUN   TestUser/testAddUser
+
+  test user add success     user_test.go:30: add test
+[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+141 total assertions[0m
+
+=== RUN   TestUser/testGetUser
+
+  test user get success     user_test.go:89: get test
+[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+    test user get by account     user_test.go:106: account: 87ae8aae2a9b5c1f567d7a0c14493197b9412b0d
+[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+150 total assertions[0m
+
+=== RUN   TestUser/testUpdateUser
+
+  test user update success     user_test.go:119: update test
+[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+162 total assertions[0m
+
+=== RUN   TestUser/testDelUser
+
+  test user delete success     user_test.go:161: delete test
+[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+165 total assertions[0m
+
+=== RUN   TestUser/testListUser
+
+  test user list success [32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m[32m✔[0m
+
+[31m[0m[33m[0m[32m
+173 total assertions[0m
+
+--- PASS: TestUser (3.17s)
+    --- PASS: TestUser/testAddUser (2.03s)
+    --- PASS: TestUser/testGetUser (0.00s)
+    --- PASS: TestUser/testUpdateUser (1.02s)
+    --- PASS: TestUser/testDelUser (0.01s)
+    --- PASS: TestUser/testListUser (0.10s)
+PASS
+	github.com/begonia-org/begonia/internal/data	coverage: 67.2% of statements
+ok  	github.com/begonia-org/begonia/internal/data	17.829s	coverage: 67.2% of statements
+2024/05/19 02:38:16 run test server
+2024/05/19 02:38:16 FATAL: [core] grpc: Server.RegisterService after Server.Serve for "helloworld.Greeter"
+FAIL	github.com/begonia-org/begonia/internal/service	0.026s
+FAIL

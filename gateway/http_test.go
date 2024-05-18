@@ -504,7 +504,7 @@ func testRequestError(t *testing.T) {
 			output []interface{}
 		}{
 			{
-				patch:  (gwRuntime.DecoderWrapper).Decode,
+				patch:  (*gwRuntime.DecoderWrapper).Decode,
 				output: []interface{}{fmt.Errorf("test json decode error")},
 			},
 			{
@@ -542,7 +542,8 @@ func testRequestError(t *testing.T) {
 		}
 		errChan <- fmt.Errorf("test forwardServerToClient error")
 		defer close(errChan)
-		for _, caseV := range cases {
+		for i, caseV := range cases {
+			t.Logf("test error test case:%d", i)
 			url := fmt.Sprintf("http://127.0.0.1:%d/api/v1/example/world?msg=hello", gwPort)
 			r, err := http.NewRequest(http.MethodGet, url, nil)
 			r.Header.Set("x-uid", "12345678")
