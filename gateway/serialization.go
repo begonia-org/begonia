@@ -3,7 +3,6 @@ package gateway
 import (
 	"fmt"
 	"io"
-	"reflect"
 
 	_ "github.com/begonia-org/go-sdk/api/app/v1"
 	_ "github.com/begonia-org/go-sdk/api/endpoint/v1"
@@ -37,13 +36,6 @@ type BinaryDecoder struct {
 	marshaler runtime.Marshaler
 }
 
-func (d *BinaryDecoder) fn() string {
-	if d.fieldName == "" {
-		return "Data"
-	}
-	return d.fieldName
-}
-
 // var typeOfBytes = reflect.TypeOf([]byte(nil))
 // var typeOfHttpbody = reflect.TypeOf(&httpbody.HttpBody{})
 
@@ -52,10 +44,7 @@ func (d *BinaryDecoder) Decode(v interface{}) error {
 		return nil
 
 	}
-	rv := reflect.ValueOf(v).Elem() // assert it must be a pointer
-	if rv.Kind() != reflect.Struct {
-		return d
-	}
+
 	if dpb, ok := v.(*dynamicpb.Message); ok {
 		typ := dpb.Type().Descriptor().Name()
 		if string(typ) == "HttpBody" {
@@ -81,10 +70,6 @@ func (d *BinaryDecoder) Decode(v interface{}) error {
 	return d.marshaler.NewDecoder(d.r).Decode(v)
 }
 
-func (d *BinaryDecoder) Error() string {
-	d.r = nil
-	return "cannot set: " + d.fn()
-}
 func NewRawBinaryUnmarshaler() *RawBinaryUnmarshaler {
 	return &RawBinaryUnmarshaler{
 
