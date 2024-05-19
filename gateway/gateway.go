@@ -112,18 +112,6 @@ func (g *GatewayServer) Start() {
 		} else {
 			g.gatewayMux.ServeHTTP(w, r)
 
-			// var handler = func(h http.Handler) http.Handler {
-			// 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// 		g.gatewayMux.ServeHTTP(w, r)
-			// 	})
-			// }
-			// var httpHandle http.Handler
-			// for _, h := range g.opts.HttpHandlers {
-			// 	// handler = h(handler)
-			// 	// handler=h(handler)
-			// 	// httpHandle =
-			// }
-			// handler.ServeHTTP(w, r)
 		}
 	}), &http2.Server{})
 

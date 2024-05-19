@@ -13,7 +13,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/begonia-org/begonia/gateway/serialization"
 	"github.com/gorilla/websocket"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc/codes"
@@ -291,7 +290,7 @@ func (h *HttpEndpointImpl) inParamsHandle(pathParams map[string]string, req *htt
 	}
 	log.Printf("%s,params:%v", req.URL.String(), params)
 	if len(params) > 0 {
-		return serialization.UrlQueryToProtoMessageField(in, params)
+		return UrlQueryToProtoMessageField(in, params)
 	}
 	return nil
 }
@@ -465,13 +464,14 @@ func (h *HttpEndpointImpl) RegisterHandlerClient(ctx context.Context, pd Protobu
 					// runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, fmt.Errorf("Failed to upgrade to websocket: %w", err))
 					return
 				}
+				// defer ws.Close()
 				stream, md, err := h.stream(annotatedContext, item, inboundMarshaler, ws)
 				annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
 
 				if err != nil {
 					Log.Warnf(annotatedContext, "Failed to start websocket request: %v", err)
 					// runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, fmt.Errorf("Failed to start websocket request: %w", err))
-					ws.Close()
+					_ = ws.CloseConn()
 					return
 				}
 				runtime.ForwardResponseStream(annotatedContext, mux, outboundMarshaler, ws, req, stream.Recv, mux.GetForwardResponseOptions()...)

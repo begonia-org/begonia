@@ -79,8 +79,8 @@ require (
 
 require (
 	github.com/agiledragon/gomonkey/v2 v2.11.0
-	github.com/begonia-org/go-loadbalancer v0.0.0-20240515153502-b1d83dda8ae3
-	github.com/begonia-org/go-sdk v0.0.0-20240517093020-2a19277f4cd0
+	github.com/begonia-org/go-loadbalancer v0.0.0-20240519060752-71ca464f0f1a
+	github.com/begonia-org/go-sdk v0.0.0-20240519143740-d09416b7b751
 	github.com/go-git/go-git/v5 v5.11.0
 	github.com/go-playground/validator/v10 v10.19.0
 	github.com/gorilla/websocket v1.5.0

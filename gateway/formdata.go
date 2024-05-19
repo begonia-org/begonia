@@ -1,4 +1,4 @@
-package serialization
+package gateway
 
 import (
 	"fmt"

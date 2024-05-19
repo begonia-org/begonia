@@ -67,13 +67,20 @@ func (x *serverSideStreamClient) Recv() (protoreflect.ProtoMessage, error) {
 	}
 	return x.buildEventStreamResponse(out)
 }
+func (x *serverSideStreamClient)SendMsg(v any)error{
+	return x.ClientStream.SendMsg(v)
+}
+func (x *serverSideStreamClient)CloseSend()error{
+	return x.ClientStream.CloseSend()
+
+}
 
 func (x *clientSideStreamClient) Send(m protoreflect.ProtoMessage) error {
 	return x.ClientStream.SendMsg(m)
 }
 
 func (x *clientSideStreamClient) CloseAndRecv() (protoreflect.ProtoMessage, error) {
-	if err := x.ClientStream.CloseSend(); err != nil {
+	if err := x.CloseSend(); err != nil {
 		return nil, err
 	}
 	out := dynamicpb.NewMessage(x.out)

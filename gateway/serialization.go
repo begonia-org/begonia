@@ -1,4 +1,4 @@
-package serialization
+package gateway
 
 import (
 	"fmt"
@@ -20,7 +20,6 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/dynamicpb"
 )
 
@@ -153,27 +152,7 @@ func (m *RawBinaryUnmarshaler) Marshal(v interface{}) ([]byte, error) {
 func (m *EventSourceMarshaler) ContentType(v interface{}) string {
 	return "text/event-stream"
 }
-func (m *EventSourceMarshaler) ToEventStreamResponse(dynMsg *dynamicpb.Message) (*common.EventStream, error) {
-	esr := &common.EventStream{}
 
-	// 遍历所有字段
-	dynMsg.Range(func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
-		switch fd.Name() {
-		case "event":
-			esr.Event = v.String()
-		case "data":
-			esr.Data = v.String()
-		case "id":
-			esr.Id = v.Int()
-		case "retry":
-			esr.Retry = int32(v.Int())
-		}
-		return true
-	})
-
-	// 返回转换后的消息
-	return esr, nil
-}
 func (m *EventSourceMarshaler) Marshal(v interface{}) ([]byte, error) {
 	if response, ok := v.(map[string]interface{}); ok {
 		// result:=response

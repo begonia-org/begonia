@@ -58,7 +58,7 @@ func TestDo(t *testing.T) {
 		HttpHandlers:    make([]func(http.Handler) http.Handler, 0),
 	}
 	gwCnf := &gateway.GatewayConfig{
-		GatewayAddr:   "127.0.0.1:9527",
+		GatewayAddr:   "127.0.0.1:1949",
 		GrpcProxyAddr: "127.0.0.1:12148",
 	}
 	gateway.New(gwCnf, opts)
