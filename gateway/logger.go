@@ -36,10 +36,6 @@ func (l *LoggerImpl) WithFields(fields logrus.Fields) logger.Logger {
 	imp := &LoggerImpl{Entry: l.Entry.WithFields(fields)}
 	return imp
 }
-func (l *LoggerImpl) WithContext(ctx context.Context) logger.Logger {
-
-	return &LoggerImpl{Entry: l.Entry.WithContext(ctx)}
-}
 func (l *LoggerImpl) Logurs() *logrus.Logger {
 	return l.Logger
 }

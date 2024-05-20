@@ -135,6 +135,9 @@ func testRegisterClient(t *testing.T) {
 		time.Sleep(2 * time.Second)
 		go gw.Start()
 		time.Sleep(4 * time.Second)
+		_, err = gw.proxyLB.Select("test/.test")
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, loadbalance.ErrNoEndpoint.Error())
 	})
 }
 func testRequestGet(t *testing.T) {
@@ -142,6 +145,7 @@ func testRequestGet(t *testing.T) {
 		url := fmt.Sprintf("http://127.0.0.1:%d/api/v1/example/world?msg=hello", gwPort)
 		r, err := http.NewRequest(http.MethodGet, url, nil)
 		r.Header.Set("x-uid", "12345678")
+		r.Header.Set(XAccessKey, "12345678")
 		// r.Header.Set("Origin", "http://www.example.com")
 		c.So(err, c.ShouldBeNil)
 
@@ -435,6 +439,42 @@ func testClientStreamRequestByMarshal(t *testing.T) {
 		for i := 0; i < 10; i++ {
 			c.So(reply.Replies[i].Message, c.ShouldEqual, fmt.Sprintf("hello-%d-%d", i, i))
 		}
+
+		marshal := NewProtobufWithLengthPrefix()
+		helloReq := &hello.HelloRequest{Msg: "hello", Name: "world"}
+		patch := gomonkey.ApplyFuncReturn(protojson.Marshal, nil, fmt.Errorf("test json marshal error"))
+		defer patch.Reset()
+		_, err = marshal.Marshal(helloReq)
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "test json marshal error")
+		writer2 := &bytes.Buffer{}
+		encoder := marshal.NewEncoder(writer2)
+		in := &hello.HelloRequest{
+			Name: "world",
+			Msg:  "hello",
+		}
+		err = encoder.Encode(in)
+		c.So(err, c.ShouldNotBeNil)
+		patch.Reset()
+
+		err = encoder.Encode(in)
+		c.So(err, c.ShouldBeNil)
+		decoder := marshal.NewDecoder(writer2)
+		patch2 := gomonkey.ApplyFuncReturn(binary.Read, fmt.Errorf("test json read error"))
+		defer patch2.Reset()
+		out := &hello.HelloRequest{}
+		err = decoder.Decode(out)
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "test json read error")
+		patch2.Reset()
+
+		patch3 := gomonkey.ApplyFuncReturn((*bytes.Buffer).Read, 0, fmt.Errorf("test io read error"))
+		defer patch3.Reset()
+		err = decoder.Decode(out)
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "test io read error")
+		patch3.Reset()
+
 	})
 }
 func testDeleteEndpoint(t *testing.T) {
@@ -671,6 +711,12 @@ func testHttpError(t *testing.T) {
 				expectHttpCode:     http.StatusGatewayTimeout,
 				expectInternalCode: int32(common.Code_TIMEOUT_ERROR),
 			},
+			{
+				code:               int32(99999),
+				msg:                codes.Internal.String(),
+				expectHttpCode:     http.StatusInternalServerError,
+				expectInternalCode: int32(common.Code_INTERNAL_ERROR),
+			},
 		}
 		for _, v := range cases {
 			url := fmt.Sprintf("http://127.0.0.1:%d/api/v1/example/error/test?msg=ok&code=%d", gwPort, v.code)
@@ -764,30 +810,42 @@ func testServerSideEventErr(t *testing.T) {
 		cases := []struct {
 			patch  interface{}
 			output []interface{}
+			err    error
 		}{
 			{
 				patch:  (*HttpEndpointImpl).inParamsHandle,
 				output: []interface{}{fmt.Errorf("test inParamsHandle error")},
+				err:    fmt.Errorf("test inParamsHandle error"),
 			},
 			{
 				patch:  (*httpForwardGrpcEndpointImpl).ServerSideStream,
 				output: []interface{}{nil, fmt.Errorf("test ServerSideStream error")},
+				err:    fmt.Errorf("test ServerSideStream error"),
 			},
 			{
 				patch:  (*serverSideStreamClient).Header,
 				output: []interface{}{nil, fmt.Errorf("test header error")},
+				err:    fmt.Errorf("test header error"),
 			},
 			{
 				patch:  (*goloadbalancer.ConnPool).Get,
 				output: []interface{}{nil, fmt.Errorf("test get conn error")},
+				err:    fmt.Errorf("test get conn error"),
 			},
 			{
 				patch:  (*grpc.ClientConn).NewStream,
 				output: []interface{}{nil, fmt.Errorf("test new stream error")},
+				err:    fmt.Errorf("test new stream error"),
 			},
 			{
 				patch:  (*serverSideStreamClient).SendMsg,
 				output: []interface{}{fmt.Errorf("test send error")},
+				err:    fmt.Errorf("test send error"),
+			},
+			{
+				patch:  protojson.Marshal,
+				output: []interface{}{nil, fmt.Errorf("test marshal error")},
+				err:    fmt.Errorf("test marshal error"),
 			},
 		}
 		for _, caseV := range cases {
@@ -805,6 +863,7 @@ func testServerSideEventErr(t *testing.T) {
 			})
 			patch.Reset()
 			c.So(err, c.ShouldNotBeNil)
+			// c.So(err.Error(), c.ShouldContainSubstring, caseV.err.Error())
 		}
 	})
 }

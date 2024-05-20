@@ -325,7 +325,7 @@ func HttpResponseBodyModify(ctx context.Context, w http.ResponseWriter, msg prot
 
 		}
 		writeHttpHeaders(w, key, value)
-		if strings.HasSuffix(http.CanonicalHeaderKey(key), "X-Http-Code") {
+		if strings.HasSuffix(http.CanonicalHeaderKey(key), http.CanonicalHeaderKey("X-Http-Code")) {
 			codeStr := value[0]
 			code, err := strconv.ParseInt(codeStr, 10, 32)
 			if err != nil {

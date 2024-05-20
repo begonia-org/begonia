@@ -51,7 +51,16 @@ func TestRawBinaryUnmarshaler(t *testing.T) {
 		c.So(err2, c.ShouldBeNil)
 		c.So(marshal.ContentType(msg2), c.ShouldContainSubstring, "application/octet-stream-test")
 
-		c.So(decoder3.Decode(nil),c.ShouldBeNil)
+		c.So(decoder3.Decode(nil), c.ShouldBeNil)
+
+		patch1 := gomonkey.ApplyFuncReturn(proto.Marshal, nil, fmt.Errorf("proto.Marshal: nil"))
+		defer patch1.Reset()
+		c.So(marshal.ContentType(msg2), c.ShouldEqual, "application/octet-stream")
+		patch1.Reset()
+
+		patch2:=gomonkey.ApplyFuncReturn(proto.Unmarshal, fmt.Errorf("io.ReadAll: unexpected EOF"))
+		defer patch2.Reset()
+		c.So(marshal.ContentType(msg2), c.ShouldEqual, "application/octet-stream")
 	})
 }
 

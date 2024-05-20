@@ -41,6 +41,7 @@ func testSetHttpResponseErr(t *testing.T) {
 		os.Remove(filepath.Join(pbFile, "desc.pb"))
 		os.Remove(filepath.Join(pbFile, "json"))
 		pd, err := NewDescription(pbFile)
+
 		c.So(err, c.ShouldBeNil)
 		cases := []struct {
 			patch  interface{}
@@ -76,6 +77,16 @@ func testSetHttpResponseErr(t *testing.T) {
 			c.So(err, c.ShouldNotBeNil)
 			patch.Reset()
 		}
+		patch:=gomonkey.ApplyFunc((*json.Decoder).Decode, func(_ *json.Decoder, v any) error {
+			val:=v.(*map[string]interface{})
+			(*val)["/SayHello"]=[]interface{}{map[string]interface{}{"OutName":"HttpBody"}}
+			return nil
+		})
+		defer patch.Reset()
+		err = pd.SetHttpResponse(common.E_HttpResponse)
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(),c.ShouldContainSubstring,"invalid gateway.json")
+		patch.Reset()
 	})
 }
 func testNewDescriptionErr(t *testing.T) {

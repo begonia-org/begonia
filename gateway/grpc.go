@@ -127,9 +127,7 @@ func (g *GrpcLoadBalancer) Select(method string, args ...interface{}) (loadbalan
 	}
 	return nil, loadbalance.ErrNoEndpoint
 }
-func (g *GrpcLoadBalancer) Stats() {
 
-}
 
 type GrpcProxyMiddleware func(srv interface{}, serverStream grpc.ServerStream) error
 type GrpcProxy struct {
