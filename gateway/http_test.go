@@ -134,6 +134,11 @@ func testRegisterClient(t *testing.T) {
 		go example.Run(helloAddr)
 		time.Sleep(2 * time.Second)
 		go gw.Start()
+		time.Sleep(1 * time.Second)
+		f:=func(){
+			gw.Start()
+		}
+		c.So(f,c.ShouldPanic)
 		time.Sleep(4 * time.Second)
 		_, err = gw.proxyLB.Select("test/.test")
 		c.So(err, c.ShouldNotBeNil)
@@ -1077,7 +1082,6 @@ func testUpdateLoadbalance(t *testing.T) {
 }
 func TestHttp(t *testing.T) {
 	t.Run("testRegisterClient", testRegisterClient)
-
 	t.Run("testRequestGet", testRequestGet)
 	t.Run("testCors", testCors)
 	t.Run("testRequestPost", testRequestPost)

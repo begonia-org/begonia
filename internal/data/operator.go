@@ -133,7 +133,7 @@ func (d *dataOperatorRepo) FlashUsersCache(ctx context.Context, prefix string, m
 	for i := 0; i < len(kv)-1; i += 2 {
 		key := kv[i].(string)
 		val := kv[i+1].(string)
-		// d.log.Infof("set to local %s %s", key, val)
+		// d.log.Infof(ctx,"set to local %s %s", key, val)
 		_ = d.local.SetToLocal(ctx, key, []byte(val), exp)
 	}
 	return err
