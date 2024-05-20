@@ -10,7 +10,6 @@ import (
 	"strconv"
 
 	"github.com/begonia-org/begonia/gateway"
-	"github.com/begonia-org/begonia/gateway/serialization"
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/middleware"
 	"github.com/begonia-org/begonia/internal/pkg/routers"
@@ -57,11 +56,11 @@ func NewGateway(cfg *gateway.GatewayConfig, conf *config.Config, services []serv
 		HttpMiddlewares: make([]runtime.ServeMuxOption, 0),
 		HttpHandlers:    make([]func(http.Handler) http.Handler, 0),
 	}
-	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithMarshalerOption("application/json", serialization.NewJSONMarshaler()))
-	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithMarshalerOption("multipart/form-data", serialization.NewFormDataMarshaler()))
-	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithMarshalerOption("application/x-www-form-urlencoded", serialization.NewFormUrlEncodedMarshaler()))
-	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithMarshalerOption(runtime.MIMEWildcard, serialization.NewRawBinaryUnmarshaler()))
-	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithMarshalerOption("application/octet-stream", serialization.NewRawBinaryUnmarshaler()))
+	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithMarshalerOption("application/json", gateway.NewJSONMarshaler()))
+	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithMarshalerOption("multipart/form-data", gateway.NewFormDataMarshaler()))
+	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithMarshalerOption("application/x-www-form-urlencoded", gateway.NewFormUrlEncodedMarshaler()))
+	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithMarshalerOption(runtime.MIMEWildcard, gateway.NewRawBinaryUnmarshaler()))
+	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithMarshalerOption("application/octet-stream", gateway.NewRawBinaryUnmarshaler()))
 
 	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithMetadata(gateway.IncomingHeadersToMetadata))
 	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithErrorHandler(gateway.HandleErrorWithLogger(gateway.Log)))

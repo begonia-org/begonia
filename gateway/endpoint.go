@@ -38,13 +38,14 @@ func (e *httpForwardGrpcEndpointImpl) Request(req GrpcRequest) (proto.Message, r
 		TrailerMD: make(map[string][]string),
 	}
 	cc, err := e.pool.Get(req.GetContext())
-	defer e.pool.Release(req.GetContext(), cc)
 	if err != nil {
 		return nil, runtime.ServerMetadata{
 			HeaderMD:  make(map[string][]string),
 			TrailerMD: make(map[string][]string),
 		}, err
 	}
+	defer e.pool.Release(req.GetContext(), cc)
+
 	conn := cc.ConnInstance().(*grpc.ClientConn)
 	out := req.GetOut()
 	in := req.GetIn()
@@ -103,10 +104,11 @@ func (e *httpForwardGrpcEndpointImpl) createStreamDesc(fullName string, server b
 func (e *httpForwardGrpcEndpointImpl) ServerSideStream(req GrpcRequest) (ServerSideStream, error) {
 	desc := e.createStreamDesc(req.GetFullMethodName(), true, false)
 	cc, err := e.pool.Get(req.GetContext())
-	defer e.pool.Release(req.GetContext(), cc)
 	if err != nil {
 		return nil, err
 	}
+	defer e.pool.Release(req.GetContext(), cc)
+
 	conn := cc.ConnInstance().(*grpc.ClientConn)
 	stream, err := conn.NewStream(req.GetContext(), desc, req.GetFullMethodName(), req.GetCallOptions()...)
 	if err != nil {
@@ -116,13 +118,15 @@ func (e *httpForwardGrpcEndpointImpl) ServerSideStream(req GrpcRequest) (ServerS
 		ClientStream: stream,
 		out:          req.GetOutType(),
 	}
+	defer func() {
+		if err := x.CloseSend(); err != nil {
+			Log.Warnf(req.GetContext(), "close send error:%v", err)
+		}
+	}()
+	if err := x.SendMsg(req.GetIn()); err != nil {
+		return nil, err
+	}
 
-	if err := x.ClientStream.SendMsg(req.GetIn()); err != nil {
-		return nil, err
-	}
-	if err := x.ClientStream.CloseSend(); err != nil {
-		return nil, err
-	}
 	return x, nil
 }
 

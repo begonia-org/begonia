@@ -1,4 +1,4 @@
-package serialization
+package gateway
 
 import (
 	"fmt"
@@ -164,13 +164,24 @@ func getProtoreflectValue(value string, field protoreflect.FieldDescriptor) (pro
 	}
 	// 根据需要处理其他类型的字段
 }
+func UrlQueryToProtoMessageField(pb proto.Message, value url.Values) error {
+	return parseFormToProto(value, pb)
+}
 func parseFormToProto(values url.Values, pb proto.Message) error {
 	pbReflect := pb.ProtoReflect()
 	fields := pbReflect.Descriptor().Fields()
-	mask := make([]string, 0)
+	// mask := make([]string, 0)
 	for i := 0; i < fields.Len(); i++ {
 		field := fields.Get(i)
 		fieldName := field.JSONName()
+		name := string(field.Name())
+		// 如果values 不是json tag 名称，则尝试使用字段名称
+		if _, ok := values[fieldName]; !ok {
+			if _, ok := values[name]; !ok {
+				continue
+			}
+			fieldName = name
+		}
 		if value, ok := values[fieldName]; ok {
 			if field.IsList() {
 				list := pbReflect.Mutable(field).List()
@@ -189,13 +200,13 @@ func parseFormToProto(values url.Values, pb proto.Message) error {
 				return err
 			}
 			pbReflect.Set(field, elem)
-			mask = append(mask, fieldName)
+			// mask = append(mask, fieldName)
 
 		}
 	}
-	return SetUpdateMaskFields(pb, mask)
+	// return SetUpdateMaskFields(pb, mask)
 
-	// return nil
+	return nil
 }
 func NewFormDataMarshaler() *FormDataMarshaler {
 	return &FormDataMarshaler{JSONPb: runtime.JSONPb{

@@ -5,12 +5,10 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/begonia-org/begonia/gateway/serialization"
+	"github.com/begonia-org/begonia/gateway"
 	hello "github.com/begonia-org/go-sdk/api/example/v1"
 	c "github.com/smartystreets/goconvey/convey"
 	"google.golang.org/grpc"
-	"github.com/begonia-org/begonia/gateway"
-
 )
 
 func TestBuildGrpcRequest(t *testing.T) {
@@ -24,7 +22,7 @@ func TestBuildGrpcRequest(t *testing.T) {
 			out.ProtoReflect().Descriptor(),
 			"helloworld.Greeter/SayHello",
 			gateway.WithGatewayCallOptions(grpc.CompressorCallOption{}),
-			gateway.WithGatewayMarshaler(serialization.NewJSONMarshaler()),
+			gateway.WithGatewayMarshaler(gateway.NewJSONMarshaler()),
 			gateway.WithGatewayPathParams(map[string]string{"key": "value"}),
 			gateway.WithGatewayReq(httpReq),
 			gateway.WithIn(in),
@@ -32,7 +30,7 @@ func TestBuildGrpcRequest(t *testing.T) {
 		)
 		c.So(req.GetFullMethodName(), c.ShouldEqual, "helloworld.Greeter/SayHello")
 		c.So(len(req.GetCallOptions()), c.ShouldEqual, 1)
-		c.So(req.GetMarshaler(), c.ShouldHaveSameTypeAs, serialization.NewJSONMarshaler())
+		c.So(req.GetMarshaler(), c.ShouldHaveSameTypeAs, gateway.NewJSONMarshaler())
 		c.So(req.GetPathParams(), c.ShouldResemble, map[string]string{"key": "value"})
 		c.So(req.GetReq().URL.String(), c.ShouldEqual, httpReq.URL.String())
 		c.So(req.GetIn(), c.ShouldHaveSameTypeAs, in)

@@ -6,12 +6,12 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/begonia-org/begonia/gateway"
 	loadbalance "github.com/begonia-org/go-loadbalancer"
 	api "github.com/begonia-org/go-sdk/api/endpoint/v1"
 	gwRuntime "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	c "github.com/smartystreets/goconvey/convey"
 	"google.golang.org/grpc"
-	"github.com/begonia-org/begonia/gateway"
 )
 
 func TestNewEndpoint(t *testing.T) {
@@ -23,7 +23,7 @@ func TestNewEndpoint(t *testing.T) {
 		HttpHandlers:    make([]func(http.Handler) http.Handler, 0),
 	}
 	gwCnf := &gateway.GatewayConfig{
-		GatewayAddr:   "127.0.0.1:9527",
+		GatewayAddr:   "127.0.0.1:1949",
 		GrpcProxyAddr: "127.0.0.1:12148",
 	}
 	gateway.New(gwCnf, opts)

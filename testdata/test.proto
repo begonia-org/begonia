@@ -6,6 +6,8 @@ package integration;
 
 import "google/api/annotations.proto";
 import "options.proto";
+import "google/api/httpbody.proto";
+
 message TestRequest{
     string name = 1;
     string msg=2;
@@ -27,30 +29,35 @@ service TestService{
 
     rpc Get(TestRequest) returns (TestResponse){
         option (google.api.http) = {
-            get: "/test"
+            get: "/test/get"
         };
     }
     rpc Post(TestRequest) returns (TestResponse){
         option (google.api.http) = {
-            post: "/test"
+            post: "/test/post"
             body: "*"
         };
     }
     rpc Put(TestRequest) returns (TestResponse){
         option (google.api.http) = {
-            put: "/test"
+            put: "/test/put"
             body: "*"
         };
     }
     rpc Delete(TestRequest) returns (TestResponse){
         option (google.api.http) = {
-            delete: "/test"
+            delete: "/test/del"
         };
     }
     rpc Patch(TestRequest) returns (TestResponse){
         option (google.api.http) = {
-            patch: "/test"
+            patch: "/test/patch"
             body: "*"
+        };
+    }
+    rpc Body(TestRequest) returns (google.api.HttpBody){
+        option (google.api.http) = {
+            get: "/test/body"
         };
     }
 }

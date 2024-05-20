@@ -109,7 +109,6 @@ func (c *curdImpl) Update(ctx context.Context, model biz.Model, needEncrypt bool
 
 		}
 	}
-
 	err = c.db.UpdateSelectColumns(ctx, fmt.Sprintf("%s=%s", key, val), model, paths...)
 	if err != nil {
 		return fmt.Errorf("update model for %s=%v failed: %w", key, val, err)

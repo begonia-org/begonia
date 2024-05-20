@@ -1,0 +1,18 @@
+?   	github.com/begonia-org/begonia	[no test files]
+?   	github.com/begonia-org/begonia/cmd/gateway	[no test files]
+?   	github.com/begonia-org/begonia/config	[no test files]
+?   	github.com/begonia-org/begonia/internal	[no test files]
+?   	github.com/begonia-org/begonia/internal/auth	[no test files]
+?   	github.com/begonia-org/begonia/internal/daemon	[no test files]
+?   	github.com/begonia-org/begonia/internal/pkg	[no test files]
+?   	github.com/begonia-org/begonia/internal/pkg/config	[no test files]
+?   	github.com/begonia-org/begonia/internal/pkg/crypto	[no test files]
+?   	github.com/begonia-org/begonia/internal/pkg/errors	[no test files]
+?   	github.com/begonia-org/begonia/internal/pkg/middleware	[no test files]
+?   	github.com/begonia-org/begonia/internal/pkg/middleware/auth	[no test files]
+?   	github.com/begonia-org/begonia/internal/pkg/migrate	[no test files]
+?   	github.com/begonia-org/begonia/internal/pkg/routers	[no test files]
+?   	github.com/begonia-org/begonia/internal/pkg/utils	[no test files]
+?   	github.com/begonia-org/begonia/internal/server	[no test files]
+=== RUN   TestRequest
+FAIL	github.com/begonia-org/begonia/gateway	2.678s

@@ -1,9 +1,8 @@
-package serialization
+package gateway
 
 import (
 	"fmt"
 	"io"
-	"reflect"
 
 	_ "github.com/begonia-org/go-sdk/api/app/v1"
 	_ "github.com/begonia-org/go-sdk/api/endpoint/v1"
@@ -20,7 +19,6 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/dynamicpb"
 )
 
@@ -38,25 +36,15 @@ type BinaryDecoder struct {
 	marshaler runtime.Marshaler
 }
 
-func (d *BinaryDecoder) fn() string {
-	if d.fieldName == "" {
-		return "Data"
-	}
-	return d.fieldName
-}
-
 // var typeOfBytes = reflect.TypeOf([]byte(nil))
 // var typeOfHttpbody = reflect.TypeOf(&httpbody.HttpBody{})
 
 func (d *BinaryDecoder) Decode(v interface{}) error {
 	if v == nil {
 		return nil
-	
+
 	}
-	rv := reflect.ValueOf(v).Elem() // assert it must be a pointer
-	if rv.Kind() != reflect.Struct {
-		return d
-	}
+
 	if dpb, ok := v.(*dynamicpb.Message); ok {
 		typ := dpb.Type().Descriptor().Name()
 		if string(typ) == "HttpBody" {
@@ -82,10 +70,6 @@ func (d *BinaryDecoder) Decode(v interface{}) error {
 	return d.marshaler.NewDecoder(d.r).Decode(v)
 }
 
-func (d *BinaryDecoder) Error() string {
-	d.r = nil
-	return "cannot set: " + d.fn()
-}
 func NewRawBinaryUnmarshaler() *RawBinaryUnmarshaler {
 	return &RawBinaryUnmarshaler{
 
@@ -123,7 +107,11 @@ func (m *RawBinaryUnmarshaler) ContentType(v interface{}) string {
 		typ := dpb.Type().Descriptor().Name()
 		if typ == "HttpBody" {
 			if httpBody, err := ConvertDynamicMessageToHttpBody(dpb); err == nil && httpBody != nil {
-				return httpBody.GetContentType()
+				if t := httpBody.GetContentType(); t != "" {
+					return t
+				}
+				return "application/octet-stream"
+
 			}
 		}
 	}
@@ -149,27 +137,7 @@ func (m *RawBinaryUnmarshaler) Marshal(v interface{}) ([]byte, error) {
 func (m *EventSourceMarshaler) ContentType(v interface{}) string {
 	return "text/event-stream"
 }
-func (m *EventSourceMarshaler) ToEventStreamResponse(dynMsg *dynamicpb.Message) (*common.EventStream, error) {
-	esr := &common.EventStream{}
 
-	// 遍历所有字段
-	dynMsg.Range(func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
-		switch fd.Name() {
-		case "event":
-			esr.Event = v.String()
-		case "data":
-			esr.Data = v.String()
-		case "id":
-			esr.Id = v.Int()
-		case "retry":
-			esr.Retry = int32(v.Int())
-		}
-		return true
-	})
-
-	// 返回转换后的消息
-	return esr, nil
-}
 func (m *EventSourceMarshaler) Marshal(v interface{}) ([]byte, error) {
 	if response, ok := v.(map[string]interface{}); ok {
 		// result:=response

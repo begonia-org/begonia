@@ -217,7 +217,7 @@ func testPatchEndpoint(t *testing.T) {
 func testListEndpoints(t *testing.T) {
 	endpointBiz := newEndpointBiz()
 	_, filename, _, _ := runtime.Caller(0)
-	pbFile := filepath.Join(filepath.Dir(filepath.Dir(filepath.Dir(filepath.Dir(filename)))),  "testdata", "helloworld.pb")
+	pbFile := filepath.Join(filepath.Dir(filepath.Dir(filepath.Dir(filepath.Dir(filename)))), "testdata", "helloworld.pb")
 	pb, err := os.ReadFile(pbFile)
 	if err != nil {
 		t.Error(err)
@@ -306,7 +306,7 @@ func testWatcherUpdate(t *testing.T) {
 		HttpHandlers:    make([]func(http.Handler) http.Handler, 0),
 	}
 	gwCnf := &gateway.GatewayConfig{
-		GatewayAddr:   "127.0.0.1:9527",
+		GatewayAddr:   "127.0.0.1:1949",
 		GrpcProxyAddr: "127.0.0.1:12148",
 	}
 	gateway.New(gwCnf, opts)

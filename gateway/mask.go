@@ -1,4 +1,4 @@
-package serialization
+package gateway
 
 import (
 	"bytes"
@@ -15,7 +15,7 @@ import (
 // 	GetMask() []string
 // }
 
-func SetUpdateMaskFields(message protoreflect.ProtoMessage, fields []string) error {
+func SetUpdateMaskFields(message protoreflect.ProtoMessage, fields []string) {
 	// 反射获取消息的描述符
 	md := message.ProtoReflect().Descriptor()
 
@@ -30,15 +30,11 @@ func SetUpdateMaskFields(message protoreflect.ProtoMessage, fields []string) err
 
 			// 创建一个新的FieldMask并设置fields
 			fieldMask := &fieldmaskpb.FieldMask{Paths: fields}
-			// fmt.Printf("set fieldMask: %v\n", fields)
 			// 更新原始消息中的FieldMask字段
 			message.ProtoReflect().Set(field, protoreflect.ValueOf(fieldMask.ProtoReflect()))
-			// val := message.ProtoReflect().Get(field).Message().Interface().(*fieldmaskpb.FieldMask)
-			// fmt.Printf("set fieldMask val: %v\n", val)
-			return nil
+
 		}
 	}
-	return nil
 }
 
 type maskDecoder struct {
@@ -86,9 +82,7 @@ func (d *maskDecoder) Decode(v interface{}) error {
 		return err
 	}
 	// 设置更新掩码字段
-	if err := SetUpdateMaskFields(message, fields); err != nil {
-		return err
-	}
-
+	SetUpdateMaskFields(message, fields)
+	
 	return nil
 }

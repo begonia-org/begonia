@@ -34,10 +34,6 @@ type protobufDescription struct {
 	descriptions      []byte
 }
 
-func (p *protobufDescription) GetMessages() map[string]protoreflect.MessageDescriptor {
-	return p.messages
-}
-
 // 初始化描述文件
 func (p *protobufDescription) initDescriptorSet() error {
 	p.messages = make(map[string]protoreflect.MessageDescriptor)
@@ -196,10 +192,6 @@ func (p *protobufDescription) GetMessageTypeByName(pkg string, name string) prot
 	return nil
 }
 func (p *protobufDescription) GetMessageTypeByFullName(fullName string) protoreflect.MessageDescriptor {
-	if len(strings.TrimSpace(fullName)) == 0 {
-		return nil
-
-	}
 	if desc, err := p.fs.FindDescriptorByName(protoreflect.FullName(fullName)); err == nil {
 		v := desc.(protoreflect.MessageDescriptor)
 		return v

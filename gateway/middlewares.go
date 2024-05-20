@@ -67,7 +67,7 @@ func (cors *CorsHandler) Handle(h http.Handler) http.Handler {
 					preflightHandler(w, r)
 					return
 				}
-			}else{
+			} else {
 				Log.Errorf(r.Context(), "origin:%s not allowed", clientOrigin)
 				w.WriteHeader(http.StatusForbidden)
 				return
@@ -226,14 +226,14 @@ func HandleErrorWithLogger(logger logger.Logger) runtime.ErrorHandlerFunc {
 	codes := getClientMessageMap()
 	return func(ctx context.Context, mux *runtime.ServeMux, marshaler runtime.Marshaler, w http.ResponseWriter, req *http.Request, err error) {
 
-		statusCode := http.StatusOK
+		statusCode := http.StatusInternalServerError
 
 		log := logger.WithFields(logrus.Fields{
 
 			"status": statusCode,
 		},
 		)
-		code := http.StatusOK
+		code := statusCode
 		data := &common.HttpResponse{}
 		data.Code = int32(common.Code_INTERNAL_ERROR)
 		data.Message = "internal error"
@@ -241,7 +241,7 @@ func HandleErrorWithLogger(logger logger.Logger) runtime.ErrorHandlerFunc {
 			msg := st.Message()
 			details := st.Details()
 			data.Message = clientMessageFromCode(st.Code())
-
+			// data.Data = &structpb.Struct{}
 			for _, detail := range details {
 				if anyType, ok := detail.(*anypb.Any); ok {
 					var errDetail common.Errors
@@ -288,12 +288,14 @@ func HandleErrorWithLogger(logger logger.Logger) runtime.ErrorHandlerFunc {
 	}
 }
 func writeHttpHeaders(w http.ResponseWriter, key string, value []string) {
-	// del Grpc-Metadata
 	if httpKey := gosdk.GetHttpHeaderKey(key); httpKey != "" {
 		for _, v := range value {
 			w.Header().Del(key)
 			if v != "" {
 				if strings.EqualFold(httpKey, "Content-Type") {
+					if v == "application/grpc" {
+						continue
+					}
 					w.Header().Set(httpKey, v)
 				} else {
 					w.Header().Add(httpKey, v)
@@ -320,9 +322,10 @@ func HttpResponseBodyModify(ctx context.Context, w http.ResponseWriter, msg prot
 	for key, value := range w.Header() {
 		if strings.HasPrefix(key, "Grpc-Metadata-") {
 			w.Header().Del(key)
+
 		}
 		writeHttpHeaders(w, key, value)
-		if strings.HasSuffix(http.CanonicalHeaderKey(key), "X-Http-Code") {
+		if strings.HasSuffix(http.CanonicalHeaderKey(key), http.CanonicalHeaderKey("X-Http-Code")) {
 			codeStr := value[0]
 			code, err := strconv.ParseInt(codeStr, 10, 32)
 			if err != nil {

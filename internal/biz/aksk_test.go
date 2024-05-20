@@ -11,6 +11,7 @@ import (
 	"github.com/agiledragon/gomonkey/v2"
 	"github.com/begonia-org/begonia"
 	"github.com/begonia-org/begonia/config"
+	"github.com/begonia-org/begonia/gateway"
 	"github.com/begonia-org/begonia/internal/biz"
 	"github.com/begonia-org/begonia/internal/data"
 	cfg "github.com/begonia-org/begonia/internal/pkg/config"
@@ -18,7 +19,6 @@ import (
 	"github.com/begonia-org/begonia/internal/pkg/utils"
 	gosdk "github.com/begonia-org/go-sdk"
 	api "github.com/begonia-org/go-sdk/api/app/v1"
-	"github.com/begonia-org/begonia/gateway"
 	c "github.com/smartystreets/goconvey/convey"
 	"github.com/spark-lence/tiga"
 
@@ -32,7 +32,7 @@ var akskAppid = ""
 func newGatewayRequest() (*gosdk.GatewayRequest, error) {
 	signer := gosdk.NewAppAuthSigner(akskAccess, akskSecret)
 
-	req, err := http.NewRequest(http.MethodPost, "http://127.0.0.1:9527/api/v1/helloworld", strings.NewReader(`{"msg":"hello"}`))
+	req, err := http.NewRequest(http.MethodPost, "http://127.0.0.1:1949/api/v1/helloworld", strings.NewReader(`{"msg":"hello"}`))
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +118,7 @@ func testGetAPPID(t *testing.T) {
 func testValidator(t *testing.T) {
 	signer := gosdk.NewAppAuthSigner(akskAccess, akskSecret)
 	c.Convey("test validator success", t, func() {
-		req, err := http.NewRequest(http.MethodPost, "http://127.0.0.1:9527/api/v1/helloworld", strings.NewReader(`{"msg":"hello"}`))
+		req, err := http.NewRequest(http.MethodPost, "http://127.0.0.1:1949/api/v1/helloworld", strings.NewReader(`{"msg":"hello"}`))
 		if err != nil {
 			t.Error(err)
 			return

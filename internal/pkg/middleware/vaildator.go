@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"fmt"
+	"log"
 	"sync"
 
 	gosdk "github.com/begonia-org/go-sdk"
@@ -51,7 +52,7 @@ func (p *validatePluginStream) RecvMsg(m interface{}) error {
 	return err
 
 }
-
+// FiltersFields 从FieldMask中获取过滤字段,获取待验证字段
 func (p *ParamsValidatorImpl) FiltersFields(v interface{}) []string {
 	fields := make([]string, 0)
 	if message, ok := v.(protoreflect.ProtoMessage); ok {
@@ -90,7 +91,8 @@ func (p *ParamsValidatorImpl) ValidateParams(v interface{}) error {
 		err = validate.StructPartial(v, filters...)
 	}
 	if errs, ok := err.(validator.ValidationErrors); ok {
-		clientMsg := fmt.Sprintf("params %s validation failed with %v,except %s", errs[0].Field(), errs[0].Value(), errs[0].ActualTag())
+		clientMsg := fmt.Sprintf("params %s validation failed with %v,except %s,%v", errs[0].Field(), errs[0].Value(), errs[0].ActualTag(),filters)
+		log.Print(clientMsg)
 		return gosdk.NewError(fmt.Errorf("params %s validation failed: %v", errs[0].Field(), errs[0].Value()), int32(common.Code_PARAMS_ERROR), codes.InvalidArgument, "params_validation", gosdk.WithClientMessage(clientMsg))
 	}
 	return nil
