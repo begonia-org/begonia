@@ -26,9 +26,6 @@ func NewAppRepo(cfg *tiga.Configuration, log logger.Logger) biz.AppRepo {
 	return appRepo
 }
 
-//	func NewFileRepo(cfg *tiga.Configuration,log logger.Logger) file.FileRepo {
-//		panic(wire.Build(ProviderSet))
-//	}
 func NewEndpointRepo(cfg *tiga.Configuration, log logger.Logger) endpoint.EndpointRepo {
 	mySQLDao := NewMySQL(cfg)
 	redisDao := NewRDB(cfg)
@@ -79,4 +76,12 @@ func NewOperator(cfg *tiga.Configuration, log logger.Logger) biz.DataOperatorRep
 	bizAuthzRepo := NewAuthzRepoImpl(log, layeredCache)
 	bizDataOperatorRepo := NewDataOperatorRepo(data, appRepo, userRepo, bizAuthzRepo, layeredCache, log)
 	return bizDataOperatorRepo
+}
+
+func NewDataRepo(cfg *tiga.Configuration, log logger.Logger) *Data {
+	mySQLDao := NewMySQL(cfg)
+	redisDao := NewRDB(cfg)
+	etcdDao := NewEtcd(cfg)
+	data := NewData(mySQLDao, redisDao, etcdDao)
+	return data
 }

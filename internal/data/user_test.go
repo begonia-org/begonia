@@ -7,9 +7,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/agiledragon/gomonkey/v2"
 	"github.com/begonia-org/begonia"
 	cfg "github.com/begonia-org/begonia/config"
 	"github.com/begonia-org/begonia/gateway"
+	"github.com/begonia-org/begonia/internal/biz"
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	api "github.com/begonia-org/go-sdk/api/user/v1"
 	c "github.com/smartystreets/goconvey/convey"
@@ -48,9 +50,25 @@ func testAddUser(t *testing.T) {
 			UpdatedAt: timestamppb.Now(),
 			Status:    api.USER_STATUS_ACTIVE,
 		})
+
 		c.So(err, c.ShouldBeNil)
 		time.Sleep(2 * time.Second)
+		pipe := repo.Cache(context.TODO(), "test:user:cache", []*api.Users{{Uid: uid, Name: user1, Dept: "dev"}}, 3*time.Second, func(user *api.Users) ([]byte, interface{}) {
+			return []byte(user.Uid), user.Uid
+		})
+		c.So(pipe, c.ShouldNotBeNil)
+		cmds, err := pipe.Exec(context.Background())
+		c.So(err, c.ShouldBeNil)
+		c.So(len(cmds), c.ShouldBeGreaterThan, 0)
+		for _, cmd := range cmds {
+			c.So(cmd.Err(), c.ShouldBeNil)
+		}
+		// c.So(pipe.Exec())
+		val, err := repo.(*userRepoImpl).local.Get(context.Background(), fmt.Sprintf("test:user:cache:%s", uid))
+		c.So(err, c.ShouldBeNil)
+		c.So(val, c.ShouldNotBeNil)
 		uid2 = snk.GenerateIDString()
+
 		err = repo.Add(context.TODO(), &api.Users{
 			Uid:       uid2,
 			Name:      user2,
@@ -82,6 +100,61 @@ func testAddUser(t *testing.T) {
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "Duplicate entry")
 
+		patch := gomonkey.ApplyFunc((*curdImpl).SetDatetimeAt, func(_ *curdImpl, _ biz.Model, name string) error {
+			if name == "created_at" {
+				return fmt.Errorf("SetDatetimeAt error")
+			}
+			if name == "updated_at" {
+				return fmt.Errorf("SetDatetimeAt error")
+			}
+			return nil
+		})
+
+		defer patch.Reset()
+		uid4 := snk.GenerateIDString()
+		u := &api.Users{
+			Uid:       uid4,
+			Name:      fmt.Sprintf("user4-%s", time.Now().Format("20060102150405")),
+			Dept:      "dev",
+			Email:     fmt.Sprintf("user2%s@example.com", time.Now().Format("20060102150405")),
+			Phone:     fmt.Sprintf("123%s", time.Now().Format("20060102150405")),
+			Role:      api.Role_ADMIN,
+			Avatar:    "https://www.example.com/avatar.jpg",
+			Owner:     "test-user-01",
+			CreatedAt: timestamppb.Now(),
+			UpdatedAt: timestamppb.Now(),
+			Status:    api.USER_STATUS_ACTIVE,
+		}
+		err = repo.Add(context.TODO(), u)
+		patch.Reset()
+
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "SetDatetimeAt error")
+
+		patch2 := gomonkey.ApplyFunc((*curdImpl).SetDatetimeAt, func(c *curdImpl, model biz.Model, name string) error {
+			if name == "created_at" {
+				return nil
+			}
+			if name == "updated_at" {
+				return fmt.Errorf("updateAt error")
+			}
+			return nil
+		})
+		defer patch2.Reset()
+		uid5 := snk.GenerateIDString()
+		u.Uid = uid5
+		err = repo.Add(context.TODO(), u)
+		patch2.Reset()
+
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "updateAt error")
+
+		patch3 := gomonkey.ApplyFuncReturn(tiga.EncryptStructAES, fmt.Errorf("encrypt error"))
+		defer patch3.Reset()
+		err = repo.Add(context.TODO(), u)
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "encrypt error")
+
 	})
 }
 func testGetUser(t *testing.T) {
@@ -110,6 +183,13 @@ func testGetUser(t *testing.T) {
 			c.So(userByName, c.ShouldNotBeNil)
 			c.So(userByName.Uid, c.ShouldEqual, uid)
 			c.So(userByName.Name, c.ShouldEqual, user1)
+		})
+		c.Convey("test user get by decrypt error", func() {
+			patch := gomonkey.ApplyFuncReturn(tiga.DecryptStructAES, fmt.Errorf("decrypt error"))
+			defer patch.Reset()
+			_, err = repo.Get(context.TODO(), uid)
+			c.So(err, c.ShouldNotBeNil)
+			c.So(err.Error(), c.ShouldContainSubstring, "decrypt error")
 		})
 	})
 }
@@ -169,6 +249,11 @@ func testDelUser(t *testing.T) {
 		_, err = repo.Get(context.TODO(), uid)
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "record not found")
+
+		// patch:=gomonkey.ApplyFuncReturn((*userRepoImpl).Get,nil,fmt.Errorf("record not found"))
+		err = repo.Del(context.TODO(), uid)
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "record not found")
 	})
 }
 
@@ -215,6 +300,21 @@ func testListUser(t *testing.T) {
 		user3, err := repo.List(context.TODO(), []string{"unknown"}, []api.USER_STATUS{api.USER_STATUS_ACTIVE, api.USER_STATUS_INACTIVE}, 1, 5)
 		c.So(err, c.ShouldBeNil)
 		c.So(len(user3), c.ShouldEqual, 0)
+
+		patch := gomonkey.ApplyFuncReturn((*curdImpl).List, fmt.Errorf("list user error"))
+		defer patch.Reset()
+		_, err = repo.List(context.TODO(), []string{"dev", "test"}, []api.USER_STATUS{api.USER_STATUS_ACTIVE, api.USER_STATUS_INACTIVE}, 1, 5)
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "list user error")
+		patch.Reset()
+
+		patch2 := gomonkey.ApplyFuncReturn(tiga.DecryptStructAES, fmt.Errorf("decrypt user error"))
+		defer patch2.Reset()
+		_, err = repo.List(context.TODO(), []string{"dev", "test"}, []api.USER_STATUS{api.USER_STATUS_ACTIVE, api.USER_STATUS_INACTIVE}, 1, 5)
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "decrypt user error")
+		patch2.Reset()
+
 	})
 }
 func TestUser(t *testing.T) {

@@ -24,40 +24,43 @@ type LayeredCache struct {
 }
 
 var layered *LayeredCache
+func newCache(rdb *tiga.RedisDao, config *config.Config, log logger.Logger)*LayeredCache{
+	kvWatcher := source.NewWatchOptions([]interface{}{config.GetKeyValuePubsubKey()})
+	strategy := glc.CacheReadStrategy(config.GetMultiCacheReadStrategy())
+	KvOptions := glc.LayeredBuildOptions{
+		RDB:       rdb.GetClient(),
+		Strategy:  glc.CacheReadStrategy(strategy),
+		Watcher:   kvWatcher,
+		Channel:   config.GetKeyValuePubsubKey(),
+		Log:       log.Logurs(),
+		KeyPrefix: config.GetKeyValuePrefix(),
+	}
+	kv, err := glc.NewKeyValueCache(context.Background(), KvOptions, 5*100*100)
+	if err != nil {
+		panic(err)
 
+	}
+	filterWatcher := source.NewWatchOptions([]interface{}{config.GetFilterPubsubKey()})
+	filterOptions := glc.LayeredBuildOptions{
+		RDB:       rdb.GetClient(),
+		Strategy:  glc.LocalOnly,
+		Watcher:   filterWatcher,
+		Channel:   config.GetFilterPubsubKey(),
+		Log:       log.Logurs(),
+		KeyPrefix: config.GetFilterPrefix(),
+	}
+	filter := glc.NewLayeredCuckoo(&filterOptions, gocuckoo.CuckooBuildOptions{
+		Entries:       100000,
+		BucketSize:    4,
+		MaxIterations: 20,
+		Expansion:     2,
+	})
+	return &LayeredCache{kv: kv, config: config, log: log, mux: sync.Mutex{}, onceOnStart: sync.Once{}, filters: filter}
+}
+// NewLayeredCache creates a new layered cache only once
 func NewLayeredCache(rdb *tiga.RedisDao, config *config.Config, log logger.Logger) *LayeredCache {
 	onceLayered.Do(func() {
-		kvWatcher := source.NewWatchOptions([]interface{}{config.GetKeyValuePubsubKey()})
-		strategy := glc.CacheReadStrategy(config.GetMultiCacheReadStrategy())
-		KvOptions := glc.LayeredBuildOptions{
-			RDB:       rdb.GetClient(),
-			Strategy:  glc.CacheReadStrategy(strategy),
-			Watcher:   kvWatcher,
-			Channel:   config.GetKeyValuePubsubKey(),
-			Log:       log.Logurs(),
-			KeyPrefix: config.GetKeyValuePrefix(),
-		}
-		kv, err := glc.NewKeyValueCache(context.Background(), KvOptions, 5*100*100)
-		if err != nil {
-			panic(err)
-
-		}
-		filterWatcher := source.NewWatchOptions([]interface{}{config.GetFilterPubsubKey()})
-		filterOptions := glc.LayeredBuildOptions{
-			RDB:       rdb.GetClient(),
-			Strategy:  glc.LocalOnly,
-			Watcher:   filterWatcher,
-			Channel:   config.GetFilterPubsubKey(),
-			Log:       log.Logurs(),
-			KeyPrefix: config.GetFilterPrefix(),
-		}
-		filter := glc.NewLayeredCuckoo(&filterOptions, gocuckoo.CuckooBuildOptions{
-			Entries:       100000,
-			BucketSize:    4,
-			MaxIterations: 20,
-			Expansion:     2,
-		})
-		layered = &LayeredCache{kv: kv, config: config, log: log, mux: sync.Mutex{}, onceOnStart: sync.Once{}, filters: filter}
+		layered = newCache(rdb, config, log)
 	})
 	return layered
 
@@ -74,13 +77,13 @@ func (l *LayeredCache) GetFromLocal(ctx context.Context, key string) ([]byte, er
 	if err != nil {
 		return nil, err
 	}
-	if len(values) == 0 {
-		return nil,fmt.Errorf("local cache not found")
+
+	for _, val := range values {
+		if val, ok := val.([]byte); ok {
+			return val, nil
+		}
 	}
-	if val,ok:=values[0].([]byte);ok{
-		return val,nil
-	}
-	return nil, fmt.Errorf("local cache value type error")
+	return nil, fmt.Errorf("local cache value is not found")
 }
 func (l *LayeredCache) Del(ctx context.Context, key string) error {
 	return l.kv.Del(ctx, key)

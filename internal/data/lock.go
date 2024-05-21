@@ -2,7 +2,6 @@ package data
 
 import (
 	"context"
-	"log"
 	"time"
 
 	"github.com/begonia-org/begonia/internal/biz"
@@ -27,7 +26,6 @@ func (d *dataLock) UnLock(ctx context.Context) error {
 }
 
 func (d *dataLock) Lock(ctx context.Context) error {
-	log.Printf("lock key: %s,ttl:%d", d.key, d.ttl)
 	lock, err := d.client.Obtain(ctx, d.key, d.ttl, &redislock.Options{
 		RetryStrategy: redislock.LimitRetry(redislock.LinearBackoff(time.Second*2), d.retry),
 	})
