@@ -20,7 +20,7 @@ type UserRepo interface {
 	Del(ctx context.Context, key string) error
 	List(ctx context.Context, dept []string, status []api.USER_STATUS, page, pageSize int32) ([]*api.Users, error)
 	Patch(ctx context.Context, model *api.Users) error
-	Cache(ctx context.Context, prefix string, models []*api.Users, exp time.Duration, getValue func(user *api.Users) ([]byte, interface{})) redis.Pipeliner
+	Cache(ctx context.Context, prefix string, models []*api.Users, exp time.Duration, getValue func(user *api.Users) ([]byte, interface{})) (redis.Pipeliner,error)
 }
 
 type UserUsecase struct {

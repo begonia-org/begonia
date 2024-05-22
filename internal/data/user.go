@@ -88,18 +88,17 @@ func (r *userRepoImpl) List(ctx context.Context, dept []string, status []api.USE
 	return apps, nil
 }
 
-func (u *userRepoImpl) Cache(ctx context.Context, prefix string, models []*api.Users, exp time.Duration, getValue func(user *api.Users) ([]byte, interface{})) redis.Pipeliner {
+func (u *userRepoImpl) Cache(ctx context.Context, prefix string, models []*api.Users, exp time.Duration, getValue func(user *api.Users) ([]byte, interface{})) (redis.Pipeliner,error) {
 	kv := make([]interface{}, 0)
 	for _, model := range models {
-		// status,_:=tiga.IntToBytes(int(model.Status))
 		valByte, val := getValue(model)
 		key := fmt.Sprintf("%s:%s", prefix, model.Uid)
 		if err := u.cacheUsers(ctx, prefix, model.Uid, valByte, exp); err != nil {
-			return nil
+			return nil,err
 		}
 		kv = append(kv, key, val)
 	}
-	return u.data.BatchCacheByTx(ctx, exp, kv...)
+	return u.data.BatchCacheByTx(ctx, exp, kv...),nil
 }
 func (u *userRepoImpl) cacheUsers(ctx context.Context, prefix string, uid string, value []byte, exp time.Duration) error {
 	key := fmt.Sprintf("%s:%s", prefix, uid)

@@ -52,14 +52,11 @@ func (r *dataOperatorRepo) GetAllForbiddenUsers(ctx context.Context) ([]*api.Use
 	page := int32(1)
 	for {
 		user, err := r.user.List(ctx, nil, []api.USER_STATUS{api.USER_STATUS_LOCKED, api.USER_STATUS_DELETED, api.USER_STATUS_INACTIVE}, page, 100)
-		if err != nil {
-			if strings.Contains(err.Error(), gorm.ErrRecordNotFound.Error()) {
+		if err != nil||len(user) == 0 {
+			if err!=nil&&strings.Contains(err.Error(), gorm.ErrRecordNotFound.Error()) {
 				break
 			}
 			return users, err
-		}
-		if len(user) == 0 {
-			break
 		}
 		page++
 		users = append(users, user...)
@@ -73,15 +70,11 @@ func (r *dataOperatorRepo) GetAllApps(ctx context.Context) ([]*app.Apps, error) 
 	page := int32(1)
 	for {
 		app, err := r.app.List(ctx, nil, nil, page, 100)
-		if err != nil {
-			if strings.Contains(err.Error(), gorm.ErrRecordNotFound.Error()) {
+		if err != nil||len(app) == 0 {
+			if err!=nil&&strings.Contains(err.Error(), gorm.ErrRecordNotFound.Error()) {
 				break
 			}
 			return apps, err
-		}
-		if len(app) == 0 {
-			break
-
 		}
 		apps = append(apps, app...)
 		page++
@@ -133,30 +126,33 @@ func (d *dataOperatorRepo) FlashUsersCache(ctx context.Context, prefix string, m
 	for i := 0; i < len(kv)-1; i += 2 {
 		key := kv[i].(string)
 		val := kv[i+1].(string)
-		// d.log.Infof("set to local %s %s", key, val)
+		// d.log.Infof(ctx,"set to local %s %s", key, val)
 		_ = d.local.SetToLocal(ctx, key, []byte(val), exp)
 	}
 	return err
 }
 
-func (d *dataOperatorRepo) LoadRemoteCache(ctx context.Context) {
+func (d *dataOperatorRepo) LoadRemoteCache(ctx context.Context)error {
 
 	err := d.local.kv.LoadDump(ctx)
 	if err != nil {
-		d.log.Errorf(ctx,"load remote cache error %v", err)
+		d.log.Errorf(ctx, "load remote cache error %v", err)
+		return fmt.Errorf("load remote cache error %w", err)
 	}
 	err = d.local.filters.LoadDump(ctx)
 	if err != nil {
-		d.log.Errorf(ctx,"load remote cache error %v", err)
+		d.log.Errorf(ctx, "load remote cache error %v", err)
+		return fmt.Errorf("load remote cache error %w", err)
 
 	}
+	return nil
 
 }
 
 func (d *dataOperatorRepo) LastUpdated(ctx context.Context, key string) (time.Time, error) {
 	key = fmt.Sprintf("%s:last_updated", key)
 	timestamp, err := d.data.rdb.GetClient().Get(ctx, key).Int64()
-	if err != nil||timestamp==0 {
+	if err != nil || timestamp == 0 {
 		if err == redis.Nil {
 			return time.Time{}, nil
 		}
@@ -182,7 +178,7 @@ func (d *dataOperatorRepo) Watcher(ctx context.Context, prefix string, handle bi
 			}
 			err := handle(ctx, ev.Type, string(ev.Kv.Key), string(val))
 			if err != nil {
-				d.log.Error(ctx,err)
+				d.log.Error(ctx, err)
 			}
 
 		}
@@ -190,33 +186,33 @@ func (d *dataOperatorRepo) Watcher(ctx context.Context, prefix string, handle bi
 	return nil
 }
 
-func (d *dataOperatorRepo) Sync() {
-	ticker := time.NewTicker(5 * time.Minute) // 5分钟同步一次
+func (d *dataOperatorRepo) Sync(interval time.Duration) {
+	ticker := time.NewTicker(interval) // 5分钟同步一次
 	defer ticker.Stop()
 
 	go func() {
 		for range ticker.C {
-			d.LoadRemoteCache(context.Background())
+			_=d.LoadRemoteCache(context.Background())
 		}
 	}()
 
 }
-
+func (d *dataOperatorRepo) onStartOperator() {
+	d.log.Info(context.TODO(), "data operator repo start")
+	errChan := d.local.filters.Watch(context.Background())
+	go func() {
+		for err := range errChan {
+			d.log.Errorf(context.TODO(), "bloom filter error %v", err)
+		}
+	}()
+	errKvChan := d.local.kv.Watch(context.Background())
+	go func() {
+		for err := range errKvChan {
+			d.local.log.Errorf(context.TODO(), "kv error %v", err)
+		}
+	}()}
 func (d *dataOperatorRepo) OnStart() {
 	d.onceOnStart.Do(func() {
-		// l.Sync()
-		d.log.Info(context.TODO(),"data operator repo start")
-		errChan := d.local.filters.Watch(context.Background())
-		go func() {
-			for err := range errChan {
-				d.log.Errorf(context.TODO(),"bloom filter error %v", err)
-			}
-		}()
-		errKvChan := d.local.kv.Watch(context.Background())
-		go func() {
-			for err := range errKvChan {
-				d.local.log.Errorf(context.TODO(),"kv error %v", err)
-			}
-		}()
+		d.onStartOperator()
 	})
 }

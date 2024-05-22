@@ -128,7 +128,6 @@ func (g *GrpcLoadBalancer) Select(method string, args ...interface{}) (loadbalan
 	return nil, loadbalance.ErrNoEndpoint
 }
 
-
 type GrpcProxyMiddleware func(srv interface{}, serverStream grpc.ServerStream) error
 type GrpcProxy struct {
 	lb          *GrpcLoadBalancer
@@ -156,7 +155,6 @@ func (g *GrpcProxy) getXForward(ctx context.Context) []string {
 	}
 	return md.Get("X-Forwarded-For")
 }
-
 
 func (g *GrpcProxy) Handler(srv interface{}, serverStream grpc.ServerStream) error {
 
@@ -220,7 +218,6 @@ func (g *GrpcProxy) Handler(srv interface{}, serverStream grpc.ServerStream) err
 	s2cErrChan := g.forwardServerToClient(serverStream, clientStream)
 	// 从服务端到客户端
 	c2sErrChan := g.forwardClientToServer(clientStream, serverStream)
-
 	for i := 0; i < 2; i++ {
 		select {
 		case s2cErr := <-s2cErrChan:

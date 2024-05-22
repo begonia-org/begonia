@@ -10,12 +10,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/agiledragon/gomonkey/v2"
 	"github.com/begonia-org/begonia"
 	cfg "github.com/begonia-org/begonia/config"
+	"github.com/begonia-org/begonia/gateway"
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	goloadbalancer "github.com/begonia-org/go-loadbalancer"
 	api "github.com/begonia-org/go-sdk/api/endpoint/v1"
-	"github.com/begonia-org/begonia/gateway"
 	c "github.com/smartystreets/goconvey/convey"
 	"github.com/spark-lence/tiga"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -33,7 +34,7 @@ func putTest(t *testing.T) {
 			env = begonia.Env
 		}
 		_, filename, _, _ := runtime.Caller(0)
-		pbFile := filepath.Join(filepath.Dir(filepath.Dir(filepath.Dir(filename))),  "testdata", "helloworld.pb")
+		pbFile := filepath.Join(filepath.Dir(filepath.Dir(filepath.Dir(filename))), "testdata", "helloworld.pb")
 		pb, _ := os.ReadFile(pbFile)
 		conf := cfg.ReadConfig(env)
 		repo := NewEndpointRepo(conf, gateway.Log)
@@ -66,6 +67,39 @@ func putTest(t *testing.T) {
 			UpdatedAt: timestamppb.New(time.Now()).AsTime().Format(time.RFC3339),
 		})
 		c.So(err, c.ShouldBeNil)
+
+		patch := gomonkey.ApplyFuncReturn((*Data).PutEtcdWithTxn, false, fmt.Errorf("put endpoint fail"))
+		defer patch.Reset()
+		err = repo.Put(context.Background(), &api.Endpoints{
+			Key:           snk.GenerateIDString(),
+			DescriptorSet: pb,
+			Name:          "test1",
+			ServiceName:   "test3",
+			Description:   "test4",
+			Balance:       string(goloadbalancer.RRBalanceType),
+			Endpoints: []*api.EndpointMeta{
+				{
+					Addr:   "127.0.0.1:21213",
+					Weight: 0,
+				},
+				{
+					Addr:   "127.0.0.1:21214",
+					Weight: 0,
+				},
+				{
+					Addr:   "127.0.0.1:21215",
+					Weight: 0,
+				},
+			},
+			Tags:      []string{tag, tag3},
+			Version:   fmt.Sprintf("%d", time.Now().UnixMilli()),
+			CreatedAt: timestamppb.New(time.Now()).AsTime().Format(time.RFC3339),
+			UpdatedAt: timestamppb.New(time.Now()).AsTime().Format(time.RFC3339),
+		})
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "put endpoint fail")
+		patch.Reset()
+
 	})
 }
 func getEndpointTest(t *testing.T) {
@@ -103,6 +137,13 @@ func getKeysByTagsTest(t *testing.T) {
 		cnf := config.NewConfig(conf)
 		endpointKey := cnf.GetServiceKey(endpointId)
 		c.So(keys, c.ShouldContain, endpointKey)
+
+		patch := gomonkey.ApplyFuncReturn((tiga.EtcdDao).BatchGet, nil, fmt.Errorf("get keys by tags fail"))
+		defer patch.Reset()
+		_, err = repo.GetKeysByTags(context.Background(), []string{tag})
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "get keys by tags fail")
+		patch.Reset()
 	})
 }
 func testList(t *testing.T) {
@@ -111,7 +152,7 @@ func testList(t *testing.T) {
 		env = begonia.Env
 	}
 	_, filename, _, _ := runtime.Caller(0)
-	pbFile := filepath.Join(filepath.Dir(filepath.Dir(filepath.Dir(filename))),  "testdata", "helloworld.pb")
+	pbFile := filepath.Join(filepath.Dir(filepath.Dir(filepath.Dir(filename))), "testdata", "helloworld.pb")
 	pb, _ := os.ReadFile(pbFile)
 	conf := cfg.ReadConfig(env)
 	repo := NewEndpointRepo(conf, gateway.Log)
@@ -159,6 +200,40 @@ func testList(t *testing.T) {
 		data, err = repo.List(context.Background(), nil)
 		c.So(err, c.ShouldBeNil)
 		c.So(len(data), c.ShouldBeGreaterThan, 0)
+
+		cases := []struct {
+			patch  interface{}
+			output []interface{}
+			err    error
+		}{
+			{
+				patch:  (tiga.EtcdDao).BatchGet,
+				output: []interface{}{nil, fmt.Errorf("get keys by tags fail")},
+				err:    fmt.Errorf("get keys by tags fail"),
+			},
+			{
+				patch:  json.Unmarshal,
+				output: []interface{}{fmt.Errorf("unmarshal fail")},
+				err:    fmt.Errorf("unmarshal fail"),
+			},
+			{
+				patch:  (tiga.EtcdDao).GetWithPrefix,
+				output: []interface{}{nil, fmt.Errorf("get keys by tags fail")},
+				err:    fmt.Errorf("get keys by tags fail"),
+			},
+		}
+		for index, caseV := range cases {
+			patch := gomonkey.ApplyFuncReturn(caseV.patch, caseV.output...)
+			defer patch.Reset()
+			if index == 2 {
+				enps = []string{}
+			}
+			_, err = repo.List(context.Background(), enps)
+			c.So(err, c.ShouldNotBeNil)
+			c.So(err.Error(), c.ShouldContainSubstring, caseV.err.Error())
+			patch.Reset()
+
+		}
 	})
 }
 func patchEndpointTest(t *testing.T) {
@@ -198,7 +273,63 @@ func patchEndpointTest(t *testing.T) {
 		c.So(err, c.ShouldBeNil)
 		t.Logf("keys:%v", keys)
 		c.So(keys, c.ShouldContain, endpointKey)
+		invalidPatch := map[string]interface{}{
+			"description": "test description",
+			"balance":     string(goloadbalancer.WRRBalanceType),
+			"tags":        tag1,
+		}
+		invalidPatchData, _ := json.Marshal(invalidPatch)
+		cases := []struct {
+			patch  interface{}
+			output []interface{}
+			err    error
+		}{{
+			patch:  (*endpointRepoImpl).Get,
+			output: []interface{}{nil, fmt.Errorf("get endpoint fail")},
+			err:    fmt.Errorf("get endpoint fail"),
+		},
+			{
+				patch:  json.Unmarshal,
+				output: []interface{}{fmt.Errorf("unmarshal fail")},
+				err:    fmt.Errorf("unmarshal fail"),
+			},
+			{
+				patch:  json.Marshal,
+				output: []interface{}{nil, fmt.Errorf("marshal fail")},
+				err:    fmt.Errorf("marshal fail"),
+			},
+			{
+				patch:  (*Data).PutEtcdWithTxn,
+				output: []interface{}{false, fmt.Errorf("put endpoint fail")},
+				err:    fmt.Errorf("put endpoint fail"),
+			},
+			{
+				patch:  (*endpointRepoImpl).Get,
+				output: []interface{}{string(invalidPatchData), nil},
+				err:    fmt.Errorf("tags type error"),
+			},
+		}
+		for index, caseV := range cases {
+			t.Logf("index:%d", index)
+			patch := gomonkey.ApplyFuncReturn(caseV.patch, caseV.output...)
+			defer patch.Reset()
+			err = repo.Patch(context.Background(), endpointId, map[string]interface{}{
+				"description": "test description",
+				"balance":     string(goloadbalancer.WRRBalanceType),
+				"tags":        []string{tag1, tag3},
+			})
+			c.So(err, c.ShouldNotBeNil)
+			c.So(err.Error(), c.ShouldContainSubstring, caseV.err.Error())
+			patch.Reset()
+		}
 
+		err = repo.Patch(context.Background(), endpointId, map[string]interface{}{
+			"description": "test description",
+			"balance":     string(goloadbalancer.WRRBalanceType),
+			"tags":        tag1,
+		})
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "tags type error")
 	})
 }
 func delEndpointTest(t *testing.T) {
@@ -211,7 +342,25 @@ func delEndpointTest(t *testing.T) {
 		repo := NewEndpointRepo(conf, gateway.Log)
 		cnf := config.NewConfig(conf)
 		endpointKey := cnf.GetServiceKey(endpointId)
+
+		// c.So(keys, c.ShouldContain, endpointKey)
+
+		patch := gomonkey.ApplyFuncReturn((tiga.EtcdDao).GetWithPrefix, nil, fmt.Errorf("del GetWithPrefix fail"))
+
+		defer patch.Reset()
 		err := repo.Del(context.Background(), endpointId)
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "del GetWithPrefix fail")
+		patch.Reset()
+
+		patch2:=gomonkey.ApplyFuncReturn((*Data).PutEtcdWithTxn, false, fmt.Errorf("del PutEtcdWithTxn fail"))
+		defer patch2.Reset()
+		err = repo.Del(context.Background(), endpointId)
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "del PutEtcdWithTxn fail")
+		patch2.Reset()
+
+		err = repo.Del(context.Background(), endpointId)
 		c.So(err, c.ShouldBeNil)
 		data, err := repo.Get(context.Background(), endpointKey)
 		// t.Logf("err:%v", err)
@@ -222,7 +371,7 @@ func delEndpointTest(t *testing.T) {
 		keys, err := repo.GetKeysByTags(context.Background(), []string{tag3})
 		c.So(err, c.ShouldBeNil)
 		c.So(keys, c.ShouldBeEmpty)
-		// c.So(keys, c.ShouldContain, endpointKey)
+
 
 	})
 }
@@ -261,6 +410,36 @@ func putTagsTest(t *testing.T) {
 		keys, err = repo.GetKeysByTags(context.Background(), []string{tag1})
 		c.So(err, c.ShouldBeNil)
 		c.So(keys, c.ShouldContain, endpointKey)
+
+		patch := gomonkey.ApplyFuncReturn((*Data).PutEtcdWithTxn, false, fmt.Errorf("put tags fail"))
+		defer patch.Reset()
+		err = repo.PutTags(context.Background(), endpointId, []string{tag1, tag2, tag3})
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "put tags fail")
+
+		patch.Reset()
+
+		patch2 := gomonkey.ApplyFuncReturn(json.Marshal, nil, fmt.Errorf("marshal tags fail"))
+		defer patch2.Reset()
+
+		err = repo.PutTags(context.Background(), endpointId, []string{tag1, tag2, tag3})
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "marshal tags fail")
+		patch2.Reset()
+
+		patch3 := gomonkey.ApplyFuncReturn((*endpointRepoImpl).Get,"", fmt.Errorf("get endpoint fail"))
+		defer patch3.Reset()
+		err = repo.PutTags(context.Background(), endpointId, []string{tag1, tag2, tag3})
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "get endpoint fail")
+		patch3.Reset()
+
+		patch4 := gomonkey.ApplyFuncReturn(json.Unmarshal, fmt.Errorf("unmarshal fail"))
+		defer patch4.Reset()
+		err = repo.PutTags(context.Background(), endpointId, []string{tag1, tag2, tag3})
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "unmarshal fail")
+		patch4.Reset()
 
 	})
 }

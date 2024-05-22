@@ -8,6 +8,10 @@
 *.so
 *.dylib
 *.cov
+*.log
+test.log
+protos/
+protos
 # Test binary, built with `go test -c`
 *.test
 

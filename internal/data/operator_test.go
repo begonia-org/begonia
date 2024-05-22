@@ -7,9 +7,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/agiledragon/gomonkey/v2"
 	"github.com/begonia-org/begonia"
 	cfg "github.com/begonia-org/begonia/config"
+	glc "github.com/begonia-org/go-layered-cache"
+	"github.com/bsm/redislock"
+	"github.com/redis/go-redis/v9"
+	"gorm.io/gorm"
+
 	"github.com/begonia-org/begonia/gateway"
+	"github.com/begonia-org/begonia/internal/pkg/config"
 	appApi "github.com/begonia-org/go-sdk/api/app/v1"
 	api "github.com/begonia-org/go-sdk/api/user/v1"
 	c "github.com/smartystreets/goconvey/convey"
@@ -65,6 +72,20 @@ func testGetAllForbiddenUsers(t *testing.T) {
 			}
 		}
 		c.So(hasActive, c.ShouldBeFalse)
+
+		patch := gomonkey.ApplyFuncReturn((*userRepoImpl).List, nil, fmt.Errorf("list error"))
+		defer patch.Reset()
+		_, err = operator.GetAllForbiddenUsers(context.Background())
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "list error")
+		patch.Reset()
+		patch2 := gomonkey.ApplyFuncReturn((*userRepoImpl).List, nil, gorm.ErrRecordNotFound)
+		defer patch2.Reset()
+		val, err := operator.GetAllForbiddenUsers(context.Background())
+		c.So(err, c.ShouldBeNil)
+		c.So(len(val), c.ShouldEqual, 0)
+		patch2.Reset()
+
 	})
 }
 func testFlashUsersCache(t *testing.T) {
@@ -81,6 +102,8 @@ func testFlashUsersCache(t *testing.T) {
 		defer func() {
 			_ = lock.UnLock(context.TODO())
 		}()
+		err = lock.Lock(context.Background())
+		c.So(err, c.ShouldBeNil)
 		err = operator.FlashUsersCache(context.Background(), "test:user:blacklist", users, 10*time.Second)
 		c.So(err, c.ShouldBeNil)
 		isOK := true
@@ -100,7 +123,12 @@ func testFlashUsersCache(t *testing.T) {
 				break
 			}
 		}
+		_ = lock.UnLock(context.TODO())
 		c.So(isOK, c.ShouldBeTrue)
+		patch := gomonkey.ApplyFuncReturn((*redislock.Client).Obtain, nil, fmt.Errorf("lock error"))
+		defer patch.Reset()
+		err = lock.Lock(context.TODO())
+		c.So(err, c.ShouldNotBeNil)
 	})
 }
 func testGetAllApp(t *testing.T) {
@@ -133,6 +161,19 @@ func testGetAllApp(t *testing.T) {
 		apps, err = operator.GetAllApps(context.Background())
 		c.So(err, c.ShouldBeNil)
 		c.So(len(apps), c.ShouldNotEqual, 0)
+
+		patch := gomonkey.ApplyFuncReturn((*appRepoImpl).List, nil, fmt.Errorf("list app error"))
+		defer patch.Reset()
+		_, err = operator.GetAllApps(context.Background())
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "list app error")
+		patch.Reset()
+		patch2 := gomonkey.ApplyFuncReturn((*appRepoImpl).List, nil, gorm.ErrRecordNotFound)
+		defer patch2.Reset()
+		val, err := operator.GetAllApps(context.Background())
+		c.So(err, c.ShouldBeNil)
+		c.So(len(val), c.ShouldEqual, 0)
+		patch2.Reset()
 
 	})
 }
@@ -169,6 +210,21 @@ func testLastUpdated(t *testing.T) {
 		t, err := operator.LastUpdated(context.Background(), "test:user:blacklist")
 		c.So(err, c.ShouldBeNil)
 		c.So(t, c.ShouldHappenOnOrBefore, time.Now())
+
+		patch := gomonkey.ApplyFuncReturn((*redis.StringCmd).Int64, int64(0), redis.Nil)
+		defer patch.Reset()
+		tm, err := operator.LastUpdated(context.Background(), "test:user:blacklist")
+		c.So(err, c.ShouldBeNil)
+		c.So(tm.IsZero(), c.ShouldBeTrue)
+		patch.Reset()
+
+		patch2 := gomonkey.ApplyFuncReturn((*redis.StringCmd).Int64, int64(0), fmt.Errorf("get last updated error"))
+		defer patch2.Reset()
+		_, err = operator.LastUpdated(context.Background(), "test:user:blacklist")
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "get last updated error")
+		patch2.Reset()
+
 	})
 }
 func testWatcher(t *testing.T) {
@@ -205,6 +261,59 @@ func testWatcher(t *testing.T) {
 		c.So(updated, c.ShouldEqual, fmt.Sprintf("/test/user/info/%s", uid))
 		c.So(deleted, c.ShouldEqual, fmt.Sprintf("/test/user/info/%s", uid))
 	})
+
+}
+func testLoadRemoteCache(t *testing.T) {
+	c.Convey("test load remote cache", t, func() {
+		env := "dev"
+		if begonia.Env != "" {
+			env = begonia.Env
+		}
+		conf := cfg.ReadConfig(env)
+		cnf := config.NewConfig(conf)
+		rdb := NewRDB(cfg.ReadConfig(env))
+		key := fmt.Sprintf("%s:%s", cnf.GetKeyValuePrefix(), time.Now().Format("20060102150405"))
+		_ = rdb.GetClient().Set(context.Background(), key, key, 10*time.Second)
+		filterKey := fmt.Sprintf("%s:%s", cnf.GetFilterPrefix(), time.Now().Format("20060102150405"))
+		rdb.GetClient().CFAdd(context.Background(), filterKey, filterKey)
+		operator := NewOperator(cfg.ReadConfig(env), gateway.Log)
+		// operator.(*dataOperatorRepo).LoadRemoteCache(context.Background())
+		operator.(*dataOperatorRepo).Sync(2 * time.Second)
+		time.Sleep(4 * time.Second)
+		val, err := operator.(*dataOperatorRepo).local.Get(context.Background(), key)
+		c.So(err, c.ShouldBeNil)
+		c.So(val, c.ShouldNotBeNil)
+		patch := gomonkey.ApplyFuncReturn((*glc.LayeredKeyValueCacheImpl).LoadDump, fmt.Errorf("error"))
+		defer patch.Reset()
+		err = operator.(*dataOperatorRepo).LoadRemoteCache(context.Background())
+		c.So(err, c.ShouldNotBeNil)
+		patch.Reset()
+		patch2 := gomonkey.ApplyFuncReturn((*glc.LayeredCuckooFilterImpl).LoadDump, fmt.Errorf("loaddump error"))
+		defer patch2.Reset()
+		err = operator.(*dataOperatorRepo).LoadRemoteCache(context.Background())
+		c.So(err, c.ShouldNotBeNil)
+		patch2.Reset()
+		filterErrChan := make(chan error, 1)
+		filterErrChan <- fmt.Errorf("filter watch error")
+
+		kvErrChan := make(chan error, 1)
+		kvErrChan <- fmt.Errorf("kv watch error")
+		patch3 := gomonkey.ApplyFuncReturn((*glc.LayeredCuckooFilterImpl).Watch, filterErrChan)
+		defer patch3.Reset()
+		operator.(*dataOperatorRepo).onStartOperator()
+		time.Sleep(2 * time.Second)
+		patch3.Reset()
+
+		patch4 := gomonkey.ApplyFuncReturn((*glc.LayeredKeyValueCacheImpl).Watch, kvErrChan)
+		defer patch4.Reset()
+		operator2 := NewOperator(cfg.ReadConfig(env), gateway.Log)
+
+		operator2.(*dataOperatorRepo).onStartOperator()
+		time.Sleep(2 * time.Second)
+		patch4.Reset()
+		// val, err = operator.(*dataOperatorRepo).local.GetFromLocal(context.Background(), filterKey)
+
+	})
 }
 func TestOperator(t *testing.T) {
 	t.Run("testGetAllForbiddenUsers", testGetAllForbiddenUsers)
@@ -212,5 +321,6 @@ func TestOperator(t *testing.T) {
 	t.Run("testGetAllApp", testGetAllApp)
 	t.Run("testFlashAppsCache", testFlashAppsCache)
 	t.Run("testLastUpdated", testLastUpdated)
+	t.Run("testLoadRemoteCache", testLoadRemoteCache)
 	t.Run("testWatcher", testWatcher)
 }

@@ -41,12 +41,9 @@ func (e *endpointRepoImpl) Del(ctx context.Context, id string) error {
 		}
 	}
 	ok, err := e.data.PutEtcdWithTxn(ctx, ops)
-	if err != nil {
+	if err != nil || !ok {
 		return fmt.Errorf("delete endpoint fail: %w", err)
 
-	}
-	if !ok {
-		return fmt.Errorf("delete endpoint fail")
 	}
 	return nil
 }
@@ -61,12 +58,9 @@ func (e *endpointRepoImpl) Put(ctx context.Context, endpoint *api.Endpoints) err
 	details, _ := json.Marshal(endpoint)
 	ops = append(ops, clientv3.OpPut(srvKey, string(details)))
 	ok, err := e.data.PutEtcdWithTxn(ctx, ops)
-	if err != nil {
+	if err != nil || !ok {
 		// log.Printf("put endpoint fail: %s", err.Error())
 		return fmt.Errorf("put endpoint fail: %w", err)
-	}
-	if !ok {
-		return fmt.Errorf("put endpoint fail")
 	}
 	return nil
 }
@@ -149,11 +143,8 @@ func (e *endpointRepoImpl) getTags(v interface{}) ([]interface{}, error) {
 }
 func (e *endpointRepoImpl) Patch(ctx context.Context, id string, patch map[string]interface{}) error {
 	origin, err := e.Get(ctx, e.cfg.GetServiceKey(id))
-	if err != nil {
-		return err
-	}
-	if origin == "" {
-		return errors.ErrEndpointNotExists
+	if err != nil || origin == "" {
+		return fmt.Errorf("get old endpoint error: %w or %w", err, errors.ErrEndpointNotExists)
 	}
 	originConfig := make(map[string]interface{})
 	err = json.Unmarshal([]byte(origin), &originConfig)
@@ -184,22 +175,17 @@ func (e *endpointRepoImpl) Patch(ctx context.Context, id string, patch map[strin
 	}
 	ops = append(ops, clientv3.OpPut(e.cfg.GetServiceKey(id), string(newConfig)))
 	ok, err := e.data.PutEtcdWithTxn(ctx, ops)
-	if err != nil {
+	if err != nil || !ok {
 		return fmt.Errorf("patch endpoint fail: %w", err)
 	}
-	if !ok {
-		return fmt.Errorf("patch endpoint fail")
-	}
+
 	return nil
 }
 
 func (e *endpointRepoImpl) PutTags(ctx context.Context, id string, tags []string) error {
 	origin, err := e.Get(ctx, e.cfg.GetServiceKey(id))
-	if err != nil {
-		return err
-	}
-	if origin == "" {
-		return errors.ErrEndpointNotExists
+	if err != nil || origin == "" {
+		return fmt.Errorf("get old endpoint error: %w or %w", err, errors.ErrEndpointNotExists)
 	}
 	endpoint := &api.Endpoints{}
 	err = json.Unmarshal([]byte(origin), endpoint)

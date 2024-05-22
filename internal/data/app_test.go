@@ -10,11 +10,11 @@ import (
 	"github.com/agiledragon/gomonkey/v2"
 	"github.com/begonia-org/begonia"
 	cfg "github.com/begonia-org/begonia/config"
+	"github.com/begonia-org/begonia/gateway"
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/utils"
 	api "github.com/begonia-org/go-sdk/api/app/v1"
 	c "github.com/smartystreets/goconvey/convey"
-	"github.com/begonia-org/begonia/gateway"
 	"github.com/spark-lence/tiga"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -81,6 +81,26 @@ func addTest(t *testing.T) {
 		val, err := repo.GetSecret(context.Background(), access)
 		c.So(err, c.ShouldBeNil)
 		c.So(val, c.ShouldEqual, secret)
+
+		patch2 := gomonkey.ApplyFuncReturn((*LayeredCache).Set, fmt.Errorf("error set cache"))
+		defer patch2.Reset()
+		access2, _ := generateRandomString(32)
+		secret2, _ := generateRandomString(62)
+
+		err = repo.Add(context.TODO(), &api.Apps{
+			Appid:       snk.GenerateIDString(),
+			AccessKey:   access2,
+			Secret:      secret2,
+			Status:      api.APPStatus_APP_ENABLED,
+			IsDeleted:   false,
+			Name:        fmt.Sprintf("app-data-unique-%s", time.Now().Format("20060102150405")),
+			Description: "test",
+			CreatedAt:   timestamppb.New(time.Now()),
+			UpdatedAt:   timestamppb.New(time.Now()),
+		})
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "error set cache")
+		patch2.Reset()
 
 	})
 }
@@ -169,6 +189,60 @@ func patchTest(t *testing.T) {
 		err = repo.Patch(context.Background(), updated)
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "appid can not be updated")
+
+		patch := gomonkey.ApplyFuncReturn(getPrimaryColumnValue,"",nil, fmt.Errorf("getPrimaryColumnValue error"))
+		defer patch.Reset()
+		err = repo.Patch(context.Background(), updated)
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "getPrimaryColumnValue error")
+	})
+
+}
+func testCache(t *testing.T) {
+	c.Convey("test cache", t, func() {
+		env := "dev"
+		if begonia.Env != "" {
+			env = begonia.Env
+		}
+		repo := NewAppRepo(cfg.ReadConfig(env), gateway.Log)
+		err := repo.Cache(context.Background(), "app:test", &api.Apps{
+			Appid:     appid,
+			AccessKey: accessKey,
+			Secret:    secret,
+		}, 10*time.Second)
+		c.So(err, c.ShouldBeNil)
+		val, err := repo.(*appRepoImpl).local.Get(context.Background(), "app:test:"+accessKey)
+		c.So(err, c.ShouldBeNil)
+		c.So(string(val), c.ShouldEqual, secret)
+	})
+}
+func testGetAppid(t *testing.T) {
+	c.Convey("test get appid", t, func() {
+		env := "dev"
+		if begonia.Env != "" {
+			env = begonia.Env
+		}
+		repo := NewAppRepo(cfg.ReadConfig(env), gateway.Log)
+		appid, err := repo.GetAppid(context.TODO(), accessKey)
+		c.So(err, c.ShouldBeNil)
+		c.So(appid, c.ShouldEqual, appid)
+
+		patch := gomonkey.ApplyFuncReturn((*LayeredCache).Get, nil, fmt.Errorf("error"))
+		defer patch.Reset()
+		val, err := repo.GetAppid(context.TODO(), accessKey)
+		c.So(err, c.ShouldBeNil)
+		c.So(val, c.ShouldEqual, appid)
+
+		patch.ApplyFuncReturn((*appRepoImpl).Get, nil, fmt.Errorf("error"))
+		_, err = repo.GetAppid(context.TODO(), accessKey)
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "get app appid err")
+		v, err := repo.GetSecret(context.Background(), accessKey)
+		c.So(err, c.ShouldNotBeNil)
+		c.So(v, c.ShouldEqual, "")
+		c.So(err.Error(), c.ShouldContainSubstring, "get app secret")
+		patch.Reset()
+
 	})
 
 }
@@ -188,7 +262,7 @@ func testListApp(t *testing.T) {
 			access, _ := utils.GenerateRandomString(32)
 			secret, _ := utils.GenerateRandomString(62)
 			appid := snk.GenerateIDString()
-			appName := fmt.Sprintf("app-%d-%s", i, time.Now().Format("20060102150405"))
+			appName := fmt.Sprintf("app-data2-%d-%s", i, time.Now().Format("20060102150405"))
 			err := repo.Add(context.TODO(), &api.Apps{
 				Appid:       appid,
 				AccessKey:   access,
@@ -225,6 +299,13 @@ func testListApp(t *testing.T) {
 		c.So(err, c.ShouldBeNil)
 		c.So(len(apps5), c.ShouldEqual, 0)
 
+		patch := gomonkey.ApplyFuncReturn((*curdImpl).List, fmt.Errorf("curd list error"))
+		defer patch.Reset()
+		_, err = repo.List(context.TODO(), []string{"tags-1", "tags-3"}, []api.APPStatus{api.APPStatus_APP_ENABLED}, 1, 5)
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "curd list error")
+		patch.Reset()
+
 	})
 }
 func delTest(t *testing.T) {
@@ -235,15 +316,39 @@ func delTest(t *testing.T) {
 			env = begonia.Env
 		}
 		repo := NewAppRepo(cfg.ReadConfig(env), gateway.Log)
+
+		patch := gomonkey.ApplyFuncReturn(getPrimaryColumnValue, "", nil, fmt.Errorf("getPrimaryColumnValue,error"))
+		defer patch.Reset()
 		err := repo.Del(context.TODO(), appid)
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "getPrimaryColumnValue,error")
+		patch.Reset()
+		patch2 := gomonkey.ApplyFuncReturn((*curdImpl).renameUniqueFields, nil, fmt.Errorf("renameUniqueFields error"))
+
+		defer patch2.Reset()
+		err = repo.Del(context.TODO(), appid)
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "renameUniqueFields error")
+		patch2.Reset()
+		patch3 := gomonkey.ApplyFuncReturn((*curdImpl).assertDeletedModel, nil, false)
+		patch3.ApplyFuncReturn(tiga.MySQLDao.Delete, fmt.Errorf("delete error"))
+		defer patch3.Reset()
+		err = repo.Del(context.TODO(), appid)
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "delete error")
+		patch3.Reset()
+		err = repo.Del(context.TODO(), appid)
 		c.So(err, c.ShouldBeNil)
 		_, err = repo.Get(context.TODO(), appid)
 		c.So(err, c.ShouldNotBeNil)
+
 	})
 }
 func TestApp(t *testing.T) {
 	t.Run("add app", addTest)
 	t.Run("get app", getTest)
+	t.Run("get appid", testGetAppid)
+	t.Run("test cache", testCache)
 	t.Run("add duplicate name", duplicateNameTest)
 	t.Run("patch app", patchTest)
 	t.Run("list app", testListApp)
