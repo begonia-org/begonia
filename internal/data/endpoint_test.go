@@ -158,7 +158,7 @@ func testList(t *testing.T) {
 	repo := NewEndpointRepo(conf, gateway.Log)
 	snk, _ := tiga.NewSnowflake(1)
 	enps := make([]string, 0)
-	c.Convey("test list", t, func() {
+	c.Convey("test endpoint list", t, func() {
 		for i := 0; i < 10; i++ {
 			epd := snk.GenerateIDString()
 			enps = append(enps, epd)

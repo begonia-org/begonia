@@ -2,6 +2,7 @@ package service_test
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -9,6 +10,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/agiledragon/gomonkey/v2"
+	"github.com/begonia-org/begonia"
+	"github.com/begonia-org/begonia/config"
+	"github.com/begonia-org/begonia/gateway"
+	"github.com/begonia-org/begonia/internal/biz/endpoint"
+	"github.com/begonia-org/begonia/internal/service"
 	goloadbalancer "github.com/begonia-org/go-loadbalancer"
 	api "github.com/begonia-org/go-sdk/api/endpoint/v1"
 	"github.com/begonia-org/go-sdk/client"
@@ -52,7 +59,7 @@ func postEndpoint(t *testing.T) {
 		c.So(resp.StatusCode, c.ShouldEqual, common.Code_OK)
 		c.So(resp.Id, c.ShouldNotBeEmpty)
 		shareEndpoint = resp.Id
-		time.Sleep(3 * time.Second)
+		time.Sleep(5 * time.Second)
 
 		req, err := http.NewRequest("GET", "http://127.0.0.1:12140/api/v1/example/helloworld", nil)
 		c.So(err, c.ShouldBeNil)
@@ -103,7 +110,15 @@ func getEndpoint(t *testing.T) {
 		// c.So(rsp.Details.Endpoints.Name, c.ShouldEqual, "test")
 	})
 }
-
+func listEndpoint(t *testing.T) {
+	apiClient := client.NewEndpointAPI(apiAddr, accessKey, secret)
+	c.Convey("test list endpoint api", t, func() {
+		rsp, err := apiClient.List(context.Background(), []string{"test", "test2"}, nil)
+		c.So(err, c.ShouldBeNil)
+		c.So(rsp.StatusCode, c.ShouldEqual, common.Code_OK)
+		c.So(len(rsp.Endpoints), c.ShouldBeGreaterThan, 0)
+	})
+}
 func delEndpoint(t *testing.T) {
 
 	apiClient := client.NewEndpointAPI(apiAddr, accessKey, secret)
@@ -121,10 +136,43 @@ func delEndpoint(t *testing.T) {
 	})
 
 }
+func testEndpointSvrErr(t *testing.T) {
+	c.Convey("test endpoint server error", t, func() {
+		env := "dev"
+		if begonia.Env != "" {
+			env = begonia.Env
+		}
+		cnf := config.ReadConfig(env)
+		srv := service.NewEndpointSvrForTest(cnf, gateway.Log)
+		// _,err:=srv.PostEndpointConfig(context.Background(),nil)
+		patch := gomonkey.ApplyFuncReturn((*endpoint.EndpointUsecase).AddConfig, nil, fmt.Errorf("test add endpoint error"))
+		defer patch.Reset()
+		_, err := srv.Post(context.Background(), nil)
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldEqual, "test add endpoint error")
+		patch.Reset()
+
+		_, err = srv.Update(context.Background(), &api.EndpointSrvUpdateRequest{})
+		c.So(err, c.ShouldNotBeNil)
+
+		_, err = srv.Get(context.Background(), &api.DetailsEndpointRequest{})
+		c.So(err, c.ShouldNotBeNil)
+		patch = patch.ApplyFuncReturn((*endpoint.EndpointUsecase).Delete, fmt.Errorf("test DEL endpoint error"))
+		_, err = srv.Delete(context.Background(), &api.DeleteEndpointRequest{})
+		c.So(err, c.ShouldNotBeNil)
+		patch.Reset()
+		patch = patch.ApplyFuncReturn((*endpoint.EndpointUsecase).List, nil, fmt.Errorf("test list endpoint error"))
+		_, err = srv.List(context.Background(), &api.ListEndpointRequest{})
+		c.So(err, c.ShouldNotBeNil)
+		patch.Reset()
+	})
+}
 
 func TestEndpoint(t *testing.T) {
 	t.Run("post", postEndpoint)
 	t.Run("patch", patchEndpoint)
 	t.Run("get", getEndpoint)
+	t.Run("list", listEndpoint)
+	t.Run("testErr", testEndpointSvrErr)
 	t.Run("del", delEndpoint)
 }

@@ -120,10 +120,7 @@ func loadGlobalMessages(pd ProtobufDescription) error {
 				continue
 			}
 			msg := dynamicpb.NewMessageType(msgType)
-			err := protoregistry.GlobalTypes.RegisterMessage(msg)
-			if err != nil {
-				return false
-			}
+			_ = protoregistry.GlobalTypes.RegisterMessage(msg)
 		}
 		for i := 0; i < fd.Enums().Len(); i++ {
 			enumType := fd.Enums().Get(i)
@@ -132,10 +129,7 @@ func loadGlobalMessages(pd ProtobufDescription) error {
 				continue
 			}
 			enum := dynamicpb.NewEnumType(enumType)
-			err := protoregistry.GlobalTypes.RegisterEnum(enum)
-			if err != nil {
-				return false
-			}
+			_ = protoregistry.GlobalTypes.RegisterEnum(enum)
 		}
 
 		return true
@@ -294,7 +288,7 @@ func (h *HttpEndpointImpl) inParamsHandle(pathParams map[string]string, req *htt
 }
 
 func (h *HttpEndpointImpl) addHexEncodeSHA256HashV2(req *http.Request) error {
-	if req.Body == nil {
+	if req==nil||req.Body == nil {
 		return nil
 	}
 	// 创建SHA256哈希对象
@@ -386,6 +380,7 @@ func (h *HttpEndpointImpl) RegisterHandlerClient(ctx context.Context, pd Protobu
 	}
 	for _, item := range items {
 		item := item
+		// log.Printf("register endpoint %s: %s %v", strings.ToUpper(item.HttpMethod), item.HttpUri, item.Pattern)
 		mux.Handle(strings.ToUpper(item.HttpMethod), item.Pattern, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 			if req.Header.Get("accept") == "" {
 				req.Header.Set("accept", "application/json")

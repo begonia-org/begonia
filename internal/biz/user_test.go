@@ -67,7 +67,7 @@ func testPutUser(t *testing.T) {
 			Name:      username2,
 			Dept:      "dev",
 			Email:     fmt.Sprintf("user2-biz%s@example.com", time.Now().Format("20060102150405")),
-			Phone:     time.Now().Format("20060102150405"),
+			Phone:     snk.GenerateIDString(),
 			Role:      api.Role_ADMIN,
 			Avatar:    "https://www.example.com/avatar.jpg",
 			Owner:     "test-user-01",

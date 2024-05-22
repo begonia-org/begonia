@@ -3,9 +3,9 @@ package file
 import (
 	"context"
 	"crypto/sha256"
+	goErr "errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -48,26 +48,11 @@ func NewFileUsecase(config *config.Config) *FileUsecase {
 func (f *FileUsecase) getPartsDir(key string) string {
 	return filepath.Join(f.config.GetUploadDir(), key, "parts")
 }
-func (f *FileUsecase) spiltKey(key string) (string, string, error) {
-	if strings.HasPrefix(key, "/") {
-		return "", "", gosdk.NewError(errors.ErrInvalidFileKey, int32(api.FileSvrStatus_FILE_INVALIDATE_KEY_ERR), codes.InvalidArgument, "invalid_key")
-	}
-	if strings.Contains(key, "/") {
-		name := filepath.Base(key)
-		// filename := getFilenameWithoutExt(name)
-		return filepath.Dir(key), name, nil
-	}
-	return "", key, nil
-}
 func (f *FileUsecase) InitiateUploadFile(ctx context.Context, in *api.InitiateMultipartUploadRequest) (*api.InitiateMultipartUploadResponse, error) {
 	if in.Key == "" || strings.HasPrefix(in.Key, "/") {
 		return nil, gosdk.NewError(errors.ErrInvalidFileKey, int32(api.FileSvrStatus_FILE_INVALIDATE_KEY_ERR), codes.InvalidArgument, "invalid_key")
 	}
 	uploadId := f.snowflake.GenerateIDString()
-	_, _, err := f.spiltKey(in.Key)
-	if err != nil {
-		return nil, err
-	}
 	saveDir := f.getPartsDir(uploadId)
 	if err := os.MkdirAll(saveDir, 0755); err != nil {
 		err = gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "create_upload_dir")
@@ -124,7 +109,7 @@ func (f *FileUsecase) commitFile(dir string, filename string, authorId string, a
 			err = p.(error)
 		}
 		if err != nil {
-			err = w.Reset(&git.ResetOptions{Mode: git.HardReset})
+			_ = w.Reset(&git.ResetOptions{Mode: git.HardReset})
 		}
 
 	}()
@@ -144,14 +129,14 @@ func (f *FileUsecase) commitFile(dir string, filename string, authorId string, a
 
 	// 打印新提交的ID
 	obj, err := repo.CommitObject(commit)
-	if err != nil && err != git.ErrEmptyCommit {
+	if err != nil && !goErr.Is(err, git.ErrEmptyCommit) {
 		return "", err
 	}
 	// 空提交处理
-	if err == git.ErrEmptyCommit {
+	if goErr.Is(err, git.ErrEmptyCommit) {
 		headRef, err := repo.Head()
-		if err != nil {
-			return "", err
+		if err != nil || headRef.Hash().IsZero() {
+			return "", fmt.Errorf("get head ref error:%w or head ref is nil", err)
 		}
 		return headRef.Hash().String(), nil
 	}
@@ -178,12 +163,6 @@ func (f *FileUsecase) checkIn(key string) (string, error) {
 	if key == "" || strings.HasPrefix(key, "/") {
 		return "", gosdk.NewError(errors.ErrInvalidFileKey, int32(api.FileSvrStatus_FILE_INVALIDATE_KEY_ERR), codes.InvalidArgument, "invalid_key")
 	}
-	// if authorId == "" {
-	// 	return "", gosdk.NewError(errors.ErrIdentityMissing, int32(user.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
-	// }
-	// if !strings.HasPrefix(key, authorId) {
-	// 	key = authorId + "/" + key
-	// }
 	return key, nil
 }
 
@@ -363,7 +342,7 @@ func (f *FileUsecase) getPersistenceKeyParts(key string) string {
 }
 func (f *FileUsecase) getUri(filePath string) (string, error) {
 	uploadRootDir := f.config.GetUploadDir()
-	log.Printf("uploadRootDir:%s,filePath:%s", uploadRootDir, filePath)
+	// log.Printf("uploadRootDir:%s,filePath:%s", uploadRootDir, filePath)
 	uri, err := filepath.Rel(uploadRootDir, filePath)
 	if err != nil {
 		return "", gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_file_uri")
@@ -395,7 +374,7 @@ func (f *FileUsecase) CompleteMultipartUploadFile(ctx context.Context, in *api.C
 	in.Key = filepath.Join(authorId, key)
 	partsDir := f.getPartsDir(in.UploadId)
 	if !pathExists(partsDir) {
-		err := gosdk.NewError(errors.ErrUploadIdNotFound, int32(api.FileSvrStatus_FILE_NOT_FOUND_UPLOADID_ERR), codes.NotFound, "upload_id_not_found")
+		err := gosdk.NewError(fmt.Errorf("%s:%s", in.UploadId, errors.ErrUploadIdNotFound.Error()), int32(api.FileSvrStatus_FILE_NOT_FOUND_UPLOADID_ERR), codes.NotFound, "upload_id_not_found")
 		return nil, err
 
 	}
@@ -411,7 +390,7 @@ func (f *FileUsecase) CompleteMultipartUploadFile(ctx context.Context, in *api.C
 	// merge files to uploadDir/key
 	err = f.mergeFiles(files, filePath)
 	if err != nil {
-		return nil, gosdk.NewError(fmt.Errorf("merge file error"), int32(common.Code_INTERNAL_ERROR), codes.Internal, "merge_files")
+		return nil, gosdk.NewError(fmt.Errorf("merge file error:%w", err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "merge_files")
 	}
 	// the parts file has been merged, remove the parts dir to uploadDir/parts/key
 	keyParts := f.getPersistenceKeyParts(in.Key)
@@ -435,7 +414,6 @@ func (f *FileUsecase) CompleteMultipartUploadFile(ctx context.Context, in *api.C
 			return nil, gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "commit_file")
 		}
 	}
-
 	os.RemoveAll(filepath.Join(f.config.GetUploadDir(), in.UploadId))
 
 	return &api.CompleteMultipartUploadResponse{
@@ -450,18 +428,16 @@ func (f *FileUsecase) DownloadForRange(ctx context.Context, in *api.DownloadRequ
 		return nil, 0, err
 	}
 	in.Key = key
-	if start > end {
-		err := gosdk.NewError(errors.ErrInvalidRange, int32(api.FileSvrStatus_FILE_INVALIDATE_RANGE_ERR), codes.InvalidArgument, "invalid_range")
+	if start > end && end > 0{
+		err := gosdk.NewError(fmt.Errorf("%w:start=%d,end=%d", errors.ErrInvalidRange, start, end), int32(api.FileSvrStatus_FILE_INVALIDATE_RANGE_ERR), codes.InvalidArgument, "invalid_range")
 		return nil, 0, err
 
 	}
 
 	file, err := f.getReader(in.Key, in.Version)
-	if err == git.ErrRepositoryNotExists || os.IsNotExist(err) {
-		return nil, 0, gosdk.NewError(err, int32(common.Code_NOT_FOUND), codes.NotFound, "file_not_found")
-	}
 	if err != nil {
-		return nil, 0, gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "open_file")
+		code, grcpCode := f.checkStatusCode(err)
+		return nil, 0, gosdk.NewError(err, code, grcpCode, "open_file")
 	}
 	defer file.Close()
 
@@ -469,9 +445,8 @@ func (f *FileUsecase) DownloadForRange(ctx context.Context, in *api.DownloadRequ
 	if end > 0 {
 		buf = make([]byte, end-start+1)
 	} else {
-		buf = make([]byte, file.Size()-start+1)
+		buf = make([]byte, file.Size()-start)
 	}
-	// log.Printf("start:%d,end:%d,bufsize:%d", start, end, len(buf))
 	_, err = file.ReadAt(buf, start)
 	if err != nil && err != io.EOF {
 		err = gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "read_file")
@@ -489,7 +464,8 @@ func (f *FileUsecase) Metadata(ctx context.Context, in *api.FileMetadataRequest,
 	in.Key = key
 	file, err := f.getReader(in.Key, in.Version)
 	if err != nil {
-		return nil, gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "open_file")
+		code, grpcCode := f.checkStatusCode(err)
+		return nil, gosdk.NewError(err, code, grpcCode, "open_file")
 
 	}
 	hasher := sha256.New()
@@ -543,7 +519,6 @@ func (f *FileUsecase) getReader(key string, version string) (FileReader, error) 
 	var err error
 	if version != "" {
 		fileReader, err = NewFileVersionReader(filePath, version)
-		// log.Printf("version fileReader:%v", err)
 		if err != nil {
 			return nil, err
 		}
@@ -562,13 +537,10 @@ func (f *FileUsecase) Version(ctx context.Context, key, authorId string) (string
 	if err != nil {
 		return "", err
 	}
-	// fileDir := filepath.Join(f.config.GetUploadDir(), in.Key)
 	file, err := f.getReader(key, "latest")
-	if err == git.ErrRepositoryNotExists {
-		return "", gosdk.NewError(err, int32(common.Code_NOT_FOUND), codes.NotFound, "file_not_found")
-	}
 	if err != nil {
-		return "", gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "open_file")
+		code, grpcCode := f.checkStatusCode(err)
+		return "", gosdk.NewError(err, code, grpcCode, "open_file")
 	}
 	defer file.Close()
 	return file.(FileVersionReader).Version(), nil

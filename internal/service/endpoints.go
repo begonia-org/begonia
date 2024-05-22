@@ -19,7 +19,7 @@ type EndpointsService struct {
 	api.UnimplementedEndpointServiceServer
 }
 
-func NewEndpointsService(biz *endpoint.EndpointUsecase, log logger.Logger, config *config.Config) *EndpointsService {
+func NewEndpointsService(biz *endpoint.EndpointUsecase, log logger.Logger, config *config.Config) api.EndpointServiceServer {
 	return &EndpointsService{biz: biz, log: log, config: config}
 }
 
@@ -33,7 +33,7 @@ func (e *EndpointsService) Update(ctx context.Context, in *api.EndpointSrvUpdate
 	tm, _ := time.Parse(time.RFC3339, timestamp)
 	return &api.UpdateEndpointResponse{UpdatedAt: timestamppb.New(tm)}, nil
 }
-func (e *EndpointsService) Put(ctx context.Context, in *api.EndpointSrvConfig) (*api.AddEndpointResponse, error) {
+func (e *EndpointsService) Post(ctx context.Context, in *api.EndpointSrvConfig) (*api.AddEndpointResponse, error) {
 	id, err := e.biz.AddConfig(ctx, in)
 	if err != nil {
 		return nil, err
@@ -62,7 +62,7 @@ func (e *EndpointsService) Delete(ctx context.Context, in *api.DeleteEndpointReq
 	return &api.DeleteEndpointResponse{}, nil
 }
 
-func (e *EndpointsService) Details(ctx context.Context, in *api.DetailsEndpointRequest) (*api.DetailsEndpointResponse, error) {
+func (e *EndpointsService) Get(ctx context.Context, in *api.DetailsEndpointRequest) (*api.DetailsEndpointResponse, error) {
 	endpoint, err := e.biz.Get(ctx, in.UniqueKey)
 	if err != nil {
 		return nil, err

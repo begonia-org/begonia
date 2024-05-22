@@ -8,17 +8,25 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
 
+	"github.com/agiledragon/gomonkey/v2"
 	"github.com/begonia-org/begonia"
 	"github.com/begonia-org/begonia/config"
+	"github.com/begonia-org/begonia/gateway"
+	"github.com/begonia-org/begonia/internal/biz/file"
 	cfg "github.com/begonia-org/begonia/internal/pkg/config"
+	"github.com/begonia-org/begonia/internal/pkg/errors"
+	"github.com/begonia-org/begonia/internal/service"
+	api "github.com/begonia-org/go-sdk/api/file/v1"
 	"github.com/begonia-org/go-sdk/client"
 	common "github.com/begonia-org/go-sdk/common/api/v1"
 	c "github.com/smartystreets/goconvey/convey"
+	"google.golang.org/grpc/metadata"
 )
 
 func sumFileSha256(src string) (string, error) {
@@ -121,7 +129,7 @@ func uploadParts(t *testing.T) {
 	c.Convey("test upload file", t, func() {
 		apiClient := client.NewFilesAPI(apiAddr, accessKey, secret)
 		var err error
-		tmpFile, err = generateRandomFile(1024 * 1024 * 20)
+		tmpFile, err = generateRandomFile(1024 * 1024 * 2)
 		c.So(err, c.ShouldBeNil)
 		defer os.Remove(tmpFile.path)
 		rsp, err := apiClient.UploadFileWithMuiltParts(context.Background(), tmpFile.path, "test/tmp.bin", true)
@@ -221,10 +229,195 @@ func deleteFile(t *testing.T) {
 
 	})
 }
+func testRangeDownload(t *testing.T) {
+	c.Convey("test range download file", t, func() {
+		apiClient := client.NewFilesAPI(apiAddr, accessKey, secret)
+		tmp, err := os.CreateTemp("", "testfile-*.txt")
+		c.So(err, c.ShouldBeNil)
+		defer tmp.Close()
+		defer os.Remove(tmp.Name())
+		rsp, err := apiClient.RangeDownload(context.Background(), sdkAPPID+"/test/tmp.bin", "", -1, 128)
+		c.So(err, c.ShouldBeNil)
+		c.So(len(rsp), c.ShouldEqual, 129)
+
+		rsp, err = apiClient.RangeDownload(context.Background(), sdkAPPID+"/test/tmp.bin", "", 128, -1)
+		c.So(err, c.ShouldBeNil)
+		c.So(len(rsp), c.ShouldEqual, 1024*1024*2-128)
+
+	})
+}
+func testUploadErr(t *testing.T) {
+	c.Convey("test upload file err", t, func() {
+		env := "dev"
+		if begonia.Env != "" {
+			env = begonia.Env
+		}
+		cnf := config.ReadConfig(env)
+		srv := service.NewFileSvrForTest(cnf, gateway.Log)
+		_, err := srv.Upload(context.Background(), &api.UploadFileRequest{})
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrIdentityMissing.Error())
+
+		ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs("app_id", sdkAPPID))
+		_, err = srv.Upload(ctx, &api.UploadFileRequest{})
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrIdentityMissing.Error())
+
+	})
+}
+func testDownloadErr(t *testing.T) {
+	c.Convey("test download file err", t, func() {
+		env := "dev"
+		if begonia.Env != "" {
+			env = begonia.Env
+		}
+		cnf := config.ReadConfig(env)
+		srv := service.NewFileSvrForTest(cnf, gateway.Log)
+		_, err := srv.Download(context.Background(), &api.DownloadRequest{})
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrIdentityMissing.Error())
+
+		ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs("app_id", sdkAPPID))
+		_, err = srv.Download(ctx, &api.DownloadRequest{})
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrIdentityMissing.Error())
+
+		patch := gomonkey.ApplyFuncReturn(url.PathUnescape, "", fmt.Errorf("test PathUnescape error"))
+		defer patch.Reset()
+		ctx = metadata.NewIncomingContext(context.Background(), metadata.Pairs("x-identity", sdkAPPID))
+		_, err = srv.Download(ctx, &api.DownloadRequest{Key: "test"})
+		patch.Reset()
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "test PathUnescape error")
+
+		// patch2 := gomonkey.ApplyFuncReturn(grpc.SendHeader, fmt.Errorf("test SendHeader error"))
+		// defer patch2.Reset()
+		// ctx = metadata.NewIncomingContext(context.Background(), metadata.Pairs("x-identity", sdkAPPID))
+		// _, err = srv.Download(ctx, &api.DownloadRequest{Key: sdkAPPID + "/test/helloworld.pb"})
+		// patch2.Reset()
+		// c.So(err, c.ShouldNotBeNil)
+		// c.So(err.Error(), c.ShouldContainSubstring, "test SendHeader error")
+
+	})
+}
+func testRangeDownloadErr(t *testing.T) {
+	c.Convey("test range download file err", t, func() {
+		env := "dev"
+		if begonia.Env != "" {
+			env = begonia.Env
+		}
+		cnf := config.ReadConfig(env)
+		srv := service.NewFileSvrForTest(cnf, gateway.Log)
+		// ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs("app_id", sdkAPPID))
+		// _, err := srv.DownloadForRange(ctx, &api.DownloadRequest{})
+		// c.So(err, c.ShouldNotBeNil)
+		// c.So(err.Error(), c.ShouldContainSubstring, errors.ErrIdentityMissing.Error())
+
+		cases := []struct {
+			rangeStr string
+			err      error
+		}{
+			{
+				rangeStr: "",
+				err:      fmt.Errorf("range header not found"),
+			},
+			{
+				rangeStr: "0-0",
+				err:      fmt.Errorf("invalid range header"),
+			},
+			{
+				rangeStr: "bytes=-ffee",
+				err:      fmt.Errorf("invalid end value"),
+			},
+			{
+				rangeStr: "bytes=ffee-",
+				err:      fmt.Errorf("invalid start value"),
+			},
+			{
+				rangeStr: "bytes=1024",
+				err:      fmt.Errorf("invalid range specification"),
+			},
+			{
+				rangeStr: "bytes=tgg-1024",
+				err:      fmt.Errorf("invalid start value"),
+			},
+			{
+				rangeStr: "bytes=1024-tgg",
+				err:      fmt.Errorf("invalid end value"),
+			},
+		}
+		for _, cs := range cases {
+			md := metadata.New(nil)
+			md.Set("x-identity", sdkAPPID)
+			if cs.rangeStr != "" {
+				md.Set("range", cs.rangeStr)
+			}
+			ctx := metadata.NewIncomingContext(context.Background(), md)
+			_, err := srv.DownloadForRange(ctx, &api.DownloadRequest{Key: sdkAPPID + "/test/helloworld.pb"})
+			c.So(err, c.ShouldNotBeNil)
+			c.So(err.Error(), c.ShouldContainSubstring, cs.err.Error())
+		}
+
+		patch := gomonkey.ApplyFuncReturn((*file.FileUsecase).DownloadForRange, nil, int64(0), fmt.Errorf("test download for range error"))
+		defer patch.Reset()
+		md := metadata.New(nil)
+		md.Set("x-identity", sdkAPPID)
+		md.Set("range", "bytes=0-0")
+		ctx := metadata.NewIncomingContext(context.Background(), md)
+		_, err := srv.DownloadForRange(ctx, &api.DownloadRequest{Key: sdkAPPID + "/test/helloworld.pb"})
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "test download for range error")
+		patch.Reset()
+
+	})
+}
+func testDelErr(t *testing.T) {
+	c.Convey("test delete file err", t, func() {
+		env := "dev"
+		if begonia.Env != "" {
+			env = begonia.Env
+		}
+		cnf := config.ReadConfig(env)
+		srv := service.NewFileSvrForTest(cnf, gateway.Log)
+		ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs("app_id", sdkAPPID))
+		_, err := srv.Delete(ctx, &api.DeleteRequest{})
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrIdentityMissing.Error())
+
+	})
+}
+func testMetaErr(t *testing.T) {
+	c.Convey("test meta file err", t, func() {
+		env := "dev"
+		if begonia.Env != "" {
+			env = begonia.Env
+		}
+		cnf := config.ReadConfig(env)
+		srv := service.NewFileSvrForTest(cnf, gateway.Log)
+		ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs("app_id", sdkAPPID))
+		_, err := srv.Metadata(ctx, &api.FileMetadataRequest{})
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrIdentityMissing.Error())
+
+		patch:=gomonkey.ApplyFuncReturn((*file.FileUsecase).Metadata,nil,fmt.Errorf("test metadata error"))
+		defer patch.Reset()
+		ctx = metadata.NewIncomingContext(context.Background(), metadata.Pairs("x-identity", sdkAPPID))
+		_, err = srv.Metadata(ctx, &api.FileMetadataRequest{Key: sdkAPPID + "/test/helloworld.pb"})
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "test metadata error")
+
+	})
+}
 func TestFile(t *testing.T) {
 	t.Run("upload", upload)
 	t.Run("download", download)
+	t.Run("testUploadErr", testUploadErr)
+	t.Run("testDownloadErr", testDownloadErr)
 	t.Run("uploadParts", uploadParts)
+	t.Run("testRangeDownload", testRangeDownload)
+	t.Run("testRangeDownloadErr", testRangeDownloadErr)
 	t.Run("downloadParts", downloadParts)
 	t.Run("deleteFile", deleteFile)
+	t.Run("testDelErr", testDelErr)
+	t.Run("testMetaErr", testMetaErr)
 }

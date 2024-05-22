@@ -17,7 +17,7 @@ type UserService struct {
 	config *config.Config
 }
 
-func NewUserService(biz *biz.UserUsecase, log logger.Logger, config *config.Config) *UserService {
+func NewUserService(biz *biz.UserUsecase, log logger.Logger, config *config.Config) api.UserServiceServer {
 	return &UserService{biz: biz, log: log, config: config}
 }
 

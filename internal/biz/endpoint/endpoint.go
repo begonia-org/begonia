@@ -62,7 +62,6 @@ func (e *EndpointUsecase) AddConfig(ctx context.Context, srvConfig *api.Endpoint
 		ServiceName:   srvConfig.ServiceName,
 		DescriptorSet: srvConfig.DescriptorSet,
 	}
-	log.Printf("endpoint add tags :%v", srvConfig.Tags)
 	err := e.repo.Put(ctx, endpoint)
 	if err != nil {
 		return "", gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "put_endpoint")
@@ -83,10 +82,12 @@ func (e *EndpointUsecase) Patch(ctx context.Context, srvConfig *api.EndpointSrvU
 		return "", gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "unmarshal_config")
 
 	}
-	// 过滤掉不允许修改的字段
-	for _, field := range srvConfig.UpdateMask.Paths {
-		patch[field] = svrConfigPatch[field]
+	if srvConfig.UpdateMask != nil {
+		// 过滤掉不允许修改的字段
+		for _, field := range srvConfig.UpdateMask.Paths {
+			patch[field] = svrConfigPatch[field]
 
+		}
 	}
 
 	updated_at := timestamppb.New(time.Now()).AsTime().Format(time.RFC3339)
@@ -125,6 +126,7 @@ func (u *EndpointUsecase) Get(ctx context.Context, uniqueKey string) (*api.Endpo
 func (u *EndpointUsecase) List(ctx context.Context, in *api.ListEndpointRequest) ([]*api.Endpoints, error) {
 	keys := make([]string, 0)
 	if len(in.Tags) > 0 {
+		log.Printf("list tags:%v", in.Tags)
 		ks, err := u.repo.GetKeysByTags(ctx, in.Tags)
 		if err != nil {
 			return nil, gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_keys_by_tags")

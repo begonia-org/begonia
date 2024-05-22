@@ -37,6 +37,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoregistry"
 	"gopkg.in/cenkalti/backoff.v1"
 )
@@ -134,11 +135,11 @@ func testRegisterClient(t *testing.T) {
 		go example.Run(helloAddr)
 		time.Sleep(2 * time.Second)
 		go gw.Start()
-		time.Sleep(1 * time.Second)
-		f:=func(){
+		time.Sleep(2 * time.Second)
+		f := func() {
 			gw.Start()
 		}
-		c.So(f,c.ShouldPanic)
+		c.So(f, c.ShouldPanic)
 		time.Sleep(4 * time.Second)
 		_, err = gw.proxyLB.Select("test/.test")
 		c.So(err, c.ShouldNotBeNil)
@@ -180,6 +181,16 @@ func testRequestGet(t *testing.T) {
 		resp, err = http.DefaultClient.Do(r)
 		c.So(err, c.ShouldBeNil)
 		c.So(resp.StatusCode, c.ShouldEqual, http.StatusIMUsed)
+
+		url = fmt.Sprintf("http://127.0.0.1:%d/api/v1/example/world?msg=hello", gwPort)
+		r2, err := http.NewRequest(http.MethodPost, url, nil)
+
+		c.So(err, c.ShouldBeNil)
+
+		resp2, err := http.DefaultClient.Do(r2)
+
+		c.So(err, c.ShouldBeNil)
+		c.So(resp2.StatusCode, c.ShouldEqual, http.StatusNotImplemented)
 
 	})
 }
@@ -774,10 +785,6 @@ func testWebSocketError(t *testing.T) {
 				output:    []interface{}{nil, fmt.Errorf("test upgrade error")},
 				exceptErr: websocket.ErrBadHandshake,
 			},
-			// {
-			// 	patch:  (*websocketForwarder).Write,
-			// 	output: []interface{}{0, fmt.Errorf("test websocket write error")},
-			// },
 			{
 				patch:  (*goloadbalancer.ConnPool).Get,
 				output: []interface{}{nil, fmt.Errorf("test get conn error")},
@@ -851,6 +858,11 @@ func testServerSideEventErr(t *testing.T) {
 				patch:  protojson.Marshal,
 				output: []interface{}{nil, fmt.Errorf("test marshal error")},
 				err:    fmt.Errorf("test marshal error"),
+			},
+			{
+				patch:  (*gwRuntime.DecoderWrapper).Decode,
+				output: []interface{}{fmt.Errorf("test decode error")},
+				err:    fmt.Errorf("test decode error"),
 			},
 		}
 		for _, caseV := range cases {
@@ -1075,9 +1087,74 @@ func testUpdateLoadbalance(t *testing.T) {
 		}
 		for _, v := range endps {
 			c.So(v.Stats().GetIdleConns(), c.ShouldBeGreaterThan, 0)
-			// c.So(v.Close(), c.ShouldBeNil)
 		}
-		// helloAddr := fmt.Sprintf("")
+	})
+}
+func testStartErr(t *testing.T) {
+	c.Convey("test start error", t, func() {
+		_, filename, _, _ := runtime.Caller(0)
+		pbFile := filepath.Join(filepath.Dir(filepath.Dir(filename)), "testdata", "helloworld.pb")
+		pb, err := os.ReadFile(pbFile)
+		c.So(err, c.ShouldBeNil)
+		pd, err := NewDescriptionFromBinary(pb, filepath.Join("tmp", "test-pd"))
+		c.So(err, c.ShouldBeNil)
+		opts, cnf := newTestServer(0, 0)
+		localGW := NewGateway(cnf, opts)
+		err = localGW.RegisterHandlerClient(context.Background(), pd)
+		c.So(err, c.ShouldBeNil)
+
+		c.So(localGW.Start, c.ShouldPanic)
+
+		min := 1949
+		max := 12138
+		rander := rand.New(rand.NewSource(time.Now().Unix())) // 初始化随机数种子
+
+		randomNumber := rander.Intn(max-min+1) + min
+		opts1, cnf1 := newTestServer(randomNumber+3, randomNumber)
+		localGW1 := NewGateway(cnf1, opts1)
+		err = localGW1.RegisterHandlerClient(context.Background(), pd)
+		c.So(err, c.ShouldBeNil)
+		go localGW1.Start()
+		time.Sleep(3 * time.Second)
+		opts2, cnf2 := newTestServer(gwPort, randomNumber+4)
+		localGW2 := NewGateway(cnf2, opts2)
+		err = localGW2.RegisterHandlerClient(context.Background(), pd)
+		c.So(err, c.ShouldBeNil)
+		c.So(localGW2.Start, c.ShouldPanic)
+
+	})
+}
+func testAddHexEncodeSHA256HashV2Err(t *testing.T) {
+	c.Convey("test add hex encode sha256 hash v2 err", t, func() {
+		httpEp := &HttpEndpointImpl{}
+		err := httpEp.addHexEncodeSHA256HashV2(nil)
+		c.So(err, c.ShouldBeNil)
+		patch := gomonkey.ApplyFuncReturn(io.Copy, int64(0), fmt.Errorf("test io copy error"))
+		defer patch.Reset()
+		req, err := http.NewRequest(http.MethodPost, "http://www.example.com", strings.NewReader("hello"))
+		c.So(err, c.ShouldBeNil)
+		err = httpEp.addHexEncodeSHA256HashV2(req)
+		c.So(err.Error(), c.ShouldContainSubstring, "test io copy error")
+		patch.Reset()
+	})
+}
+
+func testRegisterHandlerClientErr(t *testing.T) {
+	c.Convey("test register handler client err", t, func() {
+		_, filename, _, _ := runtime.Caller(0)
+		pbFile := filepath.Join(filepath.Dir(filepath.Dir(filename)), "testdata", "helloworld.pb")
+		pb, err := os.ReadFile(pbFile)
+		c.So(err, c.ShouldBeNil)
+		pd, err := NewDescriptionFromBinary(pb, filepath.Join("tmp", "test-pd"))
+		c.So(err, c.ShouldBeNil)
+		patch := gomonkey.ApplyFuncReturn(protodesc.NewFiles,nil, fmt.Errorf("test NewFiles error"))
+		defer patch.Reset()
+		err = gw.RegisterHandlerClient(context.Background(), pd)
+		patch.Reset()
+
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "test NewFiles error")
+		
 	})
 }
 func TestHttp(t *testing.T) {
@@ -1095,10 +1172,14 @@ func TestHttp(t *testing.T) {
 	t.Run("testWebSocketError", testWebSocketError)
 	t.Run("testServerSideEventErr", testServerSideEventErr)
 	t.Run("testClientStreamErr", testClientStreamErr)
+	t.Run("testAddHexEncodeSHA256HashV2Err", testAddHexEncodeSHA256HashV2Err)
+	t.Run("testRegisterHandlerClientErr", testRegisterHandlerClientErr)
 	// t.Run("testInParamsHandle", testInParamsHandle)
 	t.Run("testRequestError", testRequestError)
 	t.Run("testLoadHttpEndpointItemErr", testLoadHttpEndpointItemErr)
 	t.Run("testDeleteEndpoint", testDeleteEndpoint)
 	t.Run("testRegisterLocalService", testRegisterLocalService)
+	t.Run("testStartErr", testStartErr)
+
 	// time.Sleep(30 * time.Second)
 }

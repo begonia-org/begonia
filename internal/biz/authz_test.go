@@ -217,9 +217,12 @@ func testLogin(t *testing.T) {
 		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrTokenExpired.Error())
 	})
 	c.Convey("test login failed with invalid UserAuth", t, func() {
+	
+		info, _ := getUserAuth(adminUser, adminPasswd, pubKey, seedAuthToken, seedTimestampToken)
 		patch := gomonkey.ApplyFuncReturn(json.Marshal, nil, fmt.Errorf("error marshal"))
 		defer patch.Reset()
-		_, err := getUserAuth(adminUser, adminPasswd, pubKey, seedAuthToken, seedTimestampToken)
+		_, err = authzBiz.Login(context.TODO(), info)
+
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "error marshal")
 		patch.Reset()
@@ -249,6 +252,16 @@ func testLogin(t *testing.T) {
 		_, err = authzBiz.Login(context.TODO(), info)
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrUserDisabled.Error())
+		patch.Reset()
+	})
+	c.Convey("test login failed with jwt generate error", t, func() {
+		info, _ := getUserAuth(adminUser, adminPasswd, pubKey, seedAuthToken, seedTimestampToken)
+		patch := gomonkey.ApplyFuncReturn(tiga.GenerateJWT, nil, fmt.Errorf("error generate jwt"))
+		defer patch.Reset()
+		_, err = authzBiz.Login(context.TODO(), info)
+
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "error generate jwt")
 		patch.Reset()
 	})
 
