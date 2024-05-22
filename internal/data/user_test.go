@@ -53,9 +53,10 @@ func testAddUser(t *testing.T) {
 
 		c.So(err, c.ShouldBeNil)
 		time.Sleep(2 * time.Second)
-		pipe := repo.Cache(context.TODO(), "test:user:cache", []*api.Users{{Uid: uid, Name: user1, Dept: "dev"}}, 3*time.Second, func(user *api.Users) ([]byte, interface{}) {
+		pipe,err := repo.Cache(context.TODO(), "test:user:cache", []*api.Users{{Uid: uid, Name: user1, Dept: "dev"}}, 3*time.Second, func(user *api.Users) ([]byte, interface{}) {
 			return []byte(user.Uid), user.Uid
 		})
+		c.So(err, c.ShouldBeNil)
 		c.So(pipe, c.ShouldNotBeNil)
 		cmds, err := pipe.Exec(context.Background())
 		c.So(err, c.ShouldBeNil)
@@ -317,8 +318,38 @@ func testListUser(t *testing.T) {
 
 	})
 }
+func testCacheError(t *testing.T) {
+	c.Convey("test cache error", t, func() {
+		env := "dev"
+		if begonia.Env != "" {
+			env = begonia.Env
+		}
+		repo := NewUserRepo(cfg.ReadConfig(env), gateway.Log)
+		snk, _ := tiga.NewSnowflake(1)
+		users := []*api.Users{
+			{
+				Uid:      snk.GenerateIDString(),
+				Name:     fmt.Sprintf("user-cache-%s", time.Now().Format("20060102150405")),
+				Dept:     "dev",
+				Password: "123456",
+				Phone:    fmt.Sprintf("%d%s", 1, time.Now().Format("20060102150405")),
+				Role:     api.Role_ADMIN,
+				Avatar:   "https://www.example.com/avatar.jpg",
+			},
+		}
+		patch := gomonkey.ApplyFuncReturn((*LayeredCache).Set, fmt.Errorf("set cache error"))
+		defer patch.Reset()
+		_,err := repo.Cache(context.TODO(), "test:user:cache", users, 3*time.Second, func(user *api.Users) ([]byte, interface{}) {
+			return []byte(user.Uid), user.Uid
+		})
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "set cache error")
+		patch.Reset()
+	})
+}
 func TestUser(t *testing.T) {
 	t.Run("testAddUser", testAddUser)
+	t.Run("testCacheError", testCacheError)
 	t.Run("testGetUser", testGetUser)
 	t.Run("testUpdateUser", testUpdateUser)
 	t.Run("testDelUser", testDelUser)

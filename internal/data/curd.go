@@ -94,16 +94,18 @@ func (c *curdImpl) Update(ctx context.Context, model biz.Model, needEncrypt bool
 	if updateMask != nil {
 		paths = updateMask.Paths
 	}
+
 	key, val, err := getPrimaryColumnValue(model, "primary")
+	if err != nil {
+		return errors.Wrap(err, "get primary column value failed")
+	}
 	for _, path := range paths {
 		if path == key {
 			return fmt.Errorf("primary key %s can not be updated", key)
 		}
 
 	}
-	if err != nil {
-		return errors.Wrap(err, "get primary column value failed")
-	}
+
 	_ = c.SetDatetimeAt(model, "updated_at")
 	if needEncrypt {
 		ivKey := c.conf.GetAesIv()

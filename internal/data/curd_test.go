@@ -26,3 +26,20 @@ func TestAssertDeletedModel(t *testing.T) {
 		c.So(err, c.ShouldNotBeNil)
 	})
 }
+func TestGetPrimaryColumnValueErr(t *testing.T) {
+	c.Convey("test get primary column value err", t, func() {
+		_, _, err := getPrimaryColumnValue(make(map[string]interface{}), "primary")
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "not a struct type")
+
+		_, _, err = getPrimaryColumnValue(&struct {
+			Primary string
+			Name    string
+		}{
+			Primary: "primary",
+			Name:    "name",
+		}, "primary")
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "not found primary column")
+	})
+}

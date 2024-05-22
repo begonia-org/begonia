@@ -143,7 +143,7 @@ func (e *endpointRepoImpl) getTags(v interface{}) ([]interface{}, error) {
 }
 func (e *endpointRepoImpl) Patch(ctx context.Context, id string, patch map[string]interface{}) error {
 	origin, err := e.Get(ctx, e.cfg.GetServiceKey(id))
-	if err != nil||origin == "" {
+	if err != nil || origin == "" {
 		return fmt.Errorf("get old endpoint error: %w or %w", err, errors.ErrEndpointNotExists)
 	}
 	originConfig := make(map[string]interface{})
@@ -175,7 +175,7 @@ func (e *endpointRepoImpl) Patch(ctx context.Context, id string, patch map[strin
 	}
 	ops = append(ops, clientv3.OpPut(e.cfg.GetServiceKey(id), string(newConfig)))
 	ok, err := e.data.PutEtcdWithTxn(ctx, ops)
-	if err != nil||!ok {
+	if err != nil || !ok {
 		return fmt.Errorf("patch endpoint fail: %w", err)
 	}
 
@@ -184,11 +184,8 @@ func (e *endpointRepoImpl) Patch(ctx context.Context, id string, patch map[strin
 
 func (e *endpointRepoImpl) PutTags(ctx context.Context, id string, tags []string) error {
 	origin, err := e.Get(ctx, e.cfg.GetServiceKey(id))
-	if err != nil {
-		return err
-	}
-	if origin == "" {
-		return errors.ErrEndpointNotExists
+	if err != nil || origin == "" {
+		return fmt.Errorf("get old endpoint error: %w or %w", err, errors.ErrEndpointNotExists)
 	}
 	endpoint := &api.Endpoints{}
 	err = json.Unmarshal([]byte(origin), endpoint)

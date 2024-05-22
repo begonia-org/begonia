@@ -342,7 +342,25 @@ func delEndpointTest(t *testing.T) {
 		repo := NewEndpointRepo(conf, gateway.Log)
 		cnf := config.NewConfig(conf)
 		endpointKey := cnf.GetServiceKey(endpointId)
+
+		// c.So(keys, c.ShouldContain, endpointKey)
+
+		patch := gomonkey.ApplyFuncReturn((tiga.EtcdDao).GetWithPrefix, nil, fmt.Errorf("del GetWithPrefix fail"))
+
+		defer patch.Reset()
 		err := repo.Del(context.Background(), endpointId)
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "del GetWithPrefix fail")
+		patch.Reset()
+
+		patch2:=gomonkey.ApplyFuncReturn((*Data).PutEtcdWithTxn, false, fmt.Errorf("del PutEtcdWithTxn fail"))
+		defer patch2.Reset()
+		err = repo.Del(context.Background(), endpointId)
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "del PutEtcdWithTxn fail")
+		patch2.Reset()
+
+		err = repo.Del(context.Background(), endpointId)
 		c.So(err, c.ShouldBeNil)
 		data, err := repo.Get(context.Background(), endpointKey)
 		// t.Logf("err:%v", err)
@@ -353,7 +371,7 @@ func delEndpointTest(t *testing.T) {
 		keys, err := repo.GetKeysByTags(context.Background(), []string{tag3})
 		c.So(err, c.ShouldBeNil)
 		c.So(keys, c.ShouldBeEmpty)
-		// c.So(keys, c.ShouldContain, endpointKey)
+
 
 	})
 }
@@ -408,6 +426,20 @@ func putTagsTest(t *testing.T) {
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "marshal tags fail")
 		patch2.Reset()
+
+		patch3 := gomonkey.ApplyFuncReturn((*endpointRepoImpl).Get,"", fmt.Errorf("get endpoint fail"))
+		defer patch3.Reset()
+		err = repo.PutTags(context.Background(), endpointId, []string{tag1, tag2, tag3})
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "get endpoint fail")
+		patch3.Reset()
+
+		patch4 := gomonkey.ApplyFuncReturn(json.Unmarshal, fmt.Errorf("unmarshal fail"))
+		defer patch4.Reset()
+		err = repo.PutTags(context.Background(), endpointId, []string{tag1, tag2, tag3})
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "unmarshal fail")
+		patch4.Reset()
 
 	})
 }
