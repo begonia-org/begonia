@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/agiledragon/gomonkey/v2"
 	"github.com/begonia-org/begonia"
 	"github.com/begonia-org/begonia/config"
 	"github.com/begonia-org/begonia/gateway"
@@ -114,4 +115,100 @@ func TestDo(t *testing.T) {
 		c.So(val, c.ShouldNotBeEmpty)
 	})
 
+}
+
+func TestHandleError(t *testing.T) {
+	dataOperator := newDataOperatorUsecase()
+	c.Convey("test data operator handle error", t, func() {
+		env := "dev"
+		if begonia.Env != "" {
+			env = begonia.Env
+		}
+		config := config.ReadConfig(env)
+		repo := data.NewOperator(config, gateway.Log)
+		patch := gomonkey.ApplyMethodReturn(repo, "Locker", nil, fmt.Errorf("test new lock error"))
+		defer patch.Reset()
+		ctx, cancel := context.WithCancel(context.Background())
+		go dataOperator.Handle(ctx)
+		time.Sleep(1 * time.Second)
+		patch.Reset()
+		cancel()
+		locker := data.NewLocker(config, gateway.Log, "test-test-test", 3*time.Second, 0)
+		patch2 := gomonkey.ApplyMethodReturn(locker, "Lock", fmt.Errorf("test lock error"))
+		defer patch2.Reset()
+		ctx, cancel = context.WithCancel(context.Background())
+		go dataOperator.Handle(ctx)
+		time.Sleep(1 * time.Second)
+		patch2.Reset()
+		cancel()
+
+		patch3 := gomonkey.ApplyMethodReturn(locker, "UnLock", fmt.Errorf("test unlock error"))
+		defer patch3.Reset()
+		ctx, cancel = context.WithCancel(context.Background())
+		go dataOperator.Handle(ctx)
+		time.Sleep(1 * time.Second)
+		patch3.Reset()
+		cancel()
+
+		patch4 := gomonkey.ApplyMethodReturn(repo, "GetAllForbiddenUsers", nil, fmt.Errorf("test latest GetAllForbiddenUsers error"))
+		defer patch4.Reset()
+		ctx, cancel = context.WithCancel(context.Background())
+		go dataOperator.Handle(ctx)
+		time.Sleep(1 * time.Second)
+		patch4.Reset()
+		cancel()
+
+		patch5 := gomonkey.ApplyMethodReturn(repo, "FlashUsersCache", fmt.Errorf("test latest FlashUsersCache error"))
+		defer patch5.Reset()
+		ctx, cancel = context.WithCancel(context.Background())
+		go dataOperator.Handle(ctx)
+		time.Sleep(1 * time.Second)
+		patch5.Reset()
+		cancel()
+
+	})
+}
+
+func TestOnStart(t *testing.T) {
+	dataOperator := newDataOperatorUsecase()
+	c.Convey("test data operator on start", t, func() {
+		env := "dev"
+		if begonia.Env != "" {
+			env = begonia.Env
+		}
+		config := config.ReadConfig(env)
+		repo := data.NewEndpointRepo(config, gateway.Log)
+		patch := gomonkey.ApplyMethodReturn(repo, "List", nil, fmt.Errorf("test endpoint list error"))
+		defer patch.Reset()
+		ctx, cancel := context.WithCancel(context.Background())
+		err := dataOperator.OnStart(ctx)
+		time.Sleep(1 * time.Second)
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "test endpoint list error")
+		patch.Reset()
+		cancel()
+
+		patch2 := gomonkey.ApplyFuncReturn((*endpoint.EndpointWatcher).Update, fmt.Errorf("test endpoint watcher update error"))
+		defer patch2.Reset()
+		ctx, cancel = context.WithCancel(context.Background())
+		err = dataOperator.OnStart(ctx)
+
+		time.Sleep(1 * time.Second)
+
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "test endpoint watcher update error")
+		patch2.Reset()
+		cancel()
+
+	})
+}
+
+func TestRefresh(t *testing.T) {
+	c.Convey("test data operator refresh", t, func() {
+		dataOperator := newDataOperatorUsecase()
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		go dataOperator.Refresh(ctx, 1*time.Second)
+		time.Sleep(3 * time.Second)
+	})
 }

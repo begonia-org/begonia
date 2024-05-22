@@ -74,7 +74,7 @@ func (a *AccessKeyAuth) AppValidator(ctx context.Context, req *gosdk.GatewayRequ
 
 		return "", gosdk.NewError(errors.ErrRequestExpired, int32(api.APPSvrCode_APP_REQUEST_EXPIRED_ERR), codes.DeadlineExceeded, "app_timestamp")
 	}
-	secret, err := a.app.GetSecret(ctx, accessKey)
+	secret, err := a.GetSecret(ctx, accessKey)
 	if err != nil {
 		return "", gosdk.NewError(err, int32(api.APPSvrCode_APP_UNKNOWN), codes.Unauthenticated, "app_secret")
 	}

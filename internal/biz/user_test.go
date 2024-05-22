@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/agiledragon/gomonkey/v2"
 	"github.com/begonia-org/begonia"
 	"github.com/begonia-org/begonia/config"
 	"github.com/begonia-org/begonia/gateway"
@@ -81,7 +82,7 @@ func testPutUser(t *testing.T) {
 	})
 	c.Convey("test user put failed", t, func() {
 		uid3 := snk.GenerateIDString()
-		err := userBiz.Add(context.TODO(), &api.Users{
+		user := &api.Users{
 			Uid:       uid3,
 			Name:      username,
 			Dept:      "dev",
@@ -93,10 +94,22 @@ func testPutUser(t *testing.T) {
 			CreatedAt: timestamppb.Now(),
 			UpdatedAt: timestamppb.Now(),
 			Status:    api.USER_STATUS_ACTIVE,
-		})
+		}
+		err := userBiz.Add(context.TODO(), user)
 
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "Duplicate entry")
+		env := "dev"
+		if begonia.Env != "" {
+			env = begonia.Env
+		}
+		repo := data.NewUserRepo(config.ReadConfig(env), gateway.Log)
+		patch := gomonkey.ApplyMethodReturn(repo, "Add", fmt.Errorf("error in your SQL syntax"))
+		defer patch.Reset()
+		err = userBiz.Add(context.TODO(), user)
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "error in your SQL syntax")
+
 	})
 }
 func testGetUser(t *testing.T) {
@@ -143,6 +156,23 @@ func testPatchUser(t *testing.T) {
 		})
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "error in your SQL syntax")
+		snk, _ := tiga.NewSnowflake(1)
+		env := "dev"
+		if begonia.Env != "" {
+			env = begonia.Env
+		}
+		config := config.ReadConfig(env)
+		repo := data.NewUserRepo(config, gateway.Log)
+		patch := gomonkey.ApplyMethodReturn(repo, "Patch", fmt.Errorf("not found err"))
+		defer patch.Reset()
+		err = userBiz.Update(context.TODO(), &api.Users{
+			Uid:        snk.GenerateIDString(),
+			Name:       "test",
+			UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"name"}},
+		})
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "not found")
+		patch.Reset()
 
 	})
 }
@@ -182,7 +212,25 @@ func testListUser(t *testing.T) {
 		users, err := userBiz.List(context.TODO(), []string{"unknown"}, []api.USER_STATUS{api.USER_STATUS_DELETED}, 1, 20)
 		c.So(len(users), c.ShouldEqual, 0)
 		c.So(err, c.ShouldBeNil)
-		// c.So(err.Error(), c.ShouldContainSubstring, "not found")
+
+		env := "dev"
+		if begonia.Env != "" {
+			env = begonia.Env
+		}
+		repo := data.NewUserRepo(config.ReadConfig(env), gateway.Log)
+		patch := gomonkey.ApplyMethodReturn(repo, "List",nil, fmt.Errorf("error in your SQL syntax"))
+		defer patch.Reset()
+		_, err = userBiz.List(context.TODO(), []string{"unknown"}, []api.USER_STATUS{api.USER_STATUS_DELETED}, 1, 20)
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "error in your SQL syntax")
+		patch.Reset()
+
+		patch2 := gomonkey.ApplyMethodReturn(repo, "List", nil, fmt.Errorf("not found err"))
+		defer patch2.Reset()
+		_, err = userBiz.List(context.TODO(), []string{"unknown"}, []api.USER_STATUS{api.USER_STATUS_DELETED}, 1, 20)
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "not found err")
+		patch2.Reset()
 	})
 }
 
@@ -198,6 +246,17 @@ func testDeleteUser(t *testing.T) {
 		err := userBiz.Delete(context.TODO(), snk.GenerateIDString())
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "not found")
+		env := "dev"
+		if begonia.Env != "" {
+			env = begonia.Env
+		}
+		repo := data.NewUserRepo(config.ReadConfig(env), gateway.Log)
+		patch := gomonkey.ApplyMethodReturn(repo, "Del", fmt.Errorf("error in your SQL syntax"))
+		defer patch.Reset()
+		err = userBiz.Delete(context.TODO(), snk.GenerateIDString())
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "error in your SQL syntax")
+		patch.Reset()
 	})
 }
 

@@ -161,7 +161,7 @@ func (u *AuthzUsecase) Logout(ctx context.Context, req *api.LogoutAPIRequest) er
 	if len(token) == 0 {
 		return gosdk.NewError(errors.ErrTokenMissing, int32(common.Code_TOKEN_NOT_FOUND), codes.InvalidArgument, "token_missing")
 	}
-	err := u.repo.PutBlackList(ctx, tiga.GetMd5(token[0]))
+	err := u.PutBlackList(ctx, tiga.GetMd5(token[0]))
 	if err != nil {
 		return gosdk.NewError(err, int32(common.Code_AUTH_ERROR), codes.Internal, "add_black_list")
 	}

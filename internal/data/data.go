@@ -57,6 +57,7 @@ var ProviderSet = wire.NewSet(NewMySQL,
 	NewCurdImpl,
 	NewLayeredCache,
 
+	NewDataLock,
 	NewAuthzRepoImpl,
 	NewUserRepoImpl,
 	NewEndpointRepoImpl,

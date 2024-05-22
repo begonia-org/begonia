@@ -16,8 +16,10 @@ import (
 	"github.com/begonia-org/begonia/internal/data"
 	cfg "github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/errors"
+	"github.com/begonia-org/begonia/internal/pkg/routers"
 	"github.com/begonia-org/begonia/internal/pkg/utils"
 	gosdk "github.com/begonia-org/go-sdk"
+
 	api "github.com/begonia-org/go-sdk/api/app/v1"
 	c "github.com/smartystreets/goconvey/convey"
 	"github.com/spark-lence/tiga"
@@ -114,7 +116,18 @@ func testGetAPPID(t *testing.T) {
 		c.So(appid, c.ShouldBeEmpty)
 	})
 }
+func testIfNeedValidate(t *testing.T) {
+	c.Convey("test if need validate", t, func() {
+		ok := biz.IfNeedValidate(context.TODO(), akskAccess)
+		c.So(ok, c.ShouldBeFalse)
 
+		patch := gomonkey.ApplyFuncReturn((*routers.HttpURIRouteToSrvMethod).GetRouteByGrpcMethod, &routers.APIMethodDetails{AuthRequired: true})
+		defer patch.Reset()
+		ok = biz.IfNeedValidate(context.TODO(), akskAccess)
+		c.So(ok, c.ShouldBeTrue)
+		patch.Reset()
+	})
+}
 func testValidator(t *testing.T) {
 	signer := gosdk.NewAppAuthSigner(akskAccess, akskSecret)
 	c.Convey("test validator success", t, func() {
@@ -184,10 +197,39 @@ func testValidator(t *testing.T) {
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrAppSignatureInvalid.Error())
 	})
+
+	c.Convey("test validator fail with invalidate sk ak", t, func() {
+		req, err := http.NewRequest(http.MethodPost, "http://127.0.0.1:1949/api/v1/helloworld", strings.NewReader(`{"msg":"hello"}`))
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		req.Header.Add("content-type", "application/json")
+
+		gw, err := gosdk.NewGatewayRequestFromHttp(req)
+		c.So(err, c.ShouldBeNil)
+		err = signer.SignRequest(gw)
+		c.So(err, c.ShouldBeNil)
+		patch := gomonkey.ApplyFuncReturn((*biz.AccessKeyAuth).GetSecret, "", fmt.Errorf("sk not found"))
+		defer patch.Reset()
+		aksk := newAKSK()
+		_, err = aksk.AppValidator(context.TODO(), gw)
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "sk not found")
+		patch.Reset()
+
+		patch2 := gomonkey.ApplyFuncReturn((*gosdk.AppAuthSignerImpl).Sign, "", fmt.Errorf("sign error"))
+		defer patch2.Reset()
+		_, err = aksk.AppValidator(context.TODO(), gw)
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "sign error")
+		patch2.Reset()
+	})
 }
 
 func TestAKSK(t *testing.T) {
 	t.Run("get secret", testGetSecret)
 	t.Run("get appid", testGetAPPID)
 	t.Run("validator", testValidator)
+	t.Run("if need validate", testIfNeedValidate)
 }

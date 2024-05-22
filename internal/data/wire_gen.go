@@ -12,6 +12,7 @@ import (
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/go-sdk/logger"
 	"github.com/spark-lence/tiga"
+	"time"
 )
 
 // Injectors from wire.go:
@@ -84,4 +85,11 @@ func NewDataRepo(cfg *tiga.Configuration, log logger.Logger) *Data {
 	etcdDao := NewEtcd(cfg)
 	data := NewData(mySQLDao, redisDao, etcdDao)
 	return data
+}
+
+func NewLocker(cfg *tiga.Configuration, log logger.Logger, key string, ttl time.Duration, retry int) biz.DataLock {
+	redisDao := NewRDB(cfg)
+	client := GetRDBClient(redisDao)
+	bizDataLock := NewDataLock(client, key, ttl, retry)
+	return bizDataLock
 }
