@@ -19,7 +19,7 @@ type AuthzService struct {
 	authCrypto *crypto.UsersAuth
 }
 
-func NewAuthzService(biz *biz.AuthzUsecase, log logger.Logger, auth *crypto.UsersAuth, config *config.Config) *AuthzService {
+func NewAuthzService(biz *biz.AuthzUsecase, log logger.Logger, auth *crypto.UsersAuth, config *config.Config) api.AuthServiceServer {
 	return &AuthzService{biz: biz, log: log, authCrypto: auth, config: config}
 }
 

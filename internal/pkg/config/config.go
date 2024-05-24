@@ -186,6 +186,10 @@ func (c *Config) GetRPCPlugins() ([]*goloadbalancer.Server, error) {
 	return plugins, nil
 }
 func (c *Config) GetEndpointsPrefix() string {
+	key:=fmt.Sprintf("%s.etcd.endpoint.prefix",c.GetEnv())
+	if val:=c.GetString(key);val!=""{
+		return val
+	}
 	return c.GetString("common.etcd.endpoint.prefix")
 }
 
@@ -218,6 +222,10 @@ func (c *Config) GetServiceNameKey(name string) string {
 	return filepath.Join(prefix, name)
 }
 func (c *Config) GetAppKeyPrefix() string {
+	key:=fmt.Sprintf("%s.etcd.app.prefix",c.GetEnv())
+	if val:=c.GetString(key);val!=""{
+		return val
+	}
 	prefix := c.GetString("common.etcd.app.prefix")
 	return prefix
 }

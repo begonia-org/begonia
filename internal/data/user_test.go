@@ -23,8 +23,8 @@ import (
 var uid = ""
 var uid2 = ""
 var uid3 = ""
-var user1 = fmt.Sprintf("user1-%s", time.Now().Format("20060102150405"))
-var user2 = fmt.Sprintf("user2-%s", time.Now().Format("20060102150405"))
+var user1 = fmt.Sprintf("user1-data-%s", time.Now().Format("20060102150405"))
+var user2 = fmt.Sprintf("user2-data-%s", time.Now().Format("20060102150405"))
 
 // var user3 = fmt.Sprintf("user3-%s", time.Now().Format("20060102150405"))
 func testAddUser(t *testing.T) {
@@ -35,7 +35,7 @@ func testAddUser(t *testing.T) {
 			env = begonia.Env
 		}
 		repo := NewUserRepo(cfg.ReadConfig(env), gateway.Log)
-		snk, _ := tiga.NewSnowflake(1)
+		snk, _ := tiga.NewSnowflake(2)
 		uid = snk.GenerateIDString()
 		err := repo.Add(context.TODO(), &api.Users{
 			Uid:       uid,
@@ -68,6 +68,7 @@ func testAddUser(t *testing.T) {
 		val, err := repo.(*userRepoImpl).local.Get(context.Background(), fmt.Sprintf("test:user:cache:%s", uid))
 		c.So(err, c.ShouldBeNil)
 		c.So(val, c.ShouldNotBeNil)
+		time.Sleep(1 * time.Second)
 		uid2 = snk.GenerateIDString()
 
 		err = repo.Add(context.TODO(), &api.Users{
@@ -197,7 +198,6 @@ func testGetUser(t *testing.T) {
 
 func testUpdateUser(t *testing.T) {
 	c.Convey("test user update success", t, func() {
-		t.Log("update test")
 		env := "dev"
 		if begonia.Env != "" {
 			env = begonia.Env
@@ -212,7 +212,8 @@ func testUpdateUser(t *testing.T) {
 		createdAt := user.CreatedAt
 		user.Name = fmt.Sprintf("user-update-%s", time.Now().Format("20060102150405"))
 		time.Sleep(1 * time.Second)
-		user.Phone = time.Now().Format("20060102150405")
+		snk,_:=tiga.NewSnowflake(1)
+		user.Phone = snk.GenerateIDString()
 		user.UpdateMask = &fieldmaskpb.FieldMask{Paths: []string{"name", "phone"}}
 		err = repo.Patch(context.TODO(), user)
 

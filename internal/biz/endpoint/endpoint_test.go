@@ -341,6 +341,23 @@ func testWatcherUpdate(t *testing.T) {
 		err = watcher.Handle(context.TODO(), mvccpb.PUT, cnf.GetServiceKey(epId), string(val))
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "register error")
+		patch2.Reset()
+		gw := gateway.Get()
+
+		patch3 := gomonkey.ApplyMethodReturn(gw, "DeleteHandlerClient", fmt.Errorf("test DeleteHandlerClient error"))
+		defer patch3.Reset()
+		err = watcher.Handle(context.TODO(), mvccpb.PUT, cnf.GetServiceKey(epId), string(val))
+		patch3.Reset()
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "test DeleteHandlerClient error")
+
+		patch4 := gomonkey.ApplyFuncReturn(gateway.NewLoadBalanceEndpoint,nil, fmt.Errorf("test gateway.NewLoadBalanceEndpoint error"))
+		defer patch4.Reset()
+		err = watcher.Handle(context.TODO(), mvccpb.PUT, cnf.GetServiceKey(epId), string(val))
+		patch4.Reset()
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrUnknownLoadBalancer.Error())
+
 
 	})
 }
@@ -379,6 +396,11 @@ func testWatcherDel(t *testing.T) {
 		err = watcher.Handle(context.TODO(), mvccpb.DELETE, cnf.GetServiceKey(epId), string(val))
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "unregister error")
+		patch.Reset()
+
+		err = watcher.Handle(context.TODO(), mvccpb.Event_EventType(3), cnf.GetServiceKey(epId), string(val))
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "unknown operation")
 
 	})
 }

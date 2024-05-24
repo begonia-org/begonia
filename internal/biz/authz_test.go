@@ -61,6 +61,15 @@ func testAuthSeed(t *testing.T) {
 		seedTimestampToken = fmt.Sprintf("%d", token)
 		c.So(err, c.ShouldBeNil)
 		seedAuthToken = seed
+
+		patch := gomonkey.ApplyFuncReturn((crypto.UsersAuth).GenerateAuthSeed, "", fmt.Errorf("error auth seed"))
+		defer patch.Reset()
+		_, err = authzBiz.AuthSeed(context.TODO(), &v1.AuthLogAPIRequest{
+			Token: fmt.Sprintf("%d", token),
+		})
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "error auth seed")
+
 	})
 
 }
@@ -207,6 +216,54 @@ func testLogin(t *testing.T) {
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrTokenExpired.Error())
 	})
+	c.Convey("test login failed with invalid UserAuth", t, func() {
+	
+		info, _ := getUserAuth(adminUser, adminPasswd, pubKey, seedAuthToken, seedTimestampToken)
+		patch := gomonkey.ApplyFuncReturn(json.Marshal, nil, fmt.Errorf("error marshal"))
+		defer patch.Reset()
+		_, err = authzBiz.Login(context.TODO(), info)
+
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "error marshal")
+		patch.Reset()
+	})
+	c.Convey("test login failed with invalid EncryptAES", t, func() {
+		patch := gomonkey.ApplyFuncReturn(tiga.EncryptAES, "", fmt.Errorf("error encryptAES"))
+		defer patch.Reset()
+		info, _ := getUserAuth(adminUser, adminPasswd, pubKey, seedAuthToken, seedTimestampToken)
+		_, err := authzBiz.Login(context.TODO(), info)
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrEncrypt.Error())
+		patch.Reset()
+
+	})
+
+	c.Convey("test login failed with invalid user status", t, func() {
+		mockUser := &v1.Users{
+			Password: adminPasswd,
+			Name:     adminUser,
+			Status:   v1.USER_STATUS_LOCKED,
+		}
+		repo := data.NewUserRepo(config, gateway.Log)
+		patch := gomonkey.ApplyMethodReturn(repo, "Get", mockUser, nil)
+		defer patch.Reset()
+		info, err := getUserAuth(adminUser, adminPasswd, pubKey, seedAuthToken, seedTimestampToken)
+		c.So(err, c.ShouldBeNil)
+		_, err = authzBiz.Login(context.TODO(), info)
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrUserDisabled.Error())
+		patch.Reset()
+	})
+	c.Convey("test login failed with jwt generate error", t, func() {
+		info, _ := getUserAuth(adminUser, adminPasswd, pubKey, seedAuthToken, seedTimestampToken)
+		patch := gomonkey.ApplyFuncReturn(tiga.GenerateJWT, nil, fmt.Errorf("error generate jwt"))
+		defer patch.Reset()
+		_, err = authzBiz.Login(context.TODO(), info)
+
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "error generate jwt")
+		patch.Reset()
+	})
 
 }
 
@@ -231,12 +288,39 @@ func testLogout(t *testing.T) {
 
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrNoMetadata.Error())
+
+		patch := gomonkey.ApplyFuncReturn((*biz.AuthzUsecase).PutBlackList, fmt.Errorf("error PutBlackList"))
+		defer patch.Reset()
+		ctx = metadata.NewIncomingContext(context.Background(), metadata.Pairs("x-token", authzStr))
+		err = authzBiz.Logout(ctx, &v1.LogoutAPIRequest{})
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "error PutBlackList")
+
 	})
 }
+func testDelToken(t *testing.T) {
+	c.Convey("test del token", t, func() {
+		authzBiz := newAuthzBiz()
 
+		err := authzBiz.DelToken(context.TODO(), authzStr)
+		c.So(err, c.ShouldBeNil)
+	})
+}
+func testPutBlackList(t *testing.T) {
+	authzBiz := newAuthzBiz()
+	c.Convey("test put black list", t, func() {
+		token := tiga.GetMd5("test")
+		err := authzBiz.PutBlackList(context.TODO(), token)
+		c.So(err, c.ShouldBeNil)
+		ok, err := authzBiz.CheckInBlackList(context.TODO(), token)
+		c.So(err, c.ShouldBeNil)
+		c.So(ok, c.ShouldBeTrue)
+	})
+}
 func TestAuthz(t *testing.T) {
 	t.Run("test auth seed", testAuthSeed)
 	t.Run("test login", testLogin)
 	t.Run("test logout", testLogout)
-
+	t.Run("test del token", testDelToken)
+	t.Run("test put black list", testPutBlackList)
 }

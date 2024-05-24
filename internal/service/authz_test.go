@@ -13,7 +13,12 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/begonia-org/begonia"
+	"github.com/begonia-org/begonia/config"
+	"github.com/begonia-org/begonia/gateway"
+	"github.com/begonia-org/begonia/internal/service"
 	sys "github.com/begonia-org/go-sdk/api/sys/v1"
+	v1 "github.com/begonia-org/go-sdk/api/user/v1"
 	"github.com/begonia-org/go-sdk/client"
 	common "github.com/begonia-org/go-sdk/common/api/v1"
 	c "github.com/smartystreets/goconvey/convey"
@@ -112,10 +117,34 @@ func testLogout(t *testing.T) {
 
 			c.So(err, c.ShouldBeNil)
 			c.So(apiRsp.Code, c.ShouldNotEqual, int32(common.Code_OK))
+
+			_, err = apiClient.Logout(context.Background(), xtoken)
+			c.So(err, c.ShouldNotBeNil)
+			t.Logf("logout error: %v", err)
+			// c.So(rsp.StatusCode, c.shoun, common.Code_OK)
 		},
 	)
 }
+func testAuthSeed(t *testing.T) {
+	c.Convey(
+		"test auth seed",
+		t,
+		func() {
+			env := "dev"
+			if begonia.Env != "" {
+				env = begonia.Env
+			}
+			config := config.ReadConfig(env)
+			srv := service.NewAuthzSvrForTest(config, gateway.Log)
+			_, err := srv.AuthSeed(context.Background(), &v1.AuthLogAPIRequest{})
+			c.So(err, c.ShouldNotBeNil)
+
+		},
+	)
+}
+
 func TestAuth(t *testing.T) {
 	t.Run("login", loginTest)
 	t.Run("logout", testLogout)
+	t.Run("auth seed", testAuthSeed)
 }

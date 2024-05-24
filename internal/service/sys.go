@@ -16,7 +16,7 @@ func (s *SysService) Desc() *grpc.ServiceDesc {
 	return &api.SystemService_ServiceDesc
 }
 
-func NewSysService() *SysService {
+func NewSysService() api.SystemServiceServer {
 	return &SysService{}
 }
 

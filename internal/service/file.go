@@ -30,21 +30,16 @@ type FileService struct {
 	config *config.Config
 }
 
-func NewFileService(biz *file.FileUsecase, config *config.Config) *FileService {
+func NewFileService(biz *file.FileUsecase, config *config.Config) api.FileServiceServer {
 	return &FileService{biz: biz, config: config}
 }
 
 func (f *FileService) Upload(ctx context.Context, in *api.UploadFileRequest) (*api.UploadFileResponse, error) {
-	md, ok := metadata.FromIncomingContext(ctx)
-	if !ok {
-		return nil, gosdk.NewError(fmt.Errorf("not found metadata"), int32(common.Code_PARAMS_ERROR), codes.InvalidArgument, "not_found_metadata")
-	}
-	identity := md.Get("x-identity")
-	if len(identity) == 0 {
+	identity := ""
+	if identity = GetIdentity(ctx); identity == "" {
 		return nil, gosdk.NewError(errors.ErrIdentityMissing, int32(user.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
 	}
-	// in.Key = identity[0] + "/" + in.Key
-	return f.biz.Upload(ctx, in, identity[0])
+	return f.biz.Upload(ctx, in, identity)
 }
 
 func (f *FileService) InitiateMultipartUpload(ctx context.Context, in *api.InitiateMultipartUploadRequest) (*api.InitiateMultipartUploadResponse, error) {
@@ -54,34 +49,27 @@ func (f *FileService) UploadMultipartFile(ctx context.Context, in *api.UploadMul
 	return f.biz.UploadMultipartFileFile(ctx, in)
 }
 func (f *FileService) CompleteMultipartUpload(ctx context.Context, in *api.CompleteMultipartUploadRequest) (*api.CompleteMultipartUploadResponse, error) {
-	md, ok := metadata.FromIncomingContext(ctx)
-	if !ok {
-		return nil, gosdk.NewError(errors.ErrIdentityMissing, int32(user.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_metadata")
-	}
-	identity := md.Get("x-identity")
-	if len(identity) == 0 {
+	identity := ""
+	if identity = GetIdentity(ctx); identity == "" {
 		return nil, gosdk.NewError(errors.ErrIdentityMissing, int32(user.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
 	}
-	return f.biz.CompleteMultipartUploadFile(ctx, in, identity[0])
+	return f.biz.CompleteMultipartUploadFile(ctx, in, identity)
 }
 func (f *FileService) AbortMultipartUpload(ctx context.Context, in *api.AbortMultipartUploadRequest) (*api.AbortMultipartUploadResponse, error) {
 	return f.biz.AbortMultipartUpload(ctx, in)
 }
 func (f *FileService) Download(ctx context.Context, in *api.DownloadRequest) (*httpbody.HttpBody, error) {
-	md, ok := metadata.FromIncomingContext(ctx)
-	if !ok {
-		return nil, gosdk.NewError(fmt.Errorf("not found metadata"), int32(common.Code_PARAMS_ERROR), codes.InvalidArgument, "not_found_metadata")
-	}
-	identity := md.Get("x-identity")
-	if len(identity) == 0 {
+	identity := ""
+	if identity = GetIdentity(ctx); identity == "" {
 		return nil, gosdk.NewError(errors.ErrIdentityMissing, int32(user.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
 	}
+
 	newKey, err := url.PathUnescape(in.Key)
 	if err != nil {
 		return nil, gosdk.NewError(err, int32(common.Code_UNKNOWN), codes.InvalidArgument, "url_unescape")
 	}
 	in.Key = newKey
-	buf, err := f.biz.Download(ctx, in, identity[0])
+	buf, err := f.biz.Download(ctx, in, identity)
 	if err != nil {
 		return nil, err
 	}
@@ -92,10 +80,7 @@ func (f *FileService) Download(ctx context.Context, in *api.DownloadRequest) (*h
 		gosdk.GetMetadataKey("Content-Length"), fmt.Sprintf("%d", len(buf)),
 		gosdk.GetMetadataKey("X-File-Sha256"), hex.EncodeToString(shaer.Sum(nil)),
 	)
-	err = grpc.SendHeader(ctx, rspMd)
-	if err != nil {
-		return nil, gosdk.NewError(err, int32(common.Code_UNKNOWN), codes.Internal, "send_header")
-	}
+	_ = grpc.SendHeader(ctx, rspMd)
 
 	rsp := &httpbody.HttpBody{
 		ContentType: http.DetectContentType(buf),
@@ -116,7 +101,7 @@ func parseRangeHeader(rangeHeader string) (start, end int64, err error) {
 		start = 0
 		end, err = strconv.ParseInt(strings.TrimPrefix(rangeSpec, "-"), 10, 64)
 		if err != nil {
-			return 0, 0, fmt.Errorf("invalid start value: %s", parts[0])
+			return 0, 0, fmt.Errorf("invalid end value: %s", parts[0])
 		}
 		return start, end, nil
 	}
@@ -124,7 +109,7 @@ func parseRangeHeader(rangeHeader string) (start, end int64, err error) {
 		end = 0
 		start, err = strconv.ParseInt(strings.TrimSuffix(rangeSpec, "-"), 10, 64)
 		if err != nil {
-			return 0, 0, fmt.Errorf("invalid end value: %s", parts[1])
+			return 0, 0, fmt.Errorf("invalid start value: %s", parts[1])
 
 		}
 		return start, end, nil
@@ -149,12 +134,17 @@ func parseRangeHeader(rangeHeader string) (start, end int64, err error) {
 	return start, end, nil
 }
 func (f *FileService) DownloadForRange(ctx context.Context, in *api.DownloadRequest) (*httpbody.HttpBody, error) {
+	identity := GetIdentity(ctx)
+	if identity == "" {
+		return nil, gosdk.NewError(errors.ErrIdentityMissing, int32(user.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
+
+	}
 	md, ok := metadata.FromIncomingContext(ctx)
 	var rangeStr string
 	var start, end int64
 	var err error
 	if ok {
-		if _, ok := md["range"]; !ok {
+		if v, ok := md["range"]; !ok || len(v) == 0 {
 			return nil, gosdk.NewError(fmt.Errorf("range header not found"), int32(common.Code_PARAMS_ERROR), codes.InvalidArgument, "range_header_not_found")
 		}
 		rangeStr = md.Get("range")[0]
@@ -163,11 +153,7 @@ func (f *FileService) DownloadForRange(ctx context.Context, in *api.DownloadRequ
 			return nil, gosdk.NewError(err, int32(common.Code_UNKNOWN), codes.InvalidArgument, "parse_range_header")
 		}
 	}
-	identity := GetIdentity(ctx)
-	if identity == "" {
-		return nil, gosdk.NewError(errors.ErrIdentityMissing, int32(user.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
 
-	}
 	data, fileSize, err := f.biz.DownloadForRange(ctx, in, start, end, identity)
 	if err != nil {
 		return nil, err
@@ -182,10 +168,8 @@ func (f *FileService) DownloadForRange(ctx context.Context, in *api.DownloadRequ
 		gosdk.GetMetadataKey("Accept-Ranges"), "bytes",
 		"X-Http-Code", fmt.Sprintf("%d", http.StatusPartialContent),
 	)
-	err = grpc.SendHeader(ctx, rspMd)
-	if err != nil {
-		return nil, gosdk.NewError(err, int32(common.Code_UNKNOWN), codes.Internal, "send_header")
-	}
+	_ = grpc.SendHeader(ctx, rspMd)
+
 	return &httpbody.HttpBody{
 		ContentType: "application/octet-stream",
 		Data:        data,
@@ -222,13 +206,12 @@ func (f *FileService) Metadata(ctx context.Context, in *api.FileMetadataRequest)
 		gosdk.GetMetadataKey("X-File-Version"), rsp.Version,
 		gosdk.GetMetadataKey("Access-Control-Expose-Headers"), "Content-Length, Content-Range, Accept-Ranges, Last-Modified, ETag, Content-Type, X-File-name, X-File-Sha256",
 	)
-	// rspMd.Append(sdk.GetMetadataKey(), "Content-Length", "Content-Range", "Accept-Ranges", "Last-Modified", "ETag", "Content-Type", "x-file-name", "x-file-sha256")
-	err = grpc.SendHeader(ctx, rspMd)
-	if err != nil {
+	_ = grpc.SendHeader(ctx, rspMd)
+	// if err != nil {
 
-		return nil, gosdk.NewError(fmt.Errorf("非法的响应头,%w", err), int32(common.Code_UNKNOWN), codes.Internal, "send_header")
+	// 	return nil, gosdk.NewError(fmt.Errorf("非法的响应头,%w", err), int32(common.Code_UNKNOWN), codes.Internal, "send_header")
 
-	}
+	// }
 	if md, ok := metadata.FromIncomingContext(ctx); ok {
 		if httpMethod, ok := md["x-http-method"]; ok {
 			if strings.EqualFold(httpMethod[0], "HEAD") {

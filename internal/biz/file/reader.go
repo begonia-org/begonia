@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log"
 	"os"
 	"path/filepath"
 
@@ -148,7 +149,7 @@ func NewFileVersionReader(path string, version string) (FileVersionReader, error
 	fileName := filepath.Base(path)
 	repo, err := git.PlainOpen(dir)
 	if err != nil {
-		// log.Printf("failed to open git repository: %v", err)
+		log.Printf("failed to open git repository,%s: %v",dir, err)
 		return nil, err
 
 	}

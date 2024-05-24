@@ -2,10 +2,12 @@ package biz_test
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 	"testing"
 	"time"
 
+	"github.com/agiledragon/gomonkey/v2"
 	"github.com/begonia-org/begonia"
 	"github.com/begonia-org/begonia/config"
 	"github.com/begonia-org/begonia/gateway"
@@ -109,6 +111,36 @@ func testPutApp(t *testing.T) {
 		err = appBiz.Put(context.TODO(), app2, "396870469984194560")
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "Duplicate entry")
+
+		patch := gomonkey.ApplyFuncReturn(rand.Read, 0, fmt.Errorf("read error"))
+		defer patch.Reset()
+		_, err = appBiz.CreateApp(context.TODO(), &api.AppsRequest{
+			Name:        appName,
+			Description: "test",
+			Tags:        []string{"test-app"},
+		}, "396870469984194560")
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "read error")
+		patch.Reset()
+
+		patch2 := gomonkey.ApplyFuncReturn(biz.GenerateAppSecret, "", fmt.Errorf("generate secret error"))
+		defer patch2.Reset()
+		_, err = appBiz.CreateApp(context.TODO(), &api.AppsRequest{
+			Name:        appName,
+			Description: "test",
+			Tags:        []string{"test-app"},
+		}, "396870469984194560")
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "generate secret error")
+		patch2.Reset()
+
+		_, err = appBiz.CreateApp(context.TODO(), &api.AppsRequest{
+			Name:        appName,
+			Description: "test",
+			Tags:        []string{"test-app"},
+		}, "396870469984194560")
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "Duplicate entry")
 	})
 }
 
@@ -178,6 +210,23 @@ func testPatchApp(t *testing.T) {
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "Duplicate entry")
 
+		env := "dev"
+		if begonia.Env != "" {
+			env = begonia.Env
+		}
+		config := config.ReadConfig(env)
+		repo := data.NewAppRepo(config, gateway.Log)
+
+		patch := gomonkey.ApplyMethodReturn(repo, "Patch", fmt.Errorf("patch error"))
+		defer patch.Reset()
+		_, err = appBiz.Patch(context.TODO(), &api.AppsRequest{
+			Appid:      appid,
+			Name:       appName2,
+			UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"name"}},
+		}, "")
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "patch error")
+		patch.Reset()
 	})
 }
 
@@ -203,24 +252,89 @@ func testListApp(t *testing.T) {
 		})
 		c.So(len(apps), c.ShouldEqual, 0)
 		c.So(err, c.ShouldBeNil)
+
+		env := "dev"
+		if begonia.Env != "" {
+			env = begonia.Env
+		}
+		config := config.ReadConfig(env)
+		repo := data.NewAppRepo(config, gateway.Log)
+
+		patch := gomonkey.ApplyMethodReturn(repo, "List",nil, fmt.Errorf("list error"))
+		defer patch.Reset()
+		_, err = appBiz.List(context.TODO(), &api.AppsListRequest{
+			PageSize: 10,
+			Page:     1,
+			Tags:     []string{"not-exist"},
+			Status:   []api.APPStatus{api.APPStatus_APP_DISABLED},
+		})
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "list error")
+		patch.Reset()
+
 	})
 }
 
 func testDelApp(t *testing.T) {
+	appBiz := newAppBiz()
+
 	c.Convey("test app del success", t, func() {
-		appBiz := newAppBiz()
 		err := appBiz.Del(context.TODO(), appid)
 		c.So(err, c.ShouldBeNil)
 		_, err = appBiz.Get(context.TODO(), appid)
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "not found")
 	})
+	c.Convey("test app del failed", t, func() {
+		err := appBiz.Del(context.TODO(), "123456")
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "not found")
+		env := "dev"
+		if begonia.Env != "" {
+			env = begonia.Env
+		}
+		config := config.ReadConfig(env)
+		repo := data.NewAppRepo(config, gateway.Log)
+
+		patch := gomonkey.ApplyMethodReturn(repo, "Del", fmt.Errorf("del error"))
+		defer patch.Reset()
+		err = appBiz.Del(context.TODO(), appid)
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "del error")
+	})
 }
 
+func testCache(t *testing.T) {
+	appBiz := newAppBiz()
+
+	c.Convey("test app cache success", t, func() {
+		appName2 = fmt.Sprintf("app-biz-2-%s", time.Now().Format("20060102150405"))
+		access2, _ := utils.GenerateRandomString(32)
+		secret2, _ := utils.GenerateRandomString(64)
+		snk, _ := tiga.NewSnowflake(1)
+		app2 := &api.Apps{
+			Appid:       snk.GenerateIDString(),
+			AccessKey:   access2,
+			Secret:      secret2,
+			Status:      api.APPStatus_APP_ENABLED,
+			IsDeleted:   false,
+			Name:        appName2,
+			Description: "test",
+			CreatedAt:   timestamppb.New(time.Now()),
+			UpdatedAt:   timestamppb.New(time.Now()),
+		}
+		err := appBiz.Cache(context.Background(), "app:test:prefix", app2, 3*time.Second)
+		c.So(err, c.ShouldBeNil)
+
+		// app, err := appBiz.Get(context.Background(), app2.Appid)
+
+	})
+}
 func TestAppBiz(t *testing.T) {
 	t.Run("testPutApp", testPutApp)
 	t.Run("testGetApp", testGetApp)
 	t.Run("testPatchApp", testPatchApp)
 	t.Run("testListApp", testListApp)
+	t.Run("testCache", testCache)
 	t.Run("testDelApp", testDelApp)
 }

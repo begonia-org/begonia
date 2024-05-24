@@ -14,7 +14,6 @@ import (
 	"github.com/begonia-org/go-sdk/logger"
 	"github.com/bsm/redislock"
 	"go.etcd.io/etcd/api/v3/mvccpb"
-	"google.golang.org/grpc/status"
 )
 
 type DataLock interface {
@@ -54,20 +53,23 @@ func (d *DataOperatorUsecase) Do(ctx context.Context) {
 		if err != nil {
 			d.log.Error(ctx, err)
 		}
+		if err := d.doWatchEndpoint(ctx); err != nil {
+			d.log.Error(ctx, err)
+
+		}
 	}()
 	d.log.Info(ctx, "start watch")
-	d.handle(ctx)
+	d.Handle(ctx)
 	time.Sleep(3 * time.Second)
 
 }
 
-func (d *DataOperatorUsecase) handle(ctx context.Context) {
+func (d *DataOperatorUsecase) Handle(ctx context.Context) {
 	errChan := make(chan error, 3)
 	wg := &sync.WaitGroup{}
 	actions := []operationAction{
 		d.loadUsersBlacklist,
 		d.loadApps,
-		d.doWatchEndpoint,
 		// d.loadLocalBloom,
 	}
 	for _, action := range actions {
@@ -82,9 +84,6 @@ func (d *DataOperatorUsecase) handle(ctx context.Context) {
 	go func() {
 		for err := range errChan {
 			if err != nil {
-				if st, ok := status.FromError(err); ok {
-					st.Details()
-				}
 				d.log.Error(ctx, err)
 			}
 
@@ -104,8 +103,8 @@ func (d *DataOperatorUsecase) loadUsersBlacklist(ctx context.Context) error {
 	// d.log.Infof(ctx, "lock key:%d", exp)
 	lock, err := d.repo.Locker(ctx, lockKey, time.Second*time.Duration(exp))
 	if err != nil {
-		// d.log.Error("get lock error", err)
-		return fmt.Errorf("get lock error: %w", err)
+		d.log.Errorf(ctx, "get lock error:%s", err.Error())
+		return fmt.Errorf("get lock error:%w", err)
 
 	}
 
@@ -114,7 +113,6 @@ func (d *DataOperatorUsecase) loadUsersBlacklist(ctx context.Context) error {
 		return fmt.Errorf("lock error: %w", err)
 	}
 	defer func() {
-
 		err = lock.UnLock(ctx)
 		if err != nil {
 			// d.log.Error("unlock error", err)
@@ -125,7 +123,6 @@ func (d *DataOperatorUsecase) loadUsersBlacklist(ctx context.Context) error {
 	}()
 	prefix := d.config.GetUserBlackListPrefix()
 	lastUpdate, err := d.repo.LastUpdated(ctx, prefix)
-	// d.log.Infof("last update:%v", lastUpdate.Unix())
 	// 如果缓存时间小于3秒，说明刚刚更新过，不需要再次更新
 	// 直接加载远程缓存到本地
 	// lastUpdate ttl<exp,避免更新不到缓存的情况
@@ -158,16 +155,13 @@ func (d *DataOperatorUsecase) loadApps(ctx context.Context) error {
 	return d.repo.FlashAppsCache(ctx, prefix, apps, time.Duration(exp)*time.Second)
 }
 
-func (d *DataOperatorUsecase) Refresh(duration time.Duration) {
+func (d *DataOperatorUsecase) Refresh(ctx context.Context, duration time.Duration) {
 	ticker := time.NewTicker(duration)
 	for range ticker.C {
-		d.handle(context.Background())
+		d.Handle(ctx)
 	}
 }
 
-func PutConfig(ctx context.Context, key string, value string) error {
-	return nil
-}
 func (d *DataOperatorUsecase) OnStart(ctx context.Context) error {
 	endpoints, err := d.endpoint.List(ctx, nil)
 	if err != nil {
@@ -179,7 +173,7 @@ func (d *DataOperatorUsecase) OnStart(ctx context.Context) error {
 		err := d.endpointWatcher.Update(ctx, in.Key, string(bData))
 		if err != nil {
 			d.log.Errorf(ctx, "init endpoints error,%s", err.Error())
-			continue
+			return fmt.Errorf("init endpoints error,%w", err)
 		}
 	}
 	return nil

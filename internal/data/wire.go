@@ -4,6 +4,8 @@
 package data
 
 import (
+	"time"
+
 	"github.com/begonia-org/begonia/internal/biz"
 	"github.com/begonia-org/begonia/internal/biz/endpoint"
 	"github.com/begonia-org/begonia/internal/pkg/config"
@@ -35,5 +37,8 @@ func NewOperator(cfg *tiga.Configuration, log logger.Logger) biz.DataOperatorRep
 	panic(wire.Build(ProviderSet, config.NewConfig))
 }
 func NewDataRepo(cfg *tiga.Configuration, log logger.Logger) *Data {
+	panic(wire.Build(ProviderSet))
+}
+func NewLocker(cfg *tiga.Configuration, log logger.Logger,key string, ttl time.Duration,retry int) biz.DataLock {
 	panic(wire.Build(ProviderSet))
 }
