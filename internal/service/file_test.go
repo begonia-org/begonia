@@ -19,8 +19,8 @@ import (
 	"github.com/begonia-org/begonia/config"
 	"github.com/begonia-org/begonia/gateway"
 	"github.com/begonia-org/begonia/internal/biz/file"
+	"github.com/begonia-org/begonia/internal/pkg"
 	cfg "github.com/begonia-org/begonia/internal/pkg/config"
-	"github.com/begonia-org/begonia/internal/pkg/errors"
 	"github.com/begonia-org/begonia/internal/service"
 	api "github.com/begonia-org/go-sdk/api/file/v1"
 	"github.com/begonia-org/go-sdk/client"
@@ -256,12 +256,12 @@ func testUploadErr(t *testing.T) {
 		srv := service.NewFileSvrForTest(cnf, gateway.Log)
 		_, err := srv.Upload(context.Background(), &api.UploadFileRequest{})
 		c.So(err, c.ShouldNotBeNil)
-		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrIdentityMissing.Error())
+		c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrIdentityMissing.Error())
 
 		ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs("app_id", sdkAPPID))
 		_, err = srv.Upload(ctx, &api.UploadFileRequest{})
 		c.So(err, c.ShouldNotBeNil)
-		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrIdentityMissing.Error())
+		c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrIdentityMissing.Error())
 
 	})
 }
@@ -275,12 +275,12 @@ func testDownloadErr(t *testing.T) {
 		srv := service.NewFileSvrForTest(cnf, gateway.Log)
 		_, err := srv.Download(context.Background(), &api.DownloadRequest{})
 		c.So(err, c.ShouldNotBeNil)
-		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrIdentityMissing.Error())
+		c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrIdentityMissing.Error())
 
 		ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs("app_id", sdkAPPID))
 		_, err = srv.Download(ctx, &api.DownloadRequest{})
 		c.So(err, c.ShouldNotBeNil)
-		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrIdentityMissing.Error())
+		c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrIdentityMissing.Error())
 
 		patch := gomonkey.ApplyFuncReturn(url.PathUnescape, "", fmt.Errorf("test PathUnescape error"))
 		defer patch.Reset()
@@ -311,7 +311,7 @@ func testRangeDownloadErr(t *testing.T) {
 		// ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs("app_id", sdkAPPID))
 		// _, err := srv.DownloadForRange(ctx, &api.DownloadRequest{})
 		// c.So(err, c.ShouldNotBeNil)
-		// c.So(err.Error(), c.ShouldContainSubstring, errors.ErrIdentityMissing.Error())
+		// c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrIdentityMissing.Error())
 
 		cases := []struct {
 			rangeStr string
@@ -382,7 +382,7 @@ func testDelErr(t *testing.T) {
 		ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs("app_id", sdkAPPID))
 		_, err := srv.Delete(ctx, &api.DeleteRequest{})
 		c.So(err, c.ShouldNotBeNil)
-		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrIdentityMissing.Error())
+		c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrIdentityMissing.Error())
 
 	})
 }
@@ -397,9 +397,9 @@ func testMetaErr(t *testing.T) {
 		ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs("app_id", sdkAPPID))
 		_, err := srv.Metadata(ctx, &api.FileMetadataRequest{})
 		c.So(err, c.ShouldNotBeNil)
-		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrIdentityMissing.Error())
+		c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrIdentityMissing.Error())
 
-		patch:=gomonkey.ApplyFuncReturn((*file.FileUsecase).Metadata,nil,fmt.Errorf("test metadata error"))
+		patch := gomonkey.ApplyFuncReturn((*file.FileUsecase).Metadata, nil, fmt.Errorf("test metadata error"))
 		defer patch.Reset()
 		ctx = metadata.NewIncomingContext(context.Background(), metadata.Pairs("x-identity", sdkAPPID))
 		_, err = srv.Metadata(ctx, &api.FileMetadataRequest{Key: sdkAPPID + "/test/helloworld.pb"})

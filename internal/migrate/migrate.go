@@ -3,12 +3,19 @@ package migrate
 import (
 	"fmt"
 
-	api "github.com/begonia-org/go-sdk/api/user/v1"
-	endpoint "github.com/begonia-org/go-sdk/api/endpoint/v1"
 	app "github.com/begonia-org/go-sdk/api/app/v1"
+	endpoint "github.com/begonia-org/go-sdk/api/endpoint/v1"
+	api "github.com/begonia-org/go-sdk/api/user/v1"
+	"github.com/google/wire"
 
 	"github.com/spark-lence/tiga"
 )
+
+var ProviderSet = wire.NewSet(NewMySQLMigrate,
+	NewUsersOperator,
+	NewTableModels,
+	NewInitOperator,
+	NewAPPOperator)
 
 type TableModel interface{}
 type MySQLMigrate struct {
@@ -30,7 +37,7 @@ func (m *MySQLMigrate) BindModel(model interface{}) {
 }
 
 func (m *MySQLMigrate) Do() error {
-	
+
 	for _, model := range m.models {
 		err := m.mysql.AutoMigrate(model)
 		if err != nil {

@@ -28,7 +28,7 @@ type APIMethodDetails struct {
 	// 服务名
 	ServiceName string
 	// 方法名
-	MethodName     string
+	HttpMethodName string
 	AuthRequired   bool
 	RequestMethod  string
 	GrpcFullRouter string
@@ -56,6 +56,8 @@ func Get() *HttpURIRouteToSrvMethod {
 }
 
 func (r *HttpURIRouteToSrvMethod) AddRoute(uri string, srvMethod *APIMethodDetails) {
+	r.mux.Lock()
+	defer r.mux.Unlock()
 	r.routers[uri] = srvMethod
 	r.grpcRouter[srvMethod.GrpcFullRouter] = srvMethod
 }
@@ -73,21 +75,7 @@ func (r *HttpURIRouteToSrvMethod) GetRouteByGrpcMethod(method string) *APIMethod
 func (r *HttpURIRouteToSrvMethod) GetAllRoutes() map[string]*APIMethodDetails {
 	return r.routers
 }
-func (r *HttpURIRouteToSrvMethod) GetRouteByMethod(method string) *APIMethodDetails {
-	for _, v := range r.routers {
-		if v.MethodName == method {
-			return v
-		}
-	}
-	return nil
-}
-func (r *HttpURIRouteToSrvMethod) getServiceOptions(service protoreflect.ServiceDescriptor) *descriptorpb.ServiceOptions {
-	if options, ok := service.Options().(*descriptorpb.ServiceOptions); ok {
-		return options
-	}
-	return nil
 
-}
 func (r *HttpURIRouteToSrvMethod) getServiceOptionByExt(service *descriptorpb.ServiceDescriptorProto, ext protoreflect.ExtensionType) interface{} {
 	if options := service.GetOptions(); options != nil {
 		if ext := proto.GetExtension(options, ext); ext != nil {
@@ -96,12 +84,7 @@ func (r *HttpURIRouteToSrvMethod) getServiceOptionByExt(service *descriptorpb.Se
 	}
 	return nil
 }
-func (r *HttpURIRouteToSrvMethod) getMethodOptions(method protoreflect.MethodDescriptor) *descriptorpb.MethodOptions {
-	if options, ok := method.Options().(*descriptorpb.MethodOptions); ok {
-		return options
-	}
-	return nil
-}
+
 func (r *HttpURIRouteToSrvMethod) getHttpRule(method *descriptorpb.MethodDescriptorProto) *annotations.HttpRule {
 	if options := method.GetOptions(); options != nil {
 		if ext := proto.GetExtension(options, annotations.E_Http); ext != nil {
@@ -160,7 +143,7 @@ func (r *HttpURIRouteToSrvMethod) addRouterDetails(serviceName string, authRequi
 	if path, method := r.getUri(methodName); path != "" {
 		r.AddRoute(path, &APIMethodDetails{
 			ServiceName:    serviceName,
-			MethodName:     string(methodName.GetName()),
+			HttpMethodName: string(methodName.GetName()),
 			AuthRequired:   authRequired,
 			RequestMethod:  method,
 			GrpcFullRouter: serviceName,
@@ -171,14 +154,9 @@ func (r *HttpURIRouteToSrvMethod) addRouterDetails(serviceName string, authRequi
 }
 func (r *HttpURIRouteToSrvMethod) LoadAllRouters(pd gateway.ProtobufDescription) {
 	fds := pd.GetFileDescriptorSet()
-	r.mux.Lock()
-	defer r.mux.Unlock()
 	for _, fd := range fds.File {
 		for _, service := range fd.Service {
-			// srvOptions := service.GetOptions()
-			// if srvOptions == nil {
-			// 	continue
-			// }
+
 			authRequired := false
 			// 获取并打印 pb.auth_reqiured 注解
 			if authRequiredExt := r.getServiceOptionByExt(service, common.E_AuthReqiured); authRequiredExt != nil {
@@ -196,8 +174,6 @@ func (r *HttpURIRouteToSrvMethod) LoadAllRouters(pd gateway.ProtobufDescription)
 }
 
 func (h *HttpURIRouteToSrvMethod) DeleteRouters(pd gateway.ProtobufDescription) {
-	// h.mux.Lock()
-	// defer h.mux.Unlock()
 	fds := pd.GetFileDescriptorSet()
 	for _, fd := range fds.File {
 		for _, service := range fd.Service {

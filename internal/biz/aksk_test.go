@@ -14,8 +14,8 @@ import (
 	"github.com/begonia-org/begonia/gateway"
 	"github.com/begonia-org/begonia/internal/biz"
 	"github.com/begonia-org/begonia/internal/data"
+	"github.com/begonia-org/begonia/internal/pkg"
 	cfg "github.com/begonia-org/begonia/internal/pkg/config"
-	"github.com/begonia-org/begonia/internal/pkg/errors"
 	"github.com/begonia-org/begonia/internal/pkg/routers"
 	"github.com/begonia-org/begonia/internal/pkg/utils"
 	gosdk "github.com/begonia-org/go-sdk"
@@ -158,7 +158,7 @@ func testValidator(t *testing.T) {
 		aksk := newAKSK()
 		_, err = aksk.AppValidator(context.TODO(), gw)
 		c.So(err, c.ShouldNotBeNil)
-		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrAppXDateMissing.Error())
+		c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrAppXDateMissing.Error())
 
 		gw.Headers.Set(gosdk.HeaderXDateTime, xdate)
 
@@ -166,7 +166,7 @@ func testValidator(t *testing.T) {
 		gw.Headers.Del(gosdk.HeaderXAuthorization)
 		_, err = aksk.AppValidator(context.TODO(), gw)
 		c.So(err, c.ShouldNotBeNil)
-		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrAppSignatureMissing.Error())
+		c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrAppSignatureMissing.Error())
 		gw.Headers.Set(gosdk.HeaderXAuthorization, authz)
 
 		ak := gw.Headers.Get(gosdk.HeaderXAccessKey)
@@ -174,7 +174,7 @@ func testValidator(t *testing.T) {
 
 		_, err = aksk.AppValidator(context.TODO(), gw)
 		c.So(err, c.ShouldNotBeNil)
-		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrAppAccessKeyMissing.Error())
+		c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrAppAccessKeyMissing.Error())
 
 		gw.Headers.Set(gosdk.HeaderXAccessKey, ak)
 
@@ -182,7 +182,7 @@ func testValidator(t *testing.T) {
 		gw.Headers.Set(gosdk.HeaderXDateTime, newXDate)
 
 		_, err = aksk.AppValidator(context.TODO(), gw)
-		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrRequestExpired.Error())
+		c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrRequestExpired.Error())
 
 		newXDate = time.Now().Format("2006-01-02 15:04:05")
 		gw.Headers.Set(gosdk.HeaderXDateTime, newXDate)
@@ -195,7 +195,7 @@ func testValidator(t *testing.T) {
 		defer patch.Reset()
 		_, err = aksk.AppValidator(context.TODO(), gw)
 		c.So(err, c.ShouldNotBeNil)
-		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrAppSignatureInvalid.Error())
+		c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrAppSignatureInvalid.Error())
 	})
 
 	c.Convey("test validator fail with invalidate sk ak", t, func() {

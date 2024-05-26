@@ -3,7 +3,9 @@ package endpoint
 import (
 	"context"
 	"fmt"
+	"sync"
 
+	"github.com/begonia-org/begonia/internal/pkg"
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/routers"
 	gosdk "github.com/begonia-org/go-sdk"
@@ -12,7 +14,6 @@ import (
 	"encoding/json"
 
 	"github.com/begonia-org/begonia/gateway"
-	"github.com/begonia-org/begonia/internal/pkg/errors"
 	loadbalance "github.com/begonia-org/go-loadbalancer"
 	api "github.com/begonia-org/go-sdk/api/endpoint/v1"
 	common "github.com/begonia-org/go-sdk/common/api/v1"
@@ -22,6 +23,7 @@ import (
 type EndpointWatcher struct {
 	config *config.Config
 	repo   EndpointRepo
+	mux sync.Mutex
 }
 
 // update
@@ -30,6 +32,11 @@ type EndpointWatcher struct {
 // It will delete all old endpoint and register new endpoint
 // and then new endpoint will be registered to gateway
 func (g *EndpointWatcher) Update(ctx context.Context, key string, value string) error {
+	g.mux.Lock()
+	defer g.mux.Unlock()
+	if gw := gateway.Get(); gw == nil {
+		return nil
+	}
 	endpoint := &api.Endpoints{}
 	routersList := routers.NewHttpURIRouteToSrvMethod()
 	err := json.Unmarshal([]byte(value), endpoint)
@@ -47,7 +54,7 @@ func (g *EndpointWatcher) Update(ctx context.Context, key string, value string) 
 	}
 	eps, err := gateway.NewLoadBalanceEndpoint(loadbalance.BalanceType(endpoint.Balance), endpoint.GetEndpoints())
 	if err != nil {
-		return gosdk.NewError(errors.ErrUnknownLoadBalancer, int32(api.EndpointSvrStatus_NOT_SUPPORT_BALANCE), codes.InvalidArgument, "new_endpoint")
+		return gosdk.NewError(pkg.ErrUnknownLoadBalancer, int32(api.EndpointSvrStatus_NOT_SUPPORT_BALANCE), codes.InvalidArgument, "new_endpoint")
 	}
 	lb, err := loadbalance.New(loadbalance.BalanceType(endpoint.Balance), eps)
 	if err != nil {
@@ -66,7 +73,12 @@ func (g *EndpointWatcher) Update(ctx context.Context, key string, value string) 
 	// err = g.repo.PutTags(ctx, endpoint.Key, endpoint.Tags)
 	return nil
 }
-func (g *EndpointWatcher) del(ctx context.Context, key string, value string) error {
+func (g *EndpointWatcher) Del(ctx context.Context, key string, value string) error {
+	g.mux.Lock()
+	defer g.mux.Unlock()
+	if gw := gateway.Get(); gw == nil {
+		return nil
+	}
 	endpoint := &api.Endpoints{}
 	err := json.Unmarshal([]byte(value), endpoint)
 	if err != nil {
@@ -88,7 +100,7 @@ func (g *EndpointWatcher) Handle(ctx context.Context, op mvccpb.Event_EventType,
 	case mvccpb.PUT:
 		return g.Update(ctx, key, value)
 	case mvccpb.DELETE:
-		return g.del(ctx, key, value)
+		return g.Del(ctx, key, value)
 	default:
 		return gosdk.NewError(fmt.Errorf("unknown operation"), int32(common.Code_INTERNAL_ERROR), codes.Internal, "unknown_operation")
 	}
@@ -98,5 +110,6 @@ func NewWatcher(config *config.Config, repo EndpointRepo) *EndpointWatcher {
 	return &EndpointWatcher{
 		config: config,
 		repo:   repo,
+		mux:sync.Mutex{},
 	}
 }

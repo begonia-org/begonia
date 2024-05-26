@@ -59,7 +59,7 @@ func postEndpoint(t *testing.T) {
 		c.So(resp.StatusCode, c.ShouldEqual, common.Code_OK)
 		c.So(resp.Id, c.ShouldNotBeEmpty)
 		shareEndpoint = resp.Id
-		time.Sleep(5 * time.Second)
+		time.Sleep(1 * time.Second)
 
 		req, err := http.NewRequest("GET", "http://127.0.0.1:12140/api/v1/example/helloworld", nil)
 		c.So(err, c.ShouldBeNil)

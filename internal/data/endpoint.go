@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	"github.com/begonia-org/begonia/internal/biz/endpoint"
+	"github.com/begonia-org/begonia/internal/pkg"
 	"github.com/begonia-org/begonia/internal/pkg/config"
-	"github.com/begonia-org/begonia/internal/pkg/errors"
 	api "github.com/begonia-org/go-sdk/api/endpoint/v1"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"golang.org/x/exp/slices"
@@ -144,7 +144,7 @@ func (e *endpointRepoImpl) getTags(v interface{}) ([]interface{}, error) {
 func (e *endpointRepoImpl) Patch(ctx context.Context, id string, patch map[string]interface{}) error {
 	origin, err := e.Get(ctx, e.cfg.GetServiceKey(id))
 	if err != nil || origin == "" {
-		return fmt.Errorf("get old endpoint error: %w or %w", err, errors.ErrEndpointNotExists)
+		return fmt.Errorf("get old endpoint error: %w or %w", err, pkg.ErrEndpointNotExists)
 	}
 	originConfig := make(map[string]interface{})
 	err = json.Unmarshal([]byte(origin), &originConfig)
@@ -185,7 +185,7 @@ func (e *endpointRepoImpl) Patch(ctx context.Context, id string, patch map[strin
 func (e *endpointRepoImpl) PutTags(ctx context.Context, id string, tags []string) error {
 	origin, err := e.Get(ctx, e.cfg.GetServiceKey(id))
 	if err != nil || origin == "" {
-		return fmt.Errorf("get old endpoint error: %w or %w", err, errors.ErrEndpointNotExists)
+		return fmt.Errorf("get old endpoint error: %w or %w", err, pkg.ErrEndpointNotExists)
 	}
 	endpoint := &api.Endpoints{}
 	err = json.Unmarshal([]byte(origin), endpoint)

@@ -3,8 +3,8 @@ package auth
 import (
 	"context"
 
+	"github.com/begonia-org/begonia/internal/pkg"
 	"github.com/begonia-org/begonia/internal/pkg/config"
-	"github.com/begonia-org/begonia/internal/pkg/errors"
 	gosdk "github.com/begonia-org/go-sdk"
 	api "github.com/begonia-org/go-sdk/api/user/v1"
 	"google.golang.org/grpc"
@@ -62,7 +62,7 @@ func (a *ApiKeyAuthImpl) check(ctx context.Context) error {
 	}
 	apikey := apikeys[0]
 	if apikey != a.config.GetAdminAPIKey() {
-		return gosdk.NewError(errors.ErrAPIKeyNotMatch, int32(api.UserSvrCode_USER_APIKEY_NOT_MATCH_ERR), codes.Unauthenticated, "authorization_check")
+		return gosdk.NewError(pkg.ErrAPIKeyNotMatch, int32(api.UserSvrCode_USER_APIKEY_NOT_MATCH_ERR), codes.Unauthenticated, "authorization_check")
 
 	}
 	return nil

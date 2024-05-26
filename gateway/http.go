@@ -84,7 +84,7 @@ func loadHttpEndpointItem(pd ProtobufDescription, descFile string) ([]*HttpEndpo
 	}
 	err = json.Unmarshal(data, &items)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to unmarshal file: %w", err)
+		return nil, fmt.Errorf("Failed to unmarshal %s file: %w,%s", descFile, err, string(data))
 	}
 	for _, binds := range items {
 		item := binds[0]
@@ -288,7 +288,7 @@ func (h *HttpEndpointImpl) inParamsHandle(pathParams map[string]string, req *htt
 }
 
 func (h *HttpEndpointImpl) addHexEncodeSHA256HashV2(req *http.Request) error {
-	if req==nil||req.Body == nil {
+	if req == nil || req.Body == nil {
 		return nil
 	}
 	// 创建SHA256哈希对象

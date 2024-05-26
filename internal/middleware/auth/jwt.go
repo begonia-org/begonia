@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/begonia-org/begonia/internal/biz"
+	"github.com/begonia-org/begonia/internal/pkg"
 	"github.com/begonia-org/begonia/internal/pkg/config"
-	"github.com/begonia-org/begonia/internal/pkg/errors"
 	"github.com/begonia-org/begonia/internal/pkg/routers"
 	api "github.com/begonia-org/go-sdk/api/user/v1"
 	"github.com/begonia-org/go-sdk/logger"
@@ -57,11 +57,11 @@ func (a *JWTAuth) jwt2BasicAuth(authorization string) (*api.BasicAuth, error) {
 		token = strArr[1]
 	}
 	if token == "" {
-		return nil, srvErr.New(errors.ErrHeaderTokenFormat, "Token状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR), "缺少token"))
+		return nil, srvErr.New(pkg.ErrHeaderTokenFormat, "Token状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR), "缺少token"))
 	}
 	jwtInfo := strings.Split(token, ".")
 	if len(jwtInfo) != 3 {
-		return nil, srvErr.New(errors.ErrHeaderTokenFormat, "token状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR), "非法的token"))
+		return nil, srvErr.New(pkg.ErrHeaderTokenFormat, "token状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR), "非法的token"))
 	}
 	// 生成signature
 	sig := fmt.Sprintf("%s.%s", jwtInfo[0], jwtInfo[1])
@@ -69,16 +69,16 @@ func (a *JWTAuth) jwt2BasicAuth(authorization string) (*api.BasicAuth, error) {
 
 	sig = tiga.ComputeHmacSha256(sig, secret)
 	if sig != jwtInfo[2] {
-		return nil, srvErr.New(errors.ErrTokenInvalid, "token状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR), "非法的token"))
+		return nil, srvErr.New(pkg.ErrTokenInvalid, "token状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR), "非法的token"))
 	}
 	payload := &api.BasicAuth{}
 	payloadBytes, err := tiga.Base64URL2Bytes(jwtInfo[1])
 	if err != nil {
-		return nil, srvErr.New(errors.ErrAuthDecrypt, "token状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR), "非法的token"))
+		return nil, srvErr.New(pkg.ErrAuthDecrypt, "token状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR), "非法的token"))
 	}
 	err = json.Unmarshal(payloadBytes, payload)
 	if err != nil {
-		return nil, srvErr.New(errors.ErrDecode, "token状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR), "非法的token"))
+		return nil, srvErr.New(pkg.ErrDecode, "token状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR), "非法的token"))
 	}
 	return payload, nil
 }
@@ -89,21 +89,21 @@ func (a *JWTAuth) JWTLock(uid string) (*redislock.Lock, error) {
 
 func (a *JWTAuth) checkJWTItem(ctx context.Context, payload *api.BasicAuth, token string) (bool, error) {
 	if payload.Expiration < time.Now().Unix() {
-		return false, srvErr.New(errors.ErrTokenExpired, "登陆状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_EXPIRE_ERR), "请重新登陆"))
+		return false, srvErr.New(pkg.ErrTokenExpired, "登陆状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_EXPIRE_ERR), "请重新登陆"))
 	}
 	if payload.NotBefore > time.Now().Unix() {
 		remain := payload.NotBefore - time.Now().Unix()
 		msg := fmt.Sprintf("请%d秒后重试", remain)
-		return false, srvErr.New(errors.ErrTokenNotActive, "登陆状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_NOT_ACTIVTE_ERR), msg))
+		return false, srvErr.New(pkg.ErrTokenNotActive, "登陆状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_NOT_ACTIVTE_ERR), msg))
 	}
 	if payload.Issuer != "gateway" {
-		return false, srvErr.New(errors.ErrTokenIssuer, "登陆状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR), "请重新登陆"))
+		return false, srvErr.New(pkg.ErrTokenIssuer, "登陆状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR), "请重新登陆"))
 	}
 	if ok, err := a.biz.CheckInBlackList(ctx, tiga.GetMd5(token)); ok {
 		if err != nil {
 			return false, err
 		}
-		return false, srvErr.New(errors.ErrTokenBlackList, "登陆状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR), "非法的token"))
+		return false, srvErr.New(pkg.ErrTokenBlackList, "登陆状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR), "非法的token"))
 	}
 	return true, nil
 }
@@ -129,12 +129,12 @@ func (a *JWTAuth) checkJWT(ctx context.Context, authorization string, rspHeader 
 			if p := recover(); p != nil {
 				ok = false
 				err = fmt.Errorf("刷新token失败,%v", p)
-				a.log.Errorf(ctx,"刷新token失败,%s", p)
+				a.log.Errorf(ctx, "刷新token失败,%s", p)
 			}
 			if lock != nil {
 				err := lock.Release(ctx)
 				if err != nil {
-					a.log.Errorf(ctx,"释放锁失败,%s", err.Error())
+					a.log.Errorf(ctx, "释放锁失败,%s", err.Error())
 				}
 			}
 		}()
@@ -188,12 +188,11 @@ func (a *JWTAuth) jwtValidator(ctx context.Context, fullName string, headers Hea
 	}
 
 	ok, err := a.checkJWT(ctx, token, headers, headers)
-	if err != nil||!ok {
+	if err != nil || !ok {
 		return nil, status.Errorf(codes.Unauthenticated, "check token error,%v", err)
 	}
-	
-	newCtx := metadata.NewIncomingContext(ctx, md)
 
+	newCtx := metadata.NewIncomingContext(ctx, md)
 
 	if !ok {
 		return nil, status.Errorf(codes.Unauthenticated, "token check failed")

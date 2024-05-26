@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/begonia-org/begonia/internal/biz/file"
+	"github.com/begonia-org/begonia/internal/pkg"
 	"github.com/begonia-org/begonia/internal/pkg/config"
-	"github.com/begonia-org/begonia/internal/pkg/errors"
 	gosdk "github.com/begonia-org/go-sdk"
 	api "github.com/begonia-org/go-sdk/api/file/v1"
 	user "github.com/begonia-org/go-sdk/api/user/v1"
@@ -37,7 +37,7 @@ func NewFileService(biz *file.FileUsecase, config *config.Config) api.FileServic
 func (f *FileService) Upload(ctx context.Context, in *api.UploadFileRequest) (*api.UploadFileResponse, error) {
 	identity := ""
 	if identity = GetIdentity(ctx); identity == "" {
-		return nil, gosdk.NewError(errors.ErrIdentityMissing, int32(user.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
+		return nil, gosdk.NewError(pkg.ErrIdentityMissing, int32(user.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
 	}
 	return f.biz.Upload(ctx, in, identity)
 }
@@ -51,7 +51,7 @@ func (f *FileService) UploadMultipartFile(ctx context.Context, in *api.UploadMul
 func (f *FileService) CompleteMultipartUpload(ctx context.Context, in *api.CompleteMultipartUploadRequest) (*api.CompleteMultipartUploadResponse, error) {
 	identity := ""
 	if identity = GetIdentity(ctx); identity == "" {
-		return nil, gosdk.NewError(errors.ErrIdentityMissing, int32(user.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
+		return nil, gosdk.NewError(pkg.ErrIdentityMissing, int32(user.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
 	}
 	return f.biz.CompleteMultipartUploadFile(ctx, in, identity)
 }
@@ -61,7 +61,7 @@ func (f *FileService) AbortMultipartUpload(ctx context.Context, in *api.AbortMul
 func (f *FileService) Download(ctx context.Context, in *api.DownloadRequest) (*httpbody.HttpBody, error) {
 	identity := ""
 	if identity = GetIdentity(ctx); identity == "" {
-		return nil, gosdk.NewError(errors.ErrIdentityMissing, int32(user.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
+		return nil, gosdk.NewError(pkg.ErrIdentityMissing, int32(user.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
 	}
 
 	newKey, err := url.PathUnescape(in.Key)
@@ -136,7 +136,7 @@ func parseRangeHeader(rangeHeader string) (start, end int64, err error) {
 func (f *FileService) DownloadForRange(ctx context.Context, in *api.DownloadRequest) (*httpbody.HttpBody, error) {
 	identity := GetIdentity(ctx)
 	if identity == "" {
-		return nil, gosdk.NewError(errors.ErrIdentityMissing, int32(user.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
+		return nil, gosdk.NewError(pkg.ErrIdentityMissing, int32(user.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
 
 	}
 	md, ok := metadata.FromIncomingContext(ctx)
@@ -178,14 +178,14 @@ func (f *FileService) DownloadForRange(ctx context.Context, in *api.DownloadRequ
 func (f *FileService) Delete(ctx context.Context, in *api.DeleteRequest) (*api.DeleteResponse, error) {
 	identity := GetIdentity(ctx)
 	if identity == "" {
-		return nil, gosdk.NewError(errors.ErrIdentityMissing, int32(user.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
+		return nil, gosdk.NewError(pkg.ErrIdentityMissing, int32(user.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
 	}
 	return f.biz.Delete(ctx, in, identity)
 }
 func (f *FileService) Metadata(ctx context.Context, in *api.FileMetadataRequest) (*api.FileMetadataResponse, error) {
 	identity := GetIdentity(ctx)
 	if identity == "" {
-		return nil, gosdk.NewError(errors.ErrIdentityMissing, int32(user.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
+		return nil, gosdk.NewError(pkg.ErrIdentityMissing, int32(user.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
 	}
 	rsp, err := f.biz.Metadata(ctx, in, identity)
 	if err != nil {
