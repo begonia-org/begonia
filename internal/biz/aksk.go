@@ -84,6 +84,7 @@ func (a *AccessKeyAuth) AppValidator(ctx context.Context, req *gosdk.GatewayRequ
 		return "", gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Unauthenticated, "sign_request")
 	}
 	if sign != a.getSignature(auth) {
+
 		return "", gosdk.NewError(pkg.ErrAppSignatureInvalid, int32(api.APPSvrCode_APP_SIGNATURE_ERR), codes.Unauthenticated, "app签名校验")
 	}
 	return accessKey, nil

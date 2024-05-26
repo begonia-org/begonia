@@ -49,17 +49,10 @@ func (a *Auth) UnaryInterceptor(ctx context.Context, req any, info *grpc.UnarySe
 	}
 
 	if strings.Contains(authorization, "Bearer") {
-		ctx, err = a.jwt.RequestBefore(ctx, info, req)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		ctx, err = a.ak.RequestBefore(ctx, info, req)
-		if err != nil {
-			return nil, err
-		}
+		return a.jwt.UnaryInterceptor(ctx, req, info, handler)
 	}
-	return handler(ctx, req)
+	return a.ak.UnaryInterceptor(ctx, req, info, handler)
+
 }
 
 func (a *Auth) StreamInterceptor(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
@@ -79,21 +72,11 @@ func (a *Auth) StreamInterceptor(srv any, ss grpc.ServerStream, info *grpc.Strea
 	if authorization == "" {
 		return gosdk.NewError(pkg.ErrTokenMissing, int32(api.UserSvrCode_USER_AUTH_MISSING_ERR), codes.Unauthenticated, "authorization_check")
 	}
-	var err error
 	if strings.Contains(authorization, "Bearer") {
-		ss, err = a.jwt.StreamRequestBefore(ss.Context(), ss, info, nil)
-		if err != nil {
-			return err
-		}
-		return handler(srv, ss)
+		return a.jwt.StreamInterceptor(srv, ss, info, handler)
 
-	} else {
-		ss, err = a.ak.StreamRequestBefore(ss.Context(), ss, info, nil)
-		if err != nil {
-			return err
-		}
-	}
-	return handler(srv, ss)
+	} 
+	return a.ak.StreamInterceptor(srv, ss, info, handler)
 }
 
 func (a *Auth) SetPriority(priority int) {

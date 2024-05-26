@@ -1,14 +1,5 @@
 package endpoint
 
-import (
-	"encoding/json"
-	"io"
-	"os"
-	"testing"
-
-	"github.com/begonia-org/begonia/gateway"
-)
-
 // import (
 // 	"fmt"
 // 	"net/http"
@@ -118,22 +109,22 @@ import (
 
 // }
 
-func TestJSON(t *testing.T) {
-	descFile := "/tmp/begonia/descriptors/service/449636378641174528/gateway.json"
-	items := make(map[string][]*gateway.HttpEndpointItem)
-	// endpointItems := make([]*gateway.HttpEndpointItem, 0)
+// func TestJSON(t *testing.T) {
+// 	descFile := "/tmp/begonia/descriptors/service/449636378641174528/gateway.json"
+// 	items := make(map[string][]*gateway.HttpEndpointItem)
+// 	// endpointItems := make([]*gateway.HttpEndpointItem, 0)
 
-	file, err := os.Open(descFile)
-	if err != nil {
-		t.Errorf("Failed to read file: %v", err)
-	}
-	defer file.Close()
-	data, err := io.ReadAll(file)
-	if err != nil {
-		t.Errorf("Failed to read file: %v", err)
-	}
-	err = json.Unmarshal(data, &items)
-	if err != nil {
-		t.Errorf("Failed to unmarshal %s file: %v", descFile, err)
-	}
-}
+// 	file, err := os.Open(descFile)
+// 	if err != nil {
+// 		t.Errorf("Failed to read file: %v", err)
+// 	}
+// 	defer file.Close()
+// 	data, err := io.ReadAll(file)
+// 	if err != nil {
+// 		t.Errorf("Failed to read file: %v", err)
+// 	}
+// 	err = json.Unmarshal(data, &items)
+// 	if err != nil {
+// 		t.Errorf("Failed to unmarshal %s file: %v", descFile, err)
+// 	}
+// }

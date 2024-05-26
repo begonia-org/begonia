@@ -22,8 +22,8 @@ github.com/begonia-org/go-layered-cache v0.0.0-20240510102605-41bdb7aa07fa h1:DH
 github.com/begonia-org/go-layered-cache v0.0.0-20240510102605-41bdb7aa07fa/go.mod h1:xEqoca1vNGqH8CV7X9EzhDV5Ihtq9J95p7ZipzUB6pc=
 github.com/begonia-org/go-loadbalancer v0.0.0-20240519060752-71ca464f0f1a h1:Mpw7T+90KC5QW7yCa8Nn/5psnlvsexipAOrQAcc7YE0=
 github.com/begonia-org/go-loadbalancer v0.0.0-20240519060752-71ca464f0f1a/go.mod h1:crPS67sfgmgv47psftwfmTMbmTfdepVm8MPeqApINlI=
-github.com/begonia-org/go-sdk v0.0.0-20240524034736-5c195b7e4b0f h1:DQAupqwJEj9lYPk7phcbr+8+lZOFPLRNA9Ao+8Sh11M=
-github.com/begonia-org/go-sdk v0.0.0-20240524034736-5c195b7e4b0f/go.mod h1:I70a3fiAADGrOoOC3lv408rFcTRhTwLt3pwr6cQwB4Y=
+github.com/begonia-org/go-sdk v0.0.0-20240527022316-d5d4ecf54015 h1:te5UrTub+zE95GnwWg9VE98gs+zdkv7BQm1tkGlg7Xk=
+github.com/begonia-org/go-sdk v0.0.0-20240527022316-d5d4ecf54015/go.mod h1:I70a3fiAADGrOoOC3lv408rFcTRhTwLt3pwr6cQwB4Y=
 github.com/bmatcuk/doublestar v1.1.1/go.mod h1:UD6OnuiIn0yFxxA2le/rnRU1G4RaI4UvFv1sNto9p6w=
 github.com/bsm/ginkgo/v2 v2.12.0 h1:Ny8MWAHyOepLGlLKYmXG4IEkioBysk6GpaRTLC8zwWs=
 github.com/bsm/gomega v1.27.10 h1:yeMWxP2pV2fG3FgAODIY8EiRE3dy0aeFYt4l7wh6yKA=

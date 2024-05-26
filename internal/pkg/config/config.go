@@ -257,10 +257,17 @@ func (c *Config) GetTagsKey(tag, id string) string {
 
 func (c *Config) GetRSAPriKey() string {
 	key := fmt.Sprintf("%s.auth.rsa.private_key", c.GetEnv())
-	return c.GetString(key)
+	if val := c.GetString(key); val != "" {
+		return val
+
+	}
+	return c.GetString("auth.rsa.private_key")
 
 }
 func (c *Config) GetRSAPubKey() string {
 	key := fmt.Sprintf("%s.auth.rsa.public_key", c.GetEnv())
-	return c.GetString(key)
+	if val:= c.GetString(key);val!=""{
+		return val
+	}
+	return c.GetString("auth.rsa.public_key")
 }
