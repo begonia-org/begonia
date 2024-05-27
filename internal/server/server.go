@@ -11,7 +11,7 @@ import (
 
 	"github.com/begonia-org/begonia/gateway"
 	"github.com/begonia-org/begonia/internal/pkg/config"
-	"github.com/begonia-org/begonia/internal/pkg/middleware"
+	"github.com/begonia-org/begonia/internal/middleware"
 	"github.com/begonia-org/begonia/internal/pkg/routers"
 	"github.com/begonia-org/begonia/internal/service"
 	loadbalance "github.com/begonia-org/go-loadbalancer"

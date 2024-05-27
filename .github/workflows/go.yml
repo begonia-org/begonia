@@ -30,6 +30,7 @@ jobs:
         run: |
           mkdir -p /tmp/protos
           git clone https://github.com/begonia-org/protos.git /tmp/protos
+          cp cert/* /tmp/
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
         with:

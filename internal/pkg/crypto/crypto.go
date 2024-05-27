@@ -15,11 +15,9 @@ import (
 	"math/big"
 	mrand "math/rand"
 	"os"
-	"path"
-	"path/filepath"
-	"runtime"
 	"time"
 
+	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/spark-lence/tiga"
 )
 
@@ -36,18 +34,13 @@ type AuthKeys struct {
 	Seed string
 }
 
-func NewUsersAuth() *UsersAuth {
-	_, filename, _, ok := runtime.Caller(0)
-	if !ok {
-		panic("No caller information")
-	}
-	dir := path.Dir(path.Dir(path.Dir(filename)))
-	dir = path.Dir(dir)
-	rsaKeyPath := filepath.Join(dir, "cert", "auth_private_key.pem")
+func NewUsersAuth(conf *config.Config) *UsersAuth {
+
+	rsaKeyPath := conf.GetRSAPriKey()
 	validator := &UsersAuth{}
 	rsa, err := validator.LoadPrivateKey(rsaKeyPath)
 	if err != nil {
-		panic(err)
+		panic(err.Error())
 	}
 	validator.rsaKey = rsa
 	return validator
@@ -61,7 +54,7 @@ func (a UsersAuth) GenerateRandPasswd() (string, error) {
 	for i := 0; i < length; i++ {
 		num, err := rand.Int(rand.Reader, big.NewInt(int64(len(charset))))
 		if err != nil {
-			return "", fmt.Errorf("生成随机密码失败,%w", err)
+			return "", fmt.Errorf("generate rand password fail,%w", err)
 		}
 		passwd[i] = charset[num.Int64()]
 	}
@@ -121,34 +114,7 @@ func (a UsersAuth) DecryptWithPrivateKey(ciphertext []byte, privKey *rsa.Private
 
 	return string(plaintext), nil
 }
-func (a UsersAuth) publicKeyToString(pubKey *rsa.PublicKey) (string, error) {
-	// 将公钥转换为 ASN.1 DER 编码
-	derBytes, err := x509.MarshalPKIXPublicKey(pubKey)
-	if err != nil {
-		return "", err
-	}
 
-	// 构造 PEM 编码的结构
-	pemBlock := &pem.Block{
-		Type:  "PUBLIC KEY", // 这是一个公钥
-		Bytes: derBytes,
-	}
-
-	// 将 PEM 编码的数据转换为字符串
-	pemBytes := pem.EncodeToMemory(pemBlock)
-
-	return string(pemBytes), nil
-}
-
-// 另一种方式是将 DER 编码的数据直接转换为 Base64 编码的字符串
-func (a UsersAuth) publicKeyToBase64String(pubKey *rsa.PublicKey) (string, error) {
-	derBytes, err := x509.MarshalPKIXPublicKey(pubKey)
-	if err != nil {
-		return "", err
-	}
-
-	return base64.StdEncoding.EncodeToString(derBytes), nil
-}
 func (a UsersAuth) EncryptAES(key []byte, plaintext string) (string, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
@@ -179,7 +145,7 @@ func (a UsersAuth) GenerateAuthSeed(aesKey string) (string, error) {
 	}
 	str, err := tiga.StructToJsonStr(&seed)
 	if err != nil {
-		return "", fmt.Errorf("struct转换为json string出错:%w", err)
+		return "", fmt.Errorf("struct marshal to string:%w", err)
 	}
 	encodedData := base64.StdEncoding.EncodeToString([]byte(str))
 	return a.EncryptAES([]byte(aesKey), encodedData)

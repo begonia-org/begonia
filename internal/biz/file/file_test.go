@@ -19,13 +19,13 @@ import (
 	"github.com/begonia-org/begonia"
 	"github.com/begonia-org/begonia/config"
 	"github.com/begonia-org/begonia/internal/biz/file"
+	"github.com/begonia-org/begonia/internal/pkg"
 	api "github.com/begonia-org/go-sdk/api/file/v1"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 
 	cfg "github.com/begonia-org/begonia/internal/pkg/config"
-	"github.com/begonia-org/begonia/internal/pkg/errors"
 	c "github.com/smartystreets/goconvey/convey"
 )
 
@@ -225,7 +225,7 @@ func testPutFile(t *testing.T) {
 			key:        "/test/upload.test3",
 			expectPath: "",
 			expectUri:  "",
-			expectErr:  errors.ErrInvalidFileKey,
+			expectErr:  pkg.ErrInvalidFileKey,
 			author:     fileAuthor,
 		},
 		{
@@ -234,7 +234,7 @@ func testPutFile(t *testing.T) {
 			key:        "test/upload.test4",
 			expectPath: "",
 			expectUri:  "",
-			expectErr:  errors.ErrIdentityMissing,
+			expectErr:  pkg.ErrIdentityMissing,
 			author:     "",
 		},
 		{
@@ -243,7 +243,7 @@ func testPutFile(t *testing.T) {
 			key:        "test/upload.test7",
 			expectPath: "",
 			expectUri:  "",
-			expectErr:  errors.ErrSHA256NotMatch,
+			expectErr:  pkg.ErrSHA256NotMatch,
 			author:     fileAuthor,
 		},
 	}
@@ -401,7 +401,7 @@ func testDownload(t *testing.T) {
 		},
 		// {
 		// 	title:      "download fail with invalidate author",
-		// 	exceptErr:  errors.ErrIdentityMissing,
+		// 	exceptErr:  pkg.ErrIdentityMissing,
 		// 	key:        fileAuthor + "/test/upload.test1",
 		// 	useVersion: true,
 		// 	version:    "",
@@ -453,7 +453,7 @@ func testDownload(t *testing.T) {
 			Key: "/" + fileAuthor + "/test/upload.test1",
 		}, fileAuthor)
 		c.So(err, c.ShouldNotBeNil)
-		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrInvalidFileKey.Error())
+		c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrInvalidFileKey.Error())
 
 		env := "dev"
 		if begonia.Env != "" {
@@ -520,7 +520,7 @@ func testInitiateUploadFile(t *testing.T) {
 			Key: "/test/upload.parts.test1",
 		})
 		c.So(err, c.ShouldNotBeNil)
-		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrInvalidFileKey.Error())
+		c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrInvalidFileKey.Error())
 
 		patch := gomonkey.ApplyFuncReturn(os.MkdirAll, fmt.Errorf("mkdir error"))
 		defer patch.Reset()
@@ -618,7 +618,7 @@ func testUploadMultipartFileFile(t *testing.T) {
 			PartNumber: 1,
 		})
 		c.So(err, c.ShouldNotBeNil)
-		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrUploadNotInitiate.Error())
+		c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrUploadNotInitiate.Error())
 
 		_, err = fileBiz.UploadMultipartFileFile(context.TODO(), &api.UploadMultipartFileRequest{
 			Key:        "test/upload.parts.test1",
@@ -626,7 +626,7 @@ func testUploadMultipartFileFile(t *testing.T) {
 			PartNumber: 0,
 		})
 		c.So(err, c.ShouldNotBeNil)
-		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrPartNumberMissing.Error())
+		c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrPartNumberMissing.Error())
 
 		_, err = fileBiz.UploadMultipartFileFile(context.TODO(), &api.UploadMultipartFileRequest{
 			Key:        "test/upload.parts.test1",
@@ -634,7 +634,7 @@ func testUploadMultipartFileFile(t *testing.T) {
 			PartNumber: 1,
 		})
 		c.So(err, c.ShouldNotBeNil)
-		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrUploadIdMissing.Error())
+		c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrUploadIdMissing.Error())
 
 		tmpFile2, err := generateRandomFile(1024 * 1024 * 2)
 		if err != nil {
@@ -651,7 +651,7 @@ func testUploadMultipartFileFile(t *testing.T) {
 			Sha256:     "12233333333er23ed",
 		})
 		c.So(err, c.ShouldNotBeNil)
-		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrSHA256NotMatch.Error())
+		c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrSHA256NotMatch.Error())
 
 		patch := gomonkey.ApplyFuncReturn(os.Create, nil, fmt.Errorf("file create error"))
 		defer patch.Reset()
@@ -727,7 +727,7 @@ func testAbortMultipartUpload(t *testing.T) {
 	c.Convey("test abort parts file fail", t, func() {
 		_, err := fileBiz.AbortMultipartUpload(context.TODO(), &api.AbortMultipartUploadRequest{UploadId: "fwefwfccccc"})
 		c.So(err, c.ShouldNotBeNil)
-		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrUploadIdNotFound.Error())
+		c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrUploadIdNotFound.Error())
 	})
 }
 func testCompleteMultipartUploadFile(t *testing.T) {
@@ -766,21 +766,21 @@ func testCompleteMultipartUploadFile(t *testing.T) {
 			UploadId: "123455678098",
 		}, fileAuthor)
 		c.So(err, c.ShouldNotBeNil)
-		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrUploadIdNotFound.Error())
+		c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrUploadIdNotFound.Error())
 
 		_, err = fileBiz.CompleteMultipartUploadFile(context.TODO(), &api.CompleteMultipartUploadRequest{
 			Key:      "test/upload.parts.test2",
 			UploadId: "123455678098",
 		}, "")
 		c.So(err, c.ShouldNotBeNil)
-		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrIdentityMissing.Error())
+		c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrIdentityMissing.Error())
 
 		_, err = fileBiz.CompleteMultipartUploadFile(context.TODO(), &api.CompleteMultipartUploadRequest{
 			Key:      "/test/upload.parts.test2",
 			UploadId: "123455678098",
 		}, fileAuthor)
 		c.So(err, c.ShouldNotBeNil)
-		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrInvalidFileKey.Error())
+		c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrInvalidFileKey.Error())
 
 		patch := gomonkey.ApplyFuncReturn(os.Lstat, nil, fmt.Errorf("lstat error"))
 		defer patch.Reset()
@@ -887,7 +887,7 @@ func testFileMeta(t *testing.T) {
 			Version: "",
 		}, fileAuthor)
 		c.So(err, c.ShouldNotBeNil)
-		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrInvalidFileKey.Error())
+		c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrInvalidFileKey.Error())
 		env := "dev"
 		if begonia.Env != "" {
 			env = begonia.Env
@@ -953,7 +953,7 @@ func testVersionReader(t *testing.T) {
 		fileBiz := newFileBiz()
 		_, err := fileBiz.Version(context.Background(), "/test/version.test", fileAuthor)
 		c.So(err, c.ShouldNotBeNil)
-		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrInvalidFileKey.Error())
+		c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrInvalidFileKey.Error())
 		patch := gomonkey.ApplyFuncReturn(file.NewFileVersionReader, nil, fmt.Errorf("file NewFileVersionReader error"))
 		defer patch.Reset()
 		_, err = fileBiz.Version(context.Background(), fileAuthor+"/test/upload.parts.test1", fileAuthor)
@@ -1079,14 +1079,14 @@ func testDownloadRange(t *testing.T) {
 			Key: "/test/upload.parts.test1",
 		}, 0, 1024, fileAuthor)
 		c.So(err, c.ShouldNotBeNil)
-		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrInvalidFileKey.Error())
+		c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrInvalidFileKey.Error())
 
 		_, _, err = fileBiz.DownloadForRange(context.Background(), &api.DownloadRequest{
 			Key:     "test/upload.parts.test1",
 			Version: "latest",
 		}, 1024, 1, fileAuthor)
 		c.So(err, c.ShouldNotBeNil)
-		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrInvalidRange.Error())
+		c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrInvalidRange.Error())
 
 		_, _, err = fileBiz.DownloadForRange(context.Background(), &api.DownloadRequest{
 			Key:     fileAuthor + "/test/upload.parts.test1",
@@ -1149,7 +1149,7 @@ func testDelete(t *testing.T) {
 
 		_, err = fileBiz.Delete(context.Background(), &api.DeleteRequest{Key: "/" + fileAuthor + "/test/upload.parts.deleted2"}, fileAuthor)
 		c.So(err, c.ShouldNotBeNil)
-		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrInvalidFileKey.Error())
+		c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrInvalidFileKey.Error())
 
 		patch2 := gomonkey.ApplyFuncReturn(os.RemoveAll, fmt.Errorf("remove all error"))
 		defer patch2.Reset()

@@ -76,8 +76,10 @@ func newTestServer(gwPort, randomNumber int) (*GrpcServerOptions, *GatewayConfig
 	opts.PoolOptions = append(opts.PoolOptions, loadbalance.WithMaxActiveConns(100))
 	opts.PoolOptions = append(opts.PoolOptions, loadbalance.WithPoolSize(128))
 	loggerMid := NewLoggerMiddleware(Log)
-	opts.Options = append(opts.Options, grpc.ChainStreamInterceptor(loggerMid.StreamInterceptor))
-	opts.Options = append(opts.Options, grpc.ChainUnaryInterceptor(loggerMid.UnaryInterceptor))
+	except := NewException(Log)
+	mid := NewMiddlewaresTest(Log)
+	opts.Options = append(opts.Options, grpc.ChainStreamInterceptor(loggerMid.StreamInterceptor, except.StreamInterceptor, mid.StreamInterceptor))
+	opts.Options = append(opts.Options, grpc.ChainUnaryInterceptor(loggerMid.UnaryInterceptor, except.UnaryInterceptor, mid.UnaryInterceptor))
 	env := "dev"
 	if begonia.Env != "" {
 		env = begonia.Env
@@ -589,7 +591,7 @@ func testLoadGlobalTypes(t *testing.T) {
 		os.Remove(filepath.Join(pbFile, "json"))
 		pd, err := NewDescription(pbFile)
 		c.So(err, c.ShouldBeNil)
-		pd.SetHttpResponse(common.E_HttpResponse)
+		_ = pd.SetHttpResponse(common.E_HttpResponse)
 		err = gw.RegisterHandlerClient(context.Background(), pd)
 		c.So(err, c.ShouldBeNil)
 
@@ -929,7 +931,7 @@ func testClientStreamErr(t *testing.T) {
 				output: []interface{}{fmt.Errorf("test unmarshal error")},
 			},
 		}
-		for i, caseV := range cases {
+		for _, caseV := range cases {
 			url := fmt.Sprintf("http://127.0.0.1:%d/api/v1/example/client/stream", gwPort)
 			wg := &sync.WaitGroup{}
 			reader, writer := io.Pipe()
@@ -958,7 +960,6 @@ func testClientStreamErr(t *testing.T) {
 					}
 				}
 			}()
-			t.Logf("test case:%d", i)
 			req, err := http.NewRequest(http.MethodPost, url, reader)
 			c.So(err, c.ShouldBeNil)
 			req.Header.Set("Content-Type", ClientStreamContentType)
@@ -1147,19 +1148,38 @@ func testRegisterHandlerClientErr(t *testing.T) {
 		c.So(err, c.ShouldBeNil)
 		pd, err := NewDescriptionFromBinary(pb, filepath.Join("tmp", "test-pd"))
 		c.So(err, c.ShouldBeNil)
-		patch := gomonkey.ApplyFuncReturn(protodesc.NewFiles,nil, fmt.Errorf("test NewFiles error"))
+		patch := gomonkey.ApplyFuncReturn(protodesc.NewFiles, nil, fmt.Errorf("test NewFiles error"))
 		defer patch.Reset()
 		err = gw.RegisterHandlerClient(context.Background(), pd)
 		patch.Reset()
 
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "test NewFiles error")
-		
+
+	})
+}
+func testPanicRecover(t *testing.T) {
+	c.Convey("test panic recover", t, func() {
+		url := fmt.Sprintf("http://127.0.0.1:%d/api/v1/example/world?msg=hello&test=panic", gwPort)
+		r, err := http.NewRequest(http.MethodGet, url, nil)
+		r.Header.Set("x-uid", "12345678")
+		r.Header.Set(XAccessKey, "12345678")
+		// r.Header.Set("Origin", "http://www.example.com")
+		c.So(err, c.ShouldBeNil)
+		patch := gomonkey.ApplyFunc((*MiddlewaresTest).StreamInterceptor, func(_ *MiddlewaresTest, srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+			panic("test panic")
+		})
+		defer patch.Reset()
+		resp, err := http.DefaultClient.Do(r)
+		c.So(err, c.ShouldBeNil)
+		c.So(resp.StatusCode, c.ShouldEqual, http.StatusInternalServerError)
+		patch.Reset()
 	})
 }
 func TestHttp(t *testing.T) {
 	t.Run("testRegisterClient", testRegisterClient)
 	t.Run("testRequestGet", testRequestGet)
+	t.Run("testPanicRecover", testPanicRecover)
 	t.Run("testCors", testCors)
 	t.Run("testRequestPost", testRequestPost)
 	t.Run("testServerSideEvent", testServerSideEvent)
@@ -1174,7 +1194,6 @@ func TestHttp(t *testing.T) {
 	t.Run("testClientStreamErr", testClientStreamErr)
 	t.Run("testAddHexEncodeSHA256HashV2Err", testAddHexEncodeSHA256HashV2Err)
 	t.Run("testRegisterHandlerClientErr", testRegisterHandlerClientErr)
-	// t.Run("testInParamsHandle", testInParamsHandle)
 	t.Run("testRequestError", testRequestError)
 	t.Run("testLoadHttpEndpointItemErr", testLoadHttpEndpointItemErr)
 	t.Run("testDeleteEndpoint", testDeleteEndpoint)

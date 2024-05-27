@@ -5,22 +5,23 @@ import (
 	"sort"
 	"time"
 
+	"github.com/begonia-org/begonia/gateway"
 	"github.com/begonia-org/begonia/internal/biz"
 	"github.com/begonia-org/begonia/internal/data"
+	"github.com/begonia-org/begonia/internal/middleware/auth"
 	"github.com/begonia-org/begonia/internal/pkg/config"
-	"github.com/begonia-org/begonia/internal/pkg/middleware/auth"
 	goloadbalancer "github.com/begonia-org/go-loadbalancer"
 	gosdk "github.com/begonia-org/go-sdk"
 	"github.com/begonia-org/go-sdk/logger"
+	"github.com/google/wire"
 	"github.com/spark-lence/tiga"
 	"google.golang.org/grpc"
-	"github.com/begonia-org/begonia/gateway"
-
 )
 
-// var Plugins = map[string]gosdk.GrpcPlugin{
-// 	"jwt": &auth.JWTAuth{},
-// }
+//	var Plugins = map[string]gosdk.GrpcPlugin{
+//		"jwt": &auth.JWTAuth{},
+//	}
+var ProviderSet = wire.NewSet(New,auth.NewAccessKeyAuth)
 
 func New(config *config.Config,
 	rdb *tiga.RedisDao,
@@ -35,9 +36,9 @@ func New(config *config.Config,
 		"onlyJWT":           jwt,
 		"onlyAK":            ak,
 		"logger":            gateway.NewLoggerMiddleware(log),
-		"exception":         NewException(log),
+		"exception":         gateway.NewException(log),
 		"http":              NewHttp(),
-		"auth":              NewAuth(ak, jwt, apiKey),
+		"auth":              auth.NewAuth(ak, jwt, apiKey),
 		"params_validator":  NewParamsValidator(),
 		"only_api_key_auth": apiKey,
 		// "logger":NewLoggerMiddleware(log),

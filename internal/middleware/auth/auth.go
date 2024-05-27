@@ -1,11 +1,10 @@
-package middleware
+package auth
 
 import (
 	"context"
 	"strings"
 
-	"github.com/begonia-org/begonia/internal/pkg/errors"
-	"github.com/begonia-org/begonia/internal/pkg/middleware/auth"
+	"github.com/begonia-org/begonia/internal/pkg"
 	gosdk "github.com/begonia-org/go-sdk"
 	api "github.com/begonia-org/go-sdk/api/user/v1"
 	"google.golang.org/grpc"
@@ -15,14 +14,14 @@ import (
 )
 
 type Auth struct {
-	ak       *auth.AccessKeyAuthMiddleware
-	jwt      *auth.JWTAuth
-	apikey   auth.ApiKeyAuth
+	ak       *AccessKeyAuthMiddleware
+	jwt      *JWTAuth
+	apikey   ApiKeyAuth
 	priority int
 	name     string
 }
 
-func NewAuth(ak *auth.AccessKeyAuthMiddleware, jwt *auth.JWTAuth, apikey auth.ApiKeyAuth) gosdk.LocalPlugin {
+func NewAuth(ak *AccessKeyAuthMiddleware, jwt *JWTAuth, apikey ApiKeyAuth) gosdk.LocalPlugin {
 	return &Auth{
 		ak:     ak,
 		jwt:    jwt,
@@ -32,7 +31,7 @@ func NewAuth(ak *auth.AccessKeyAuthMiddleware, jwt *auth.JWTAuth, apikey auth.Ap
 }
 
 func (a *Auth) UnaryInterceptor(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
-	if !auth.IfNeedValidate(ctx, info.FullMethod) {
+	if !IfNeedValidate(ctx, info.FullMethod) {
 		return handler(ctx, req)
 	}
 	md, ok := metadata.FromIncomingContext(ctx)
@@ -46,25 +45,18 @@ func (a *Auth) UnaryInterceptor(ctx context.Context, req any, info *grpc.UnarySe
 	authorization := a.jwt.GetAuthorizationFromMetadata(md)
 
 	if authorization == "" {
-		return nil, gosdk.NewError(errors.ErrTokenMissing, int32(api.UserSvrCode_USER_AUTH_MISSING_ERR), codes.Unauthenticated, "authorization_check")
+		return nil, gosdk.NewError(pkg.ErrTokenMissing, int32(api.UserSvrCode_USER_AUTH_MISSING_ERR), codes.Unauthenticated, "authorization_check")
 	}
 
 	if strings.Contains(authorization, "Bearer") {
-		ctx, err = a.jwt.RequestBefore(ctx, info, req)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		ctx, err = a.ak.RequestBefore(ctx, info, req)
-		if err != nil {
-			return nil, err
-		}
+		return a.jwt.UnaryInterceptor(ctx, req, info, handler)
 	}
-	return handler(ctx, req)
+	return a.ak.UnaryInterceptor(ctx, req, info, handler)
+
 }
 
 func (a *Auth) StreamInterceptor(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-	if !auth.IfNeedValidate(ss.Context(), info.FullMethod) {
+	if !IfNeedValidate(ss.Context(), info.FullMethod) {
 		return handler(srv, ss)
 	}
 	md, ok := metadata.FromIncomingContext(ss.Context())
@@ -78,23 +70,13 @@ func (a *Auth) StreamInterceptor(srv any, ss grpc.ServerStream, info *grpc.Strea
 	authorization := a.jwt.GetAuthorizationFromMetadata(md)
 
 	if authorization == "" {
-		return gosdk.NewError(errors.ErrTokenMissing, int32(api.UserSvrCode_USER_AUTH_MISSING_ERR), codes.Unauthenticated, "authorization_check")
+		return gosdk.NewError(pkg.ErrTokenMissing, int32(api.UserSvrCode_USER_AUTH_MISSING_ERR), codes.Unauthenticated, "authorization_check")
 	}
-	var err error
 	if strings.Contains(authorization, "Bearer") {
-		ss, err = a.jwt.StreamRequestBefore(ss.Context(), ss, info, nil)
-		if err != nil {
-			return err
-		}
-		return handler(srv, ss)
+		return a.jwt.StreamInterceptor(srv, ss, info, handler)
 
-	} else {
-		ss, err = a.ak.StreamRequestBefore(ss.Context(), ss, info, nil)
-		if err != nil {
-			return err
-		}
-	}
-	return handler(srv, ss)
+	} 
+	return a.ak.StreamInterceptor(srv, ss, info, handler)
 }
 
 func (a *Auth) SetPriority(priority int) {

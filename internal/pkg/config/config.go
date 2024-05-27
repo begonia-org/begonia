@@ -46,10 +46,13 @@ func (c *Config) GetAesKey() string {
 func (c *Config) GetAesIv() string {
 	return c.GetString("auth.aes_iv")
 }
+func (c *Config) GetCacheKeyPrefix() string {
+	return c.GetString("common.cache_key_prefix")
+}
 
 // jwt_secret
 func (c *Config) GetJWTLockKey(uid string) string {
-	prefix := c.GetString("common.rdb_key_prefix")
+	prefix := c.GetCacheKeyPrefix()
 	return fmt.Sprintf("%s:jwt_lock:%s", prefix, uid)
 }
 func (c *Config) GetJWTSecret() string {
@@ -83,7 +86,7 @@ func (c *Config) GetUserTokenBlackListBloomKey(uid string) string {
 	return fmt.Sprintf("%s:%s", prefix, uid)
 }
 func (c *Config) GetUserBlackListPrefix() string {
-	prefix := c.GetString("common.rdb_key_prefix")
+	prefix := c.GetCacheKeyPrefix()
 	return fmt.Sprintf("%s:user:black", prefix)
 }
 func (c *Config) GetUserTokenBlackListBloom() string {
@@ -127,9 +130,6 @@ func (c *Config) GetBlacklistBloomM() int {
 	return c.GetInt("auth.blacklist.bloom.m")
 }
 
-//	func (c *Config) GetBlacklistBloomErrRate() float64 {
-//		return c.GetFloat64(fmt.Sprintf("%s.auth.blacklist.bloom.error_rate", c.GetEnv()))
-//	}
 func (c *Config) GetAPPAccessKey(access string) string {
 	prefix := c.GetAPPAccessKeyPrefix()
 	return fmt.Sprintf("%s:%s", prefix, access)
@@ -179,15 +179,23 @@ func (c *Config) GetPlugins() map[string]interface{} {
 }
 func (c *Config) GetRPCPlugins() ([]*goloadbalancer.Server, error) {
 	plugins := make([]*goloadbalancer.Server, 0)
+
 	err := c.UnmarshalKey(fmt.Sprintf("%s.gateway.plugins.rpc", c.GetEnv()), &plugins)
 	if err != nil {
 		return nil, err
 	}
+	if len(plugins) == 0 {
+		err = c.UnmarshalKey("gateway.plugins.rpc", &plugins)
+		if err != nil {
+			return nil, err
+		}
+
+	}
 	return plugins, nil
 }
 func (c *Config) GetEndpointsPrefix() string {
-	key:=fmt.Sprintf("%s.etcd.endpoint.prefix",c.GetEnv())
-	if val:=c.GetString(key);val!=""{
+	key := fmt.Sprintf("%s.etcd.endpoint.prefix", c.GetEnv())
+	if val := c.GetString(key); val != "" {
 		return val
 	}
 	return c.GetString("common.etcd.endpoint.prefix")
@@ -222,8 +230,8 @@ func (c *Config) GetServiceNameKey(name string) string {
 	return filepath.Join(prefix, name)
 }
 func (c *Config) GetAppKeyPrefix() string {
-	key:=fmt.Sprintf("%s.etcd.app.prefix",c.GetEnv())
-	if val:=c.GetString(key);val!=""{
+	key := fmt.Sprintf("%s.etcd.app.prefix", c.GetEnv())
+	if val := c.GetString(key); val != "" {
 		return val
 	}
 	prefix := c.GetString("common.etcd.app.prefix")
@@ -247,15 +255,19 @@ func (c *Config) GetTagsKey(tag, id string) string {
 	return filepath.Join(prefix, tag, id)
 }
 
-// func (c *Config) GetAppKeyPrefix() string {
-// 	prefix := c.GetString("common.app_key_prefix")
-// 	return prefix
-// }
+func (c *Config) GetRSAPriKey() string {
+	key := fmt.Sprintf("%s.auth.rsa.private_key", c.GetEnv())
+	if val := c.GetString(key); val != "" {
+		return val
 
-// func GetBlacklistPubSubChannel(c *Config) golayeredbloom.ChannelName {
-// 	return golayeredbloom.ChannelName(c.GetBlacklistPubSubChannel())
-// }
+	}
+	return c.GetString("auth.rsa.private_key")
 
-// func GetBlacklistPubSubGroup(c *Config) golayeredbloom.GroupName {
-// 	return golayeredbloom.GroupName(c.GetBlacklistPubSubGroup())
-// }
+}
+func (c *Config) GetRSAPubKey() string {
+	key := fmt.Sprintf("%s.auth.rsa.public_key", c.GetEnv())
+	if val:= c.GetString(key);val!=""{
+		return val
+	}
+	return c.GetString("auth.rsa.public_key")
+}

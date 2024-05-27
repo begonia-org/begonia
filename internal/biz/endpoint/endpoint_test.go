@@ -18,8 +18,8 @@ import (
 	"github.com/begonia-org/begonia/gateway"
 	"github.com/begonia-org/begonia/internal/biz/endpoint"
 	"github.com/begonia-org/begonia/internal/data"
+	"github.com/begonia-org/begonia/internal/pkg"
 	cfg "github.com/begonia-org/begonia/internal/pkg/config"
-	"github.com/begonia-org/begonia/internal/pkg/errors"
 
 	"github.com/begonia-org/begonia/internal/pkg/routers"
 	gwRuntime "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -107,7 +107,7 @@ func testAddEndpoint(t *testing.T) {
 		}
 		_, err := endpointBiz.AddConfig(context.TODO(), endpointSvr)
 		c.So(err, c.ShouldNotBeNil)
-		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrUnknownLoadBalancer.Error())
+		c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrUnknownLoadBalancer.Error())
 
 		patch := gomonkey.ApplyFuncReturn((*data.Data).PutEtcdWithTxn, false, fmt.Errorf("test error"))
 		defer patch.Reset()
@@ -116,6 +116,11 @@ func testAddEndpoint(t *testing.T) {
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "test error")
 		patch.Reset()
+		patch2 := gomonkey.ApplyFuncReturn((*endpoint.EndpointWatcher).Update, fmt.Errorf("test watcher error"))
+		defer patch2.Reset()
+		_, err = endpointBiz.AddConfig(context.TODO(), endpointSvr)
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "test watcher error")
 	})
 
 }
@@ -135,7 +140,15 @@ func testGetEndpoint(t *testing.T) {
 
 		_, err = endpointBiz.Get(context.TODO(), "test")
 		c.So(err, c.ShouldNotBeNil)
-		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrEndpointNotExists.Error())
+		c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrEndpointNotExists.Error())
+		repo := data.NewEndpointRepo(nil, gateway.Log)
+		patch2 := gomonkey.ApplyMethodReturn(repo, "Get", nil, fmt.Errorf("test get error"))
+		defer patch2.Reset()
+		_, err = endpointBiz.Get(context.TODO(), epId)
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "test get error")
+		patch2.Reset()
+
 	})
 	c.Convey("Test Get Endpoint", t, func() {
 		data, err := endpointBiz.Get(context.TODO(), epId)
@@ -174,7 +187,7 @@ func testPatchEndpoint(t *testing.T) {
 			UpdateMask:  &fieldmaskpb.FieldMask{Paths: []string{"description", "tags"}},
 		})
 		c.So(err, c.ShouldNotBeNil)
-		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrEndpointNotExists.Error())
+		c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrEndpointNotExists.Error())
 
 		patch := gomonkey.ApplyFuncReturn((tiga.EtcdDao).GetString, "{false", nil)
 		defer patch.Reset()
@@ -211,6 +224,28 @@ func testPatchEndpoint(t *testing.T) {
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "test Unmarshal error")
 		patch3.Reset()
+		repo := data.NewEndpointRepo(nil, gateway.Log)
+		patch4 := gomonkey.ApplyMethodReturn(repo, "Get", nil, fmt.Errorf("test get error"))
+		defer patch4.Reset()
+		_, err = endpointBiz.Patch(context.TODO(), &api.EndpointSrvUpdateRequest{
+			UniqueKey:  epId,
+			Name:       "test_patch4",
+			UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"name"}},
+		})
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "test get error")
+		patch4.Reset()
+
+		patch5 := gomonkey.ApplyFuncReturn((*endpoint.EndpointWatcher).Update, fmt.Errorf("test watcher error"))
+		defer patch5.Reset()
+		_, err = endpointBiz.Patch(context.TODO(), &api.EndpointSrvUpdateRequest{
+			UniqueKey:  epId,
+			Name:       "test_patch4",
+			UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"name"}},
+		})
+		patch5.Reset()
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "test watcher error")
 	})
 }
 
@@ -222,17 +257,17 @@ func testListEndpoints(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	tags := []string{
+		fmt.Sprintf("test-biz-%d-%s", 0, time.Now().Format("20060102150405")),
+		fmt.Sprintf("test-biz-%d-%s", 1, time.Now().Format("20060102150405")),
+		fmt.Sprintf("test-biz-%d-%s", 2, time.Now().Format("20060102150405")),
+		fmt.Sprintf("test-biz-%d-%s", 3, time.Now().Format("20060102150405")),
+		fmt.Sprintf("test-biz-%d-%s", 4, time.Now().Format("20060102150405")),
+	}
 	c.Convey("Test List Endpoint", t, func() {
 
 		rander := rand.New(rand.NewSource(time.Now().UnixNano()))
 
-		tags := []string{
-			fmt.Sprintf("test-biz-%d-%s", 0, time.Now().Format("20060102150405")),
-			fmt.Sprintf("test-biz-%d-%s", 1, time.Now().Format("20060102150405")),
-			fmt.Sprintf("test-biz-%d-%s", 2, time.Now().Format("20060102150405")),
-			fmt.Sprintf("test-biz-%d-%s", 3, time.Now().Format("20060102150405")),
-			fmt.Sprintf("test-biz-%d-%s", 4, time.Now().Format("20060102150405")),
-		}
 		eps := make([]string, 0)
 		for i := 0; i < 10; i++ {
 
@@ -273,6 +308,23 @@ func testListEndpoints(t *testing.T) {
 		c.So(len(data), c.ShouldEqual, 2)
 
 	})
+
+	c.Convey("Test List Endpoint Fail", t, func() {
+		repo := data.NewEndpointRepo(nil, gateway.Log)
+		patch := gomonkey.ApplyMethodReturn(repo, "GetKeysByTags", nil, fmt.Errorf("test GetKeysByTags error"))
+		defer patch.Reset()
+		_, err := endpointBiz.List(context.TODO(), &api.ListEndpointRequest{Tags: []string{tags[0], tags[2]}})
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "test GetKeysByTags error")
+		patch.Reset()
+
+		patch2 := gomonkey.ApplyMethodReturn(repo, "List", nil, fmt.Errorf("test List error"))
+		defer patch2.Reset()
+		_, err = endpointBiz.List(context.TODO(), &api.ListEndpointRequest{Tags: []string{tags[0], tags[2]}})
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "test List error")
+		patch2.Reset()
+	})
 }
 
 func testDelEndpoint(t *testing.T) {
@@ -280,6 +332,23 @@ func testDelEndpoint(t *testing.T) {
 	c.Convey("Test Del Endpoint", t, func() {
 		err := endpointBiz.Delete(context.TODO(), epId)
 		c.So(err, c.ShouldBeNil)
+	})
+	c.Convey("Test Del Endpoint Fail", t, func() {
+		repo:=data.NewEndpointRepo(nil,gateway.Log)
+		patch:=gomonkey.ApplyMethodReturn(repo,"Del",fmt.Errorf("test Del error"))
+		defer patch.Reset()
+		err := endpointBiz.Delete(context.TODO(), epId)
+		patch.Reset()
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "test Del error")
+
+		patch2:=gomonkey.ApplyMethodReturn(repo,"Del",nil)
+		patch2.ApplyFuncReturn((*endpoint.EndpointWatcher).Del,fmt.Errorf("test watcher Del error"))
+		defer patch2.Reset()
+		err = endpointBiz.Delete(context.TODO(), epId)
+		patch2.Reset()
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "test watcher Del error")
 	})
 }
 
@@ -351,13 +420,14 @@ func testWatcherUpdate(t *testing.T) {
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "test DeleteHandlerClient error")
 
-		patch4 := gomonkey.ApplyFuncReturn(gateway.NewLoadBalanceEndpoint,nil, fmt.Errorf("test gateway.NewLoadBalanceEndpoint error"))
+		patch4 := gomonkey.ApplyFuncReturn(gateway.NewLoadBalanceEndpoint, nil, fmt.Errorf("test gateway.NewLoadBalanceEndpoint error"))
 		defer patch4.Reset()
 		err = watcher.Handle(context.TODO(), mvccpb.PUT, cnf.GetServiceKey(epId), string(val))
 		patch4.Reset()
 		c.So(err, c.ShouldNotBeNil)
-		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrUnknownLoadBalancer.Error())
+		c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrUnknownLoadBalancer.Error())
 
+	
 
 	})
 }

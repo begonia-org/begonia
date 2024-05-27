@@ -59,7 +59,7 @@ require (
 	github.com/spf13/afero v1.11.0 // indirect
 	github.com/spf13/cast v1.6.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/spf13/viper v1.18.2 // indirect
+	github.com/spf13/viper v1.18.2
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/thinkeridea/go-extend v1.3.2 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
@@ -80,7 +80,7 @@ require (
 require (
 	github.com/agiledragon/gomonkey/v2 v2.11.0
 	github.com/begonia-org/go-loadbalancer v0.0.0-20240519060752-71ca464f0f1a
-	github.com/begonia-org/go-sdk v0.0.0-20240524034736-5c195b7e4b0f
+	github.com/begonia-org/go-sdk v0.0.0-20240527022316-d5d4ecf54015
 	github.com/go-git/go-git/v5 v5.11.0
 	github.com/go-playground/validator/v10 v10.19.0
 	github.com/gorilla/websocket v1.5.0

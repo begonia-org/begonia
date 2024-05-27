@@ -27,6 +27,9 @@ auth:
   aes_iv: "L!#x].upV.>Jx0QN"
   jwt_secret: "WNjp6mW^GXnRf3]34asF"
   jwt_expiration: 7200 # seconds
+  rsa:
+    private_key: "/data/work/begonia-org/begonia/cert/auth_private_key.pem"
+    public_key: "/data/work/begonia-org/begonia/cert/auth_public_key.pem"
   blacklist:
     filter:
       entries: 100000
@@ -92,6 +95,19 @@ test:
     protos:
       dir: "/tmp/protos"
       desc: "/tmp/protos/api.bin"
+  etcd:
+    endpoint:
+      prefix: "/begonia/endpoints"
+    app:
+      prefix: "/begonia/apps"
+  auth:
+    aes_key: "1234567890123456"
+    aes_iv: "L!#x].upV.>Jx0QN"
+    jwt_secret: "WNjp6mW^GXnRf3]34asF"
+    jwt_expiration: 7200 # seconds
+    rsa:
+      private_key: "/tmp/auth_private_key.pem"
+      public_key: "/tmp/auth_public_key.pem"
 common:
   rdb_key_prefix: "begonia"
   filter_key_prefix: "begonia:filter"

@@ -45,7 +45,12 @@ func (l *LoggerImpl) getFieldsFromContext(ctx context.Context) logrus.Fields {
 		return logrus.Fields{}
 
 	}
-	reqId := md.Get(XRequestID)[0]
+	reqIds := md.Get(XRequestID)
+	reqId := ""
+	if len(reqIds) > 0 {
+		reqId = reqIds[0]
+
+	}
 	remoteAddr := ""
 	if len(md.Get("x-forwarded-for")) > 0 {
 		remoteAddr = md.Get("x-forwarded-for")[0]

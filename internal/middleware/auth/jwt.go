@@ -8,14 +8,13 @@ import (
 	"time"
 
 	"github.com/begonia-org/begonia/internal/biz"
+	"github.com/begonia-org/begonia/internal/pkg"
 	"github.com/begonia-org/begonia/internal/pkg/config"
-	"github.com/begonia-org/begonia/internal/pkg/errors"
-	"github.com/begonia-org/begonia/internal/pkg/routers"
+	gosdk "github.com/begonia-org/go-sdk"
 	api "github.com/begonia-org/go-sdk/api/user/v1"
 	"github.com/begonia-org/go-sdk/logger"
 	"github.com/bsm/redislock"
 	"github.com/spark-lence/tiga"
-	srvErr "github.com/spark-lence/tiga/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -57,11 +56,11 @@ func (a *JWTAuth) jwt2BasicAuth(authorization string) (*api.BasicAuth, error) {
 		token = strArr[1]
 	}
 	if token == "" {
-		return nil, srvErr.New(errors.ErrHeaderTokenFormat, "Token状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR), "缺少token"))
+		return nil, gosdk.NewError(pkg.ErrHeaderTokenFormat,int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR),codes.Unauthenticated , "check_token")
 	}
 	jwtInfo := strings.Split(token, ".")
 	if len(jwtInfo) != 3 {
-		return nil, srvErr.New(errors.ErrHeaderTokenFormat, "token状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR), "非法的token"))
+		return nil, gosdk.NewError(pkg.ErrHeaderTokenFormat, int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR),codes.Unauthenticated, "check_token_format")
 	}
 	// 生成signature
 	sig := fmt.Sprintf("%s.%s", jwtInfo[0], jwtInfo[1])
@@ -69,16 +68,16 @@ func (a *JWTAuth) jwt2BasicAuth(authorization string) (*api.BasicAuth, error) {
 
 	sig = tiga.ComputeHmacSha256(sig, secret)
 	if sig != jwtInfo[2] {
-		return nil, srvErr.New(errors.ErrTokenInvalid, "token状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR), "非法的token"))
+		return nil, gosdk.NewError(pkg.ErrTokenInvalid, int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR),codes.Internal,"check_sign")
 	}
 	payload := &api.BasicAuth{}
 	payloadBytes, err := tiga.Base64URL2Bytes(jwtInfo[1])
 	if err != nil {
-		return nil, srvErr.New(errors.ErrAuthDecrypt, "token状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR), "非法的token"))
+		return nil, gosdk.NewError(fmt.Errorf("%w:%w", pkg.ErrAuthDecrypt, err), int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR),codes.Unauthenticated, "check_token")
 	}
 	err = json.Unmarshal(payloadBytes, payload)
 	if err != nil {
-		return nil, srvErr.New(errors.ErrDecode, "token状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR), "非法的token"))
+		return nil, gosdk.NewError(fmt.Errorf("%w:%w", pkg.ErrDecode, err), int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR),codes.Unauthenticated, "check_token")
 	}
 	return payload, nil
 }
@@ -89,26 +88,25 @@ func (a *JWTAuth) JWTLock(uid string) (*redislock.Lock, error) {
 
 func (a *JWTAuth) checkJWTItem(ctx context.Context, payload *api.BasicAuth, token string) (bool, error) {
 	if payload.Expiration < time.Now().Unix() {
-		return false, srvErr.New(errors.ErrTokenExpired, "登陆状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_EXPIRE_ERR), "请重新登陆"))
+		return false, gosdk.NewError(pkg.ErrTokenExpired, int32(api.UserSvrCode_USER_TOKEN_EXPIRE_ERR),codes.Internal,"check_expired")
 	}
 	if payload.NotBefore > time.Now().Unix() {
 		remain := payload.NotBefore - time.Now().Unix()
-		msg := fmt.Sprintf("请%d秒后重试", remain)
-		return false, srvErr.New(errors.ErrTokenNotActive, "登陆状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_NOT_ACTIVTE_ERR), msg))
+		msg := fmt.Sprintf("Please retry after %d seconds ", remain)
+		return false, gosdk.NewError(pkg.ErrTokenNotActive, int32(api.UserSvrCode_USER_TOKEN_NOT_ACTIVTE_ERR),codes.Canceled,"check_not_active", gosdk.WithClientMessage(msg))
 	}
 	if payload.Issuer != "gateway" {
-		return false, srvErr.New(errors.ErrTokenIssuer, "登陆状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR), "请重新登陆"))
+		return false, gosdk.NewError(pkg.ErrTokenIssuer, int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR),codes.Unauthenticated,"check_issuer")
 	}
 	if ok, err := a.biz.CheckInBlackList(ctx, tiga.GetMd5(token)); ok {
-		if err != nil {
-			return false, err
-		}
-		return false, srvErr.New(errors.ErrTokenBlackList, "登陆状态校验", srvErr.WithMsgAndCode(int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR), "非法的token"))
+		return false, gosdk.NewError(fmt.Errorf("%w or %w", pkg.ErrTokenBlackList, err), int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR),codes.Unauthenticated,"check_blacklist")
+
 	}
 	return true, nil
 }
 func (a *JWTAuth) checkJWT(ctx context.Context, authorization string, rspHeader Header, reqHeader Header) (ok bool, err error) {
-	payload, err := a.jwt2BasicAuth(authorization)
+	payload, errAuth := a.jwt2BasicAuth(authorization)
+	err = errAuth
 	if err != nil {
 		return false, err
 	}
@@ -120,25 +118,26 @@ func (a *JWTAuth) checkJWT(ctx context.Context, authorization string, rspHeader 
 	}
 
 	left := payload.Expiration - time.Now().Unix()
-	expiration := a.config.GetJWTExpiration()
+	// expiration := a.config.GetJWTExpiration()
 	// 10%的时间刷新token
-	if left <= int64(float64(expiration)*0.1) {
+	if left <= int64(float64(payload.Expiration)*0.1) {
 		// 锁住之后再刷新
-		lock, err := a.JWTLock(payload.Uid)
+		lock, errLock := a.JWTLock(payload.Uid)
 		defer func() {
 			if p := recover(); p != nil {
 				ok = false
-				err = fmt.Errorf("刷新token失败,%v", p)
-				a.log.Errorf(ctx,"刷新token失败,%s", p)
+				err = fmt.Errorf("refresh token fail,%v", p)
+				a.log.Errorf(ctx, "refresh token fail,%v", p)
 			}
 			if lock != nil {
 				err := lock.Release(ctx)
 				if err != nil {
-					a.log.Errorf(ctx,"释放锁失败,%s", err.Error())
+					a.log.Errorf(ctx, "释放锁失败,%s", err.Error())
 				}
 			}
 		}()
 		// 正在刷新token
+		err = errLock
 		if err == redislock.ErrNotObtained {
 			return true, nil
 		}
@@ -153,7 +152,7 @@ func (a *JWTAuth) checkJWT(ctx context.Context, authorization string, rspHeader 
 		secret := a.config.GetJWTSecret()
 		newToken, err := tiga.GenerateJWT(payload, secret)
 		if err != nil {
-			return false, srvErr.New(err, "刷新token")
+			return false, gosdk.NewError(fmt.Errorf("%s:%w", "generate new token error", err), int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR),codes.Unauthenticated, "generate_token")
 		}
 		// 旧token加入黑名单
 		go a.biz.PutBlackList(ctx, a.config.GetUserBlackListKey(tiga.GetMd5(token)))
@@ -167,20 +166,11 @@ func (a *JWTAuth) checkJWT(ctx context.Context, authorization string, rspHeader 
 	return true, nil
 
 }
-func (a *JWTAuth) jwtValidator(ctx context.Context, fullName string, headers Header) (context.Context, error) {
+func (a *JWTAuth) jwtValidator(ctx context.Context, headers Header) (context.Context, error) {
 	// 获取请求的方法名
-	fullMethodName := fullName
 	// 获取路由
-	routersList := routers.Get()
-	router := routersList.GetRouteByGrpcMethod(fullMethodName)
-	if router == nil {
-		return nil, status.Errorf(codes.Unimplemented, "method not exists in context")
-	}
-	md, ok := metadata.FromIncomingContext(ctx)
-	if !ok {
-		return nil, status.Errorf(codes.Unauthenticated, "metadata not exists in context")
 
-	}
+	md, _ := metadata.FromIncomingContext(ctx)
 
 	token := a.GetAuthorizationFromMetadata(md)
 	if token == "" {
@@ -188,16 +178,11 @@ func (a *JWTAuth) jwtValidator(ctx context.Context, fullName string, headers Hea
 	}
 
 	ok, err := a.checkJWT(ctx, token, headers, headers)
-	if err != nil||!ok {
+	if err != nil || !ok {
 		return nil, status.Errorf(codes.Unauthenticated, "check token error,%v", err)
 	}
-	
+
 	newCtx := metadata.NewIncomingContext(ctx, md)
-
-
-	if !ok {
-		return nil, status.Errorf(codes.Unauthenticated, "token check failed")
-	}
 	return newCtx, nil
 	// return handler(newCtx, req)
 }
@@ -214,7 +199,7 @@ func (a *JWTAuth) RequestBefore(ctx context.Context, info *grpc.UnaryServerInfo,
 	}
 	headers := NewGrpcHeader(in, ctx, out)
 	defer headers.Release()
-	_, err := a.jwtValidator(ctx, info.FullMethod, headers)
+	_, err := a.jwtValidator(ctx, headers)
 	if err != nil {
 		return nil, err
 	}
@@ -223,7 +208,7 @@ func (a *JWTAuth) RequestBefore(ctx context.Context, info *grpc.UnaryServerInfo,
 
 func (a *JWTAuth) ValidateStream(ctx context.Context, req interface{}, fullName string, headers Header) (context.Context, error) {
 	// headers := NewGrpcStreamHeader(in, ctx, out,ss)
-	ctx, err := a.jwtValidator(ctx, fullName, headers)
+	ctx, err := a.jwtValidator(ctx, headers)
 	return ctx, err
 
 }
@@ -250,13 +235,11 @@ func (a *JWTAuth) UnaryInterceptor(ctx context.Context, req any, info *grpc.Unar
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		_ = a.ResponseAfter(ctx, info, req, resp)
+	}()
 	resp, err = handler(ctx, req)
-	if err != nil {
-		err = a.ResponseAfter(ctx, info, req, resp)
-		if err != nil {
-			return nil, err
-		}
-	}
+
 	return resp, err
 }
 
@@ -268,13 +251,14 @@ func (a *JWTAuth) StreamInterceptor(srv interface{}, ss grpc.ServerStream, info 
 	if err != nil {
 		return err
 	}
-	err = handler(srv, grpcStream)
-	if err != nil {
-		err = a.StreamResponseAfter(ss.Context(), ss, info)
+	defer func() {
+		err := a.StreamResponseAfter(ss.Context(), ss, info)
 		if err != nil {
-			return err
+			a.log.Errorf(ss.Context(), "StreamResponseAfter error,%s", err.Error())
 		}
-	}
+	}()
+	err = handler(srv, grpcStream)
+
 	return err
 }
 

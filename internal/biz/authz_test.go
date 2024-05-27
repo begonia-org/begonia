@@ -22,10 +22,10 @@ import (
 	"github.com/begonia-org/begonia/gateway"
 	"github.com/begonia-org/begonia/internal/biz"
 	"github.com/begonia-org/begonia/internal/data"
+	"github.com/begonia-org/begonia/internal/pkg"
 	cfg "github.com/begonia-org/begonia/internal/pkg/config"
 
 	"github.com/begonia-org/begonia/internal/pkg/crypto"
-	"github.com/begonia-org/begonia/internal/pkg/errors"
 	"github.com/begonia-org/begonia/internal/pkg/utils"
 	v1 "github.com/begonia-org/go-sdk/api/user/v1"
 	"github.com/spark-lence/tiga"
@@ -46,8 +46,9 @@ func newAuthzBiz() *biz.AuthzUsecase {
 	config := config.ReadConfig(env)
 	repo := data.NewAuthzRepo(config, gateway.Log)
 	user := data.NewUserRepo(config, gateway.Log)
-	crypto := crypto.NewUsersAuth()
 	cnf := cfg.NewConfig(config)
+	crypto := crypto.NewUsersAuth(cnf)
+
 	return biz.NewAuthzUsecase(repo, user, gateway.Log, crypto, cnf)
 }
 
@@ -159,7 +160,7 @@ func testLogin(t *testing.T) {
 		c.So(err, c.ShouldBeNil)
 		token, err := authzBiz.Login(context.TODO(), info)
 		c.So(err, c.ShouldNotBeNil)
-		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrUserPasswordInvalid.Error())
+		c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrUserPasswordInvalid.Error())
 		c.So(token, c.ShouldBeNil)
 	})
 	c.Convey("test login failed with invalid account", t, func() {
@@ -167,7 +168,7 @@ func testLogin(t *testing.T) {
 		c.So(err, c.ShouldBeNil)
 		token, err := authzBiz.Login(context.TODO(), info)
 		c.So(err, c.ShouldNotBeNil)
-		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrUserNotFound.Error())
+		c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrUserNotFound.Error())
 		c.So(token, c.ShouldBeNil)
 	})
 	c.Convey("test login failed with invalid pub key", t, func() {
@@ -214,10 +215,10 @@ func testLogin(t *testing.T) {
 		c.So(err, c.ShouldBeNil)
 		_, err = authzBiz.Login(context.TODO(), info)
 		c.So(err, c.ShouldNotBeNil)
-		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrTokenExpired.Error())
+		c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrTokenExpired.Error())
 	})
 	c.Convey("test login failed with invalid UserAuth", t, func() {
-	
+
 		info, _ := getUserAuth(adminUser, adminPasswd, pubKey, seedAuthToken, seedTimestampToken)
 		patch := gomonkey.ApplyFuncReturn(json.Marshal, nil, fmt.Errorf("error marshal"))
 		defer patch.Reset()
@@ -233,7 +234,7 @@ func testLogin(t *testing.T) {
 		info, _ := getUserAuth(adminUser, adminPasswd, pubKey, seedAuthToken, seedTimestampToken)
 		_, err := authzBiz.Login(context.TODO(), info)
 		c.So(err, c.ShouldNotBeNil)
-		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrEncrypt.Error())
+		c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrEncrypt.Error())
 		patch.Reset()
 
 	})
@@ -251,7 +252,7 @@ func testLogin(t *testing.T) {
 		c.So(err, c.ShouldBeNil)
 		_, err = authzBiz.Login(context.TODO(), info)
 		c.So(err, c.ShouldNotBeNil)
-		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrUserDisabled.Error())
+		c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrUserDisabled.Error())
 		patch.Reset()
 	})
 	c.Convey("test login failed with jwt generate error", t, func() {
@@ -282,12 +283,12 @@ func testLogout(t *testing.T) {
 		ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs("x-token-user", authzStr))
 		err := authzBiz.Logout(ctx, &v1.LogoutAPIRequest{})
 		c.So(err, c.ShouldNotBeNil)
-		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrTokenMissing.Error())
+		c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrTokenMissing.Error())
 
 		err = authzBiz.Logout(context.TODO(), &v1.LogoutAPIRequest{})
 
 		c.So(err, c.ShouldNotBeNil)
-		c.So(err.Error(), c.ShouldContainSubstring, errors.ErrNoMetadata.Error())
+		c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrNoMetadata.Error())
 
 		patch := gomonkey.ApplyFuncReturn((*biz.AuthzUsecase).PutBlackList, fmt.Errorf("error PutBlackList"))
 		defer patch.Reset()

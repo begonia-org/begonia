@@ -1,0 +1,299 @@
+{
+    "/helloworld.Greeter/SayHello": [
+        {
+            "Pattern": {},
+            "Template": {
+                "Version": 1,
+                "OpCodes": [
+                    2,
+                    0,
+                    2,
+                    1,
+                    2,
+                    2,
+                    2,
+                    3
+                ],
+                "Pool": [
+                    "api",
+                    "v1",
+                    "example",
+                    "post"
+                ],
+                "Verb": "",
+                "Fields": null,
+                "Template": "/api/v1/example/post"
+            },
+            "HttpMethod": "POST",
+            "FullMethodName": "/helloworld.Greeter/SayHello",
+            "HttpUri": "/api/v1/example/post",
+            "PathParams": [],
+            "InName": "HelloRequest",
+            "OutName": "HelloReply",
+            "IsClientStream": false,
+            "IsServerStream": false,
+            "Pkg": "helloworld",
+            "InPkg": "helloworld",
+            "OutPkg": "helloworld"
+        }
+    ],
+    "/helloworld.Greeter/SayHelloBody": [
+        {
+            "Pattern": {},
+            "Template": {
+                "Version": 1,
+                "OpCodes": [
+                    2,
+                    0,
+                    2,
+                    1,
+                    2,
+                    2,
+                    2,
+                    3
+                ],
+                "Pool": [
+                    "api",
+                    "v1",
+                    "example",
+                    "body"
+                ],
+                "Verb": "",
+                "Fields": null,
+                "Template": "/api/v1/example/body"
+            },
+            "HttpMethod": "POST",
+            "FullMethodName": "/helloworld.Greeter/SayHelloBody",
+            "HttpUri": "/api/v1/example/body",
+            "PathParams": [],
+            "InName": "HttpBody",
+            "OutName": "HttpBody",
+            "IsClientStream": false,
+            "IsServerStream": false,
+            "Pkg": "helloworld",
+            "InPkg": "google.api",
+            "OutPkg": "google.api"
+        }
+    ],
+    "/helloworld.Greeter/SayHelloClientStream": [
+        {
+            "Pattern": {},
+            "Template": {
+                "Version": 1,
+                "OpCodes": [
+                    2,
+                    0,
+                    2,
+                    1,
+                    2,
+                    2,
+                    2,
+                    3,
+                    2,
+                    4
+                ],
+                "Pool": [
+                    "api",
+                    "v1",
+                    "example",
+                    "client",
+                    "stream"
+                ],
+                "Verb": "",
+                "Fields": null,
+                "Template": "/api/v1/example/client/stream"
+            },
+            "HttpMethod": "POST",
+            "FullMethodName": "/helloworld.Greeter/SayHelloClientStream",
+            "HttpUri": "/api/v1/example/client/stream",
+            "PathParams": [],
+            "InName": "HelloRequest",
+            "OutName": "RepeatedReply",
+            "IsClientStream": true,
+            "IsServerStream": false,
+            "Pkg": "helloworld",
+            "InPkg": "helloworld",
+            "OutPkg": "helloworld"
+        }
+    ],
+    "/helloworld.Greeter/SayHelloError": [
+        {
+            "Pattern": {},
+            "Template": {
+                "Version": 1,
+                "OpCodes": [
+                    2,
+                    0,
+                    2,
+                    1,
+                    2,
+                    2,
+                    2,
+                    3,
+                    2,
+                    4
+                ],
+                "Pool": [
+                    "api",
+                    "v1",
+                    "example",
+                    "error",
+                    "test"
+                ],
+                "Verb": "",
+                "Fields": null,
+                "Template": "/api/v1/example/error/test"
+            },
+            "HttpMethod": "GET",
+            "FullMethodName": "/helloworld.Greeter/SayHelloError",
+            "HttpUri": "/api/v1/example/error/test",
+            "PathParams": [],
+            "InName": "ErrorRequest",
+            "OutName": "HelloReply",
+            "IsClientStream": false,
+            "IsServerStream": false,
+            "Pkg": "helloworld",
+            "InPkg": "helloworld",
+            "OutPkg": "helloworld"
+        }
+    ],
+    "/helloworld.Greeter/SayHelloGet": [
+        {
+            "Pattern": {},
+            "Template": {
+                "Version": 1,
+                "OpCodes": [
+                    2,
+                    0,
+                    2,
+                    1,
+                    2,
+                    2,
+                    1,
+                    0,
+                    4,
+                    1,
+                    5,
+                    3
+                ],
+                "Pool": [
+                    "api",
+                    "v1",
+                    "example",
+                    "name"
+                ],
+                "Verb": "",
+                "Fields": [
+                    "name"
+                ],
+                "Template": "/api/v1/example/{name}"
+            },
+            "HttpMethod": "GET",
+            "FullMethodName": "/helloworld.Greeter/SayHelloGet",
+            "HttpUri": "/api/v1/example/{name}",
+            "PathParams": [
+                "name"
+            ],
+            "InName": "HelloRequest",
+            "OutName": "HelloReply",
+            "IsClientStream": false,
+            "IsServerStream": false,
+            "Pkg": "helloworld",
+            "InPkg": "helloworld",
+            "OutPkg": "helloworld"
+        }
+    ],
+    "/helloworld.Greeter/SayHelloServerSideEvent": [
+        {
+            "Pattern": {},
+            "Template": {
+                "Version": 1,
+                "OpCodes": [
+                    2,
+                    0,
+                    2,
+                    1,
+                    2,
+                    2,
+                    2,
+                    3,
+                    2,
+                    4,
+                    1,
+                    0,
+                    4,
+                    1,
+                    5,
+                    5
+                ],
+                "Pool": [
+                    "api",
+                    "v1",
+                    "example",
+                    "server",
+                    "sse",
+                    "name"
+                ],
+                "Verb": "",
+                "Fields": [
+                    "name"
+                ],
+                "Template": "/api/v1/example/server/sse/{name}"
+            },
+            "HttpMethod": "GET",
+            "FullMethodName": "/helloworld.Greeter/SayHelloServerSideEvent",
+            "HttpUri": "/api/v1/example/server/sse/{name}",
+            "PathParams": [
+                "name"
+            ],
+            "InName": "HelloRequest",
+            "OutName": "HelloReply",
+            "IsClientStream": false,
+            "IsServerStream": true,
+            "Pkg": "helloworld",
+            "InPkg": "helloworld",
+            "OutPkg": "helloworld"
+        }
+    ],
+    "/helloworld.Greeter/SayHelloWebsocket": [
+        {
+            "Pattern": {},
+            "Template": {
+                "Version": 1,
+                "OpCodes": [
+                    2,
+                    0,
+                    2,
+                    1,
+                    2,
+                    2,
+                    2,
+                    3,
+                    2,
+                    4
+                ],
+                "Pool": [
+                    "api",
+                    "v1",
+                    "example",
+                    "server",
+                    "websocket"
+                ],
+                "Verb": "",
+                "Fields": null,
+                "Template": "/api/v1/example/server/websocket"
+            },
+            "HttpMethod": "GET",
+            "FullMethodName": "/helloworld.Greeter/SayHelloWebsocket",
+            "HttpUri": "/api/v1/example/server/websocket",
+            "PathParams": [],
+            "InName": "HelloRequest",
+            "OutName": "HelloReply",
+            "IsClientStream": true,
+            "IsServerStream": true,
+            "Pkg": "helloworld",
+            "InPkg": "helloworld",
+            "OutPkg": "helloworld"
+        }
+    ]
+}

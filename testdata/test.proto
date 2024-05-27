@@ -26,6 +26,7 @@ enum TestStaus{
 
 service TestService{
     option (.begonia.org.sdk.common.http_response)="begonia.org.sdk.common.HttpResponse";
+    option (.begonia.org.sdk.common.auth_reqiured)=true;
 
     rpc Get(TestRequest) returns (TestResponse){
         option (google.api.http) = {
@@ -58,6 +59,29 @@ service TestService{
     rpc Body(TestRequest) returns (google.api.HttpBody){
         option (google.api.http) = {
             get: "/test/body"
+        };
+    }
+    rpc Custom(TestRequest) returns (TestRequest) {
+        // 使用 HttpRule_Custom 来定义 HTTP 映射规则
+        option (google.api.http) = {
+          custom: {
+            kind: "GET"
+            path: "/test/custom"
+          }
+        };
+      }
+}
+
+service TestServiceWithoutOptions{
+    rpc Get(TestRequest) returns (TestResponse){
+        option (google.api.http) = {
+            get: "/test/v2/get"
+        };
+    }
+    rpc Post(TestRequest) returns (TestResponse){
+        option (google.api.http) = {
+            post: "/test/v2/post"
+            body: "*"
         };
     }
 }

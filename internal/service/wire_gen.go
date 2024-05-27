@@ -34,7 +34,7 @@ func NewAuthzSvrForTest(config2 *tiga.Configuration, log logger.Logger) v1.AuthS
 	dataData := data.NewData(mySQLDao, redisDao, etcdDao)
 	curd := data.NewCurdImpl(mySQLDao, configConfig)
 	userRepo := data.NewUserRepoImpl(dataData, layeredCache, curd, configConfig)
-	usersAuth := crypto.NewUsersAuth()
+	usersAuth := crypto.NewUsersAuth(configConfig)
 	authzUsecase := biz.NewAuthzUsecase(authzRepo, userRepo, log, usersAuth, configConfig)
 	authServiceServer := NewAuthzService(authzUsecase, log, usersAuth, configConfig)
 	return authServiceServer

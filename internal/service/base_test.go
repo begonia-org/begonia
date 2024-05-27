@@ -23,9 +23,9 @@ var shareEndpoint = ""
 
 // "NWkbCslfh9ea2LjVIUsKehJuopPb65fn", "oVPNllSR1DfizdmdSF7wLjgABYbexdt4FZ1HWrI81dD5BeNhsyXpXPDFoDEyiSVe"
 var apiAddr = "http://127.0.0.1:12140"
-var accessKey = "NWkbCslfh9ea2LjVIUsKehJuopPb65fn"
-var secret = "oVPNllSR1DfizdmdSF7wLjgABYbexdt4FZ1HWrI81dD5BeNhsyXpXPDFoDEyiSVe"
-var sdkAPPID = "424077418374893568"
+var accessKey = "P6DKyCxyz2ewz4brsFPJtusyMLYh4uex"
+var secret = "5Ygsu0UiZJPil4eWf5XcXec3gYKcWiCfJtyGGQbHekUlEMf7KXM7pSWdev8UfhiI"
+var sdkAPPID = "449250203195674624"
 
 func runExampleServer() {
 	onceExampleServer.Do(func() {

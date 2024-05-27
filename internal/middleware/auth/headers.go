@@ -43,6 +43,7 @@ var grpcStreamHeaderPool = &sync.Pool{
 		return &GrpcStreamHeader{}
 	},
 }
+
 func (g *GrpcHeader) Release() {
 	g.ctx = nil
 	g.in = nil

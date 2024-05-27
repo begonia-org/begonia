@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"math"
 	"time"
 
 	"github.com/begonia-org/begonia/internal/biz/file"
+	"github.com/begonia-org/begonia/internal/pkg"
 	"github.com/begonia-org/begonia/internal/pkg/config"
-	"github.com/begonia-org/begonia/internal/pkg/errors"
 	loadbalance "github.com/begonia-org/go-loadbalancer"
 	gosdk "github.com/begonia-org/go-sdk"
 	api "github.com/begonia-org/go-sdk/api/endpoint/v1"
@@ -32,20 +32,21 @@ type EndpointRepo interface {
 }
 
 type EndpointUsecase struct {
-	repo   EndpointRepo
-	config *config.Config
-	file   *file.FileUsecase
-	snk    *tiga.Snowflake
+	repo    EndpointRepo
+	config  *config.Config
+	file    *file.FileUsecase
+	snk     *tiga.Snowflake
+	watcher *EndpointWatcher
 }
 
 func NewEndpointUsecase(repo EndpointRepo, file *file.FileUsecase, config *config.Config) *EndpointUsecase {
 	snk, _ := tiga.NewSnowflake(1)
-	return &EndpointUsecase{repo: repo, file: file, config: config, snk: snk}
+	return &EndpointUsecase{repo: repo, file: file, config: config, snk: snk, watcher: NewWatcher(config, repo)}
 }
 
 func (e *EndpointUsecase) AddConfig(ctx context.Context, srvConfig *api.EndpointSrvConfig) (string, error) {
 	if !loadbalance.CheckBalanceType(srvConfig.Balance) {
-		return "", gosdk.NewError(errors.ErrUnknownLoadBalancer, int32(api.EndpointSvrStatus_NOT_SUPPORT_BALANCE), codes.InvalidArgument, "balance_type")
+		return "", gosdk.NewError(pkg.ErrUnknownLoadBalancer, int32(api.EndpointSvrStatus_NOT_SUPPORT_BALANCE), codes.InvalidArgument, "balance_type")
 	}
 	id := e.snk.GenerateIDString()
 
@@ -67,7 +68,13 @@ func (e *EndpointUsecase) AddConfig(ctx context.Context, srvConfig *api.Endpoint
 		return "", gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "put_endpoint")
 
 	}
-	return id, nil
+	data, _ := json.Marshal(endpoint)
+	err = e.watcher.Update(ctx, id, string(data))
+	if err != nil {
+		return "", gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "watcher_update")
+
+	}
+	return id, err
 
 }
 func (e *EndpointUsecase) Patch(ctx context.Context, srvConfig *api.EndpointSrvUpdateRequest) (string, error) {
@@ -96,22 +103,43 @@ func (e *EndpointUsecase) Patch(ctx context.Context, srvConfig *api.EndpointSrvU
 	if err != nil {
 		return "", gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "patch_config")
 	}
-	return updated_at, nil
+	detailsKey := e.config.GetServiceKey(srvConfig.UniqueKey)
+
+	newVal, err := e.repo.Get(ctx, detailsKey)
+	if err != nil {
+		return "", gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_endpoint")
+	}
+	err = e.watcher.Update(ctx, srvConfig.UniqueKey, newVal)
+	if err != nil {
+		return "", gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "watcher_update")
+	}
+	return updated_at, err
 }
 
 func (u *EndpointUsecase) Delete(ctx context.Context, uniqueKey string) error {
-	return u.repo.Del(ctx, uniqueKey)
+	detailsKey := u.config.GetServiceKey(uniqueKey)
+
+	origin, _ := u.repo.Get(ctx, detailsKey)
+	err := u.repo.Del(ctx, uniqueKey)
+	if err != nil {
+		return gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "del_endpoint")
+	}
+	err = u.watcher.Del(ctx, uniqueKey, origin)
+	if err != nil {
+		return gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "watcher_del")
+	}
+	return nil
 }
 
 func (u *EndpointUsecase) Get(ctx context.Context, uniqueKey string) (*api.Endpoints, error) {
 	detailsKey := u.config.GetServiceKey(uniqueKey)
 	value, err := u.repo.Get(ctx, detailsKey)
 	if err != nil {
-		return nil, gosdk.NewError(fmt.Errorf("%s:%w", errors.ErrEndpointNotExists.Error(), err), int32(common.Code_NOT_FOUND), codes.NotFound, "get_endpoint")
+		return nil, gosdk.NewError(fmt.Errorf("%s:%w", pkg.ErrEndpointNotExists.Error(), err), int32(common.Code_NOT_FOUND), codes.NotFound, "get_endpoint")
 
 	}
 	if value == "" {
-		return nil, gosdk.NewError(errors.ErrEndpointNotExists, int32(common.Code_NOT_FOUND), codes.NotFound, "get_endpoint")
+		return nil, gosdk.NewError(pkg.ErrEndpointNotExists, int32(common.Code_NOT_FOUND), codes.NotFound, "get_endpoint")
 	}
 	// log.Printf("get endpoint value:%s", value)
 	endpoint := &api.Endpoints{}
@@ -126,7 +154,7 @@ func (u *EndpointUsecase) Get(ctx context.Context, uniqueKey string) (*api.Endpo
 func (u *EndpointUsecase) List(ctx context.Context, in *api.ListEndpointRequest) ([]*api.Endpoints, error) {
 	keys := make([]string, 0)
 	if len(in.Tags) > 0 {
-		log.Printf("list tags:%v", in.Tags)
+		// log.Printf("list tags:%v", in.Tags)
 		ks, err := u.repo.GetKeysByTags(ctx, in.Tags)
 		if err != nil {
 			return nil, gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_keys_by_tags")
@@ -134,8 +162,29 @@ func (u *EndpointUsecase) List(ctx context.Context, in *api.ListEndpointRequest)
 		keys = append(keys, ks...)
 
 	}
+
 	if len(in.UniqueKeys) > 0 {
 		keys = append(keys, in.UniqueKeys...)
 	}
-	return u.repo.List(ctx, keys)
+	list := make([]*api.Endpoints, 0)
+	page := 1
+	pageSize := 20
+	number := int(math.Ceil(float64(len(keys)) / float64(pageSize)))
+	for page <= number {
+		start := (page - 1) * pageSize
+		end := page * pageSize
+		if end > len(keys) {
+			end = len(keys)
+		}
+		ks := keys[start:end]
+		eps, err := u.repo.List(ctx, ks)
+		if err != nil {
+			return nil, gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "list_endpoint")
+		}
+		list = append(list, eps...)
+		page++
+
+	}
+	// log.Printf("list keys:%v", keys)
+	return list, nil
 }
