@@ -567,6 +567,10 @@ func testRegisterLocalService(t *testing.T) {
 		c.So(rsp.Message, c.ShouldEqual, "hello")
 		c.So(rsp.Name, c.ShouldEqual, "world")
 
+		err = localGW.RegisterLocalService(context.Background(), pd, exampleServer.Desc(), exampleServer)
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "already exists")
+
 	})
 	c.Convey("test del local service", t, func() {
 		localGW.DeleteLocalService(pd)
