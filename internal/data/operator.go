@@ -52,8 +52,8 @@ func (r *dataOperatorRepo) GetAllForbiddenUsers(ctx context.Context) ([]*api.Use
 	page := int32(1)
 	for {
 		user, err := r.user.List(ctx, nil, []api.USER_STATUS{api.USER_STATUS_LOCKED, api.USER_STATUS_DELETED, api.USER_STATUS_INACTIVE}, page, 100)
-		if err != nil||len(user) == 0 {
-			if err!=nil&&strings.Contains(err.Error(), gorm.ErrRecordNotFound.Error()) {
+		if err != nil || len(user) == 0 {
+			if err != nil && strings.Contains(err.Error(), gorm.ErrRecordNotFound.Error()) {
 				break
 			}
 			return users, err
@@ -70,8 +70,8 @@ func (r *dataOperatorRepo) GetAllApps(ctx context.Context) ([]*app.Apps, error) 
 	page := int32(1)
 	for {
 		app, err := r.app.List(ctx, nil, nil, page, 100)
-		if err != nil||len(app) == 0 {
-			if err!=nil&&strings.Contains(err.Error(), gorm.ErrRecordNotFound.Error()) {
+		if err != nil || len(app) == 0 {
+			if err != nil && strings.Contains(err.Error(), gorm.ErrRecordNotFound.Error()) {
 				break
 			}
 			return apps, err
@@ -132,7 +132,7 @@ func (d *dataOperatorRepo) FlashUsersCache(ctx context.Context, prefix string, m
 	return err
 }
 
-func (d *dataOperatorRepo) LoadRemoteCache(ctx context.Context)error {
+func (d *dataOperatorRepo) LoadRemoteCache(ctx context.Context) error {
 
 	err := d.local.kv.LoadDump(ctx)
 	if err != nil {
@@ -192,7 +192,7 @@ func (d *dataOperatorRepo) Sync(interval time.Duration) {
 
 	go func() {
 		for range ticker.C {
-			_=d.LoadRemoteCache(context.Background())
+			_ = d.LoadRemoteCache(context.Background())
 		}
 	}()
 
@@ -210,7 +210,8 @@ func (d *dataOperatorRepo) onStartOperator() {
 		for err := range errKvChan {
 			d.local.log.Errorf(context.TODO(), "kv error %v", err)
 		}
-	}()}
+	}()
+}
 func (d *dataOperatorRepo) OnStart() {
 	d.onceOnStart.Do(func() {
 		d.onStartOperator()

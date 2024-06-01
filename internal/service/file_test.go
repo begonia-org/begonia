@@ -145,8 +145,6 @@ func uploadParts(t *testing.T) {
 		conf := cfg.NewConfig(config.ReadConfig(env))
 
 		filePath := filepath.Join(conf.GetUploadDir(), rsp.Uri)
-		// filename := filepath.Base(rsp.Uri)
-		// filePath := filepath.Join(saveDir, filename)
 
 		file, err := os.Open(filePath)
 		c.So(err, c.ShouldBeNil)
@@ -246,6 +244,7 @@ func testRangeDownload(t *testing.T) {
 
 	})
 }
+
 func testUploadErr(t *testing.T) {
 	c.Convey("test upload file err", t, func() {
 		env := "dev"
@@ -290,14 +289,6 @@ func testDownloadErr(t *testing.T) {
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "test PathUnescape error")
 
-		// patch2 := gomonkey.ApplyFuncReturn(grpc.SendHeader, fmt.Errorf("test SendHeader error"))
-		// defer patch2.Reset()
-		// ctx = metadata.NewIncomingContext(context.Background(), metadata.Pairs("x-identity", sdkAPPID))
-		// _, err = srv.Download(ctx, &api.DownloadRequest{Key: sdkAPPID + "/test/helloworld.pb"})
-		// patch2.Reset()
-		// c.So(err, c.ShouldNotBeNil)
-		// c.So(err.Error(), c.ShouldContainSubstring, "test SendHeader error")
-
 	})
 }
 func testRangeDownloadErr(t *testing.T) {
@@ -308,10 +299,6 @@ func testRangeDownloadErr(t *testing.T) {
 		}
 		cnf := config.ReadConfig(env)
 		srv := service.NewFileSvrForTest(cnf, gateway.Log)
-		// ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs("app_id", sdkAPPID))
-		// _, err := srv.DownloadForRange(ctx, &api.DownloadRequest{})
-		// c.So(err, c.ShouldNotBeNil)
-		// c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrIdentityMissing.Error())
 
 		cases := []struct {
 			rangeStr string
@@ -371,6 +358,26 @@ func testRangeDownloadErr(t *testing.T) {
 
 	})
 }
+
+func testAbortUpload(t *testing.T) {
+	c.Convey("test range download file", t, func() {
+		apiClient := client.NewFilesAPI(apiAddr, accessKey, secret)
+		_, err := apiClient.AbortUpload(context.Background(), "test/tmp.bindddasd")
+		c.So(err, c.ShouldNotBeNil)
+		// tmp, err := os.CreateTemp("", "testfile-*.txt")
+		// c.So(err, c.ShouldBeNil)
+		// defer tmp.Close()
+		// defer os.Remove(tmp.Name())
+		// rsp, err := apiClient.RangeDownload(context.Background(), sdkAPPID+"/test/tmp.bin", "", -1, 128)
+		// c.So(err, c.ShouldBeNil)
+		// c.So(len(rsp), c.ShouldEqual, 129)
+
+		// rsp, err = apiClient.RangeDownload(context.Background(), sdkAPPID+"/test/tmp.bin", "", 128, -1)
+		// c.So(err, c.ShouldBeNil)
+		// c.So(len(rsp), c.ShouldEqual, 1024*1024*2-128)
+
+	})
+}
 func testDelErr(t *testing.T) {
 	c.Convey("test delete file err", t, func() {
 		env := "dev"
@@ -415,6 +422,7 @@ func TestFile(t *testing.T) {
 	t.Run("testDownloadErr", testDownloadErr)
 	t.Run("uploadParts", uploadParts)
 	t.Run("testRangeDownload", testRangeDownload)
+	t.Run("testAbortUpload", testAbortUpload)
 	t.Run("testRangeDownloadErr", testRangeDownloadErr)
 	t.Run("downloadParts", downloadParts)
 	t.Run("deleteFile", deleteFile)

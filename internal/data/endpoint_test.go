@@ -353,7 +353,7 @@ func delEndpointTest(t *testing.T) {
 		c.So(err.Error(), c.ShouldContainSubstring, "del GetWithPrefix fail")
 		patch.Reset()
 
-		patch2:=gomonkey.ApplyFuncReturn((*Data).PutEtcdWithTxn, false, fmt.Errorf("del PutEtcdWithTxn fail"))
+		patch2 := gomonkey.ApplyFuncReturn((*Data).PutEtcdWithTxn, false, fmt.Errorf("del PutEtcdWithTxn fail"))
 		defer patch2.Reset()
 		err = repo.Del(context.Background(), endpointId)
 		c.So(err, c.ShouldNotBeNil)
@@ -371,7 +371,6 @@ func delEndpointTest(t *testing.T) {
 		keys, err := repo.GetKeysByTags(context.Background(), []string{tag3})
 		c.So(err, c.ShouldBeNil)
 		c.So(keys, c.ShouldBeEmpty)
-
 
 	})
 }
@@ -427,7 +426,7 @@ func putTagsTest(t *testing.T) {
 		c.So(err.Error(), c.ShouldContainSubstring, "marshal tags fail")
 		patch2.Reset()
 
-		patch3 := gomonkey.ApplyFuncReturn((*endpointRepoImpl).Get,"", fmt.Errorf("get endpoint fail"))
+		patch3 := gomonkey.ApplyFuncReturn((*endpointRepoImpl).Get, "", fmt.Errorf("get endpoint fail"))
 		defer patch3.Reset()
 		err = repo.PutTags(context.Background(), endpointId, []string{tag1, tag2, tag3})
 		c.So(err, c.ShouldNotBeNil)

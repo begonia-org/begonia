@@ -56,11 +56,11 @@ func (a *JWTAuth) jwt2BasicAuth(authorization string) (*api.BasicAuth, error) {
 		token = strArr[1]
 	}
 	if token == "" {
-		return nil, gosdk.NewError(pkg.ErrHeaderTokenFormat,int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR),codes.Unauthenticated , "check_token")
+		return nil, gosdk.NewError(pkg.ErrHeaderTokenFormat, int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR), codes.Unauthenticated, "check_token")
 	}
 	jwtInfo := strings.Split(token, ".")
 	if len(jwtInfo) != 3 {
-		return nil, gosdk.NewError(pkg.ErrHeaderTokenFormat, int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR),codes.Unauthenticated, "check_token_format")
+		return nil, gosdk.NewError(pkg.ErrHeaderTokenFormat, int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR), codes.Unauthenticated, "check_token_format")
 	}
 	// 生成signature
 	sig := fmt.Sprintf("%s.%s", jwtInfo[0], jwtInfo[1])
@@ -68,16 +68,16 @@ func (a *JWTAuth) jwt2BasicAuth(authorization string) (*api.BasicAuth, error) {
 
 	sig = tiga.ComputeHmacSha256(sig, secret)
 	if sig != jwtInfo[2] {
-		return nil, gosdk.NewError(pkg.ErrTokenInvalid, int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR),codes.Internal,"check_sign")
+		return nil, gosdk.NewError(pkg.ErrTokenInvalid, int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR), codes.Internal, "check_sign")
 	}
 	payload := &api.BasicAuth{}
 	payloadBytes, err := tiga.Base64URL2Bytes(jwtInfo[1])
 	if err != nil {
-		return nil, gosdk.NewError(fmt.Errorf("%w:%w", pkg.ErrAuthDecrypt, err), int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR),codes.Unauthenticated, "check_token")
+		return nil, gosdk.NewError(fmt.Errorf("%w:%w", pkg.ErrAuthDecrypt, err), int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR), codes.Unauthenticated, "check_token")
 	}
 	err = json.Unmarshal(payloadBytes, payload)
 	if err != nil {
-		return nil, gosdk.NewError(fmt.Errorf("%w:%w", pkg.ErrDecode, err), int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR),codes.Unauthenticated, "check_token")
+		return nil, gosdk.NewError(fmt.Errorf("%w:%w", pkg.ErrDecode, err), int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR), codes.Unauthenticated, "check_token")
 	}
 	return payload, nil
 }
@@ -88,18 +88,18 @@ func (a *JWTAuth) JWTLock(uid string) (*redislock.Lock, error) {
 
 func (a *JWTAuth) checkJWTItem(ctx context.Context, payload *api.BasicAuth, token string) (bool, error) {
 	if payload.Expiration < time.Now().Unix() {
-		return false, gosdk.NewError(pkg.ErrTokenExpired, int32(api.UserSvrCode_USER_TOKEN_EXPIRE_ERR),codes.Internal,"check_expired")
+		return false, gosdk.NewError(pkg.ErrTokenExpired, int32(api.UserSvrCode_USER_TOKEN_EXPIRE_ERR), codes.Internal, "check_expired")
 	}
 	if payload.NotBefore > time.Now().Unix() {
 		remain := payload.NotBefore - time.Now().Unix()
 		msg := fmt.Sprintf("Please retry after %d seconds ", remain)
-		return false, gosdk.NewError(pkg.ErrTokenNotActive, int32(api.UserSvrCode_USER_TOKEN_NOT_ACTIVTE_ERR),codes.Canceled,"check_not_active", gosdk.WithClientMessage(msg))
+		return false, gosdk.NewError(pkg.ErrTokenNotActive, int32(api.UserSvrCode_USER_TOKEN_NOT_ACTIVTE_ERR), codes.Canceled, "check_not_active", gosdk.WithClientMessage(msg))
 	}
 	if payload.Issuer != "gateway" {
-		return false, gosdk.NewError(pkg.ErrTokenIssuer, int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR),codes.Unauthenticated,"check_issuer")
+		return false, gosdk.NewError(pkg.ErrTokenIssuer, int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR), codes.Unauthenticated, "check_issuer")
 	}
 	if ok, err := a.biz.CheckInBlackList(ctx, tiga.GetMd5(token)); ok {
-		return false, gosdk.NewError(fmt.Errorf("%w or %w", pkg.ErrTokenBlackList, err), int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR),codes.Unauthenticated,"check_blacklist")
+		return false, gosdk.NewError(fmt.Errorf("%w or %w", pkg.ErrTokenBlackList, err), int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR), codes.Unauthenticated, "check_blacklist")
 
 	}
 	return true, nil
@@ -152,7 +152,7 @@ func (a *JWTAuth) checkJWT(ctx context.Context, authorization string, rspHeader 
 		secret := a.config.GetJWTSecret()
 		newToken, err := tiga.GenerateJWT(payload, secret)
 		if err != nil {
-			return false, gosdk.NewError(fmt.Errorf("%s:%w", "generate new token error", err), int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR),codes.Unauthenticated, "generate_token")
+			return false, gosdk.NewError(fmt.Errorf("%s:%w", "generate new token error", err), int32(api.UserSvrCode_USER_TOKEN_INVALIDATE_ERR), codes.Unauthenticated, "generate_token")
 		}
 		// 旧token加入黑名单
 		go a.biz.PutBlackList(ctx, a.config.GetUserBlackListKey(tiga.GetMd5(token)))

@@ -66,7 +66,7 @@ func (app *AppService) Delete(ctx context.Context, in *api.DeleteAppRequest) (*a
 func (app *AppService) List(ctx context.Context, in *api.AppsListRequest) (*api.AppsListResponse, error) {
 	apps, err := app.biz.List(ctx, in)
 	if err != nil {
-	    return nil, err
+		return nil, err
 	}
 	return &api.AppsListResponse{Apps: apps}, nil
 	// return nil, nil

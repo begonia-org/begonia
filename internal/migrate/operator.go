@@ -9,12 +9,12 @@ import (
 type InitOperator struct {
 	migrate *MySQLMigrate
 	user    *UsersOperator
-	app    *APPOperator
+	app     *APPOperator
 	config  *config.Config
 }
 
-func NewInitOperator(migrate *MySQLMigrate, user *UsersOperator,app *APPOperator, config *config.Config) *InitOperator {
-	return &InitOperator{migrate: migrate, user: user, config: config,app:app}
+func NewInitOperator(migrate *MySQLMigrate, user *UsersOperator, app *APPOperator, config *config.Config) *InitOperator {
+	return &InitOperator{migrate: migrate, user: user, config: config, app: app}
 }
 
 func (m *InitOperator) Init() error {
@@ -29,7 +29,7 @@ func (m *InitOperator) Init() error {
 	phone := m.config.GetDefaultAdminPhone()
 	aseKey := m.config.GetAesKey()
 	ivKey := m.config.GetAesIv()
-	uid,err := m.user.InitAdminUser(adminPasswd, aseKey, ivKey, name, email, phone)
+	uid, err := m.user.InitAdminUser(adminPasswd, aseKey, ivKey, name, email, phone)
 	if err != nil {
 		log.Printf("failed to init admin user: %v", err)
 		return err

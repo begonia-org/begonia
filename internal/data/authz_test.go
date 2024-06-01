@@ -7,9 +7,9 @@ import (
 
 	"github.com/begonia-org/begonia"
 	cfg "github.com/begonia-org/begonia/config"
+	"github.com/begonia-org/begonia/gateway"
 	c "github.com/smartystreets/goconvey/convey"
 	"github.com/spark-lence/tiga"
-	"github.com/begonia-org/begonia/gateway"
 )
 
 var token = ""

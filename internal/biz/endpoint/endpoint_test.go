@@ -334,16 +334,16 @@ func testDelEndpoint(t *testing.T) {
 		c.So(err, c.ShouldBeNil)
 	})
 	c.Convey("Test Del Endpoint Fail", t, func() {
-		repo:=data.NewEndpointRepo(nil,gateway.Log)
-		patch:=gomonkey.ApplyMethodReturn(repo,"Del",fmt.Errorf("test Del error"))
+		repo := data.NewEndpointRepo(nil, gateway.Log)
+		patch := gomonkey.ApplyMethodReturn(repo, "Del", fmt.Errorf("test Del error"))
 		defer patch.Reset()
 		err := endpointBiz.Delete(context.TODO(), epId)
 		patch.Reset()
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "test Del error")
 
-		patch2:=gomonkey.ApplyMethodReturn(repo,"Del",nil)
-		patch2.ApplyFuncReturn((*endpoint.EndpointWatcher).Del,fmt.Errorf("test watcher Del error"))
+		patch2 := gomonkey.ApplyMethodReturn(repo, "Del", nil)
+		patch2.ApplyFuncReturn((*endpoint.EndpointWatcher).Del, fmt.Errorf("test watcher Del error"))
 		defer patch2.Reset()
 		err = endpointBiz.Delete(context.TODO(), epId)
 		patch2.Reset()
@@ -426,8 +426,6 @@ func testWatcherUpdate(t *testing.T) {
 		patch4.Reset()
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrUnknownLoadBalancer.Error())
-
-	
 
 	})
 }

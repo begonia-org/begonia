@@ -39,6 +39,6 @@ func NewOperator(cfg *tiga.Configuration, log logger.Logger) biz.DataOperatorRep
 func NewDataRepo(cfg *tiga.Configuration, log logger.Logger) *Data {
 	panic(wire.Build(ProviderSet))
 }
-func NewLocker(cfg *tiga.Configuration, log logger.Logger,key string, ttl time.Duration,retry int) biz.DataLock {
+func NewLocker(cfg *tiga.Configuration, log logger.Logger, key string, ttl time.Duration, retry int) biz.DataLock {
 	panic(wire.Build(ProviderSet))
 }

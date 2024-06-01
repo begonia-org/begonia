@@ -13,9 +13,11 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/agiledragon/gomonkey/v2"
 	"github.com/begonia-org/begonia"
 	"github.com/begonia-org/begonia/config"
 	"github.com/begonia-org/begonia/gateway"
+	"github.com/begonia-org/begonia/internal/biz"
 	"github.com/begonia-org/begonia/internal/service"
 	sys "github.com/begonia-org/go-sdk/api/sys/v1"
 	v1 "github.com/begonia-org/go-sdk/api/user/v1"
@@ -98,6 +100,11 @@ func testLogout(t *testing.T) {
 		t,
 		func() {
 			apiClient := client.NewAuthzAPI(apiAddr, accessKey, secret)
+			patch := gomonkey.ApplyFuncReturn((*biz.AuthzUsecase).Logout, fmt.Errorf("logout error"))
+			defer patch.Reset()
+			_, err := apiClient.Logout(context.Background(), xtoken)
+			patch.Reset()
+			c.So(err, c.ShouldNotBeNil)
 			rsp, err := apiClient.Logout(context.Background(), xtoken)
 			c.So(err, c.ShouldBeNil)
 			c.So(rsp.StatusCode, c.ShouldEqual, common.Code_OK)

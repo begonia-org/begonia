@@ -53,7 +53,7 @@ func testAddUser(t *testing.T) {
 
 		c.So(err, c.ShouldBeNil)
 		time.Sleep(2 * time.Second)
-		pipe,err := repo.Cache(context.TODO(), "test:user:cache", []*api.Users{{Uid: uid, Name: user1, Dept: "dev"}}, 3*time.Second, func(user *api.Users) ([]byte, interface{}) {
+		pipe, err := repo.Cache(context.TODO(), "test:user:cache", []*api.Users{{Uid: uid, Name: user1, Dept: "dev"}}, 3*time.Second, func(user *api.Users) ([]byte, interface{}) {
 			return []byte(user.Uid), user.Uid
 		})
 		c.So(err, c.ShouldBeNil)
@@ -212,7 +212,7 @@ func testUpdateUser(t *testing.T) {
 		createdAt := user.CreatedAt
 		user.Name = fmt.Sprintf("user-update-%s", time.Now().Format("20060102150405"))
 		time.Sleep(1 * time.Second)
-		snk,_:=tiga.NewSnowflake(1)
+		snk, _ := tiga.NewSnowflake(1)
 		user.Phone = snk.GenerateIDString()
 		user.UpdateMask = &fieldmaskpb.FieldMask{Paths: []string{"name", "phone"}}
 		err = repo.Patch(context.TODO(), user)
@@ -340,7 +340,7 @@ func testCacheError(t *testing.T) {
 		}
 		patch := gomonkey.ApplyFuncReturn((*LayeredCache).Set, fmt.Errorf("set cache error"))
 		defer patch.Reset()
-		_,err := repo.Cache(context.TODO(), "test:user:cache", users, 3*time.Second, func(user *api.Users) ([]byte, interface{}) {
+		_, err := repo.Cache(context.TODO(), "test:user:cache", users, 3*time.Second, func(user *api.Users) ([]byte, interface{}) {
 			return []byte(user.Uid), user.Uid
 		})
 		c.So(err, c.ShouldNotBeNil)

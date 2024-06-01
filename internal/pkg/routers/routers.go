@@ -28,10 +28,11 @@ type APIMethodDetails struct {
 	// 服务名
 	ServiceName string
 	// 方法名
-	HttpMethodName string
-	AuthRequired   bool
-	RequestMethod  string
-	GrpcFullRouter string
+	HttpMethodName  string
+	AuthRequired    bool
+	UseJsonResponse bool
+	RequestMethod   string
+	GrpcFullRouter  string
 }
 type HttpURIRouteToSrvMethod struct {
 	routers    map[string]*APIMethodDetails
@@ -138,15 +139,16 @@ func (h *HttpURIRouteToSrvMethod) DeleteRouterDetails(fullMethod string, method 
 	uri, _ := h.getUri(method)
 	h.deleteRoute(uri, fullMethod)
 }
-func (r *HttpURIRouteToSrvMethod) addRouterDetails(serviceName string, authRequired bool, methodName *descriptorpb.MethodDescriptorProto) {
+func (r *HttpURIRouteToSrvMethod) addRouterDetails(serviceName string, useJsonResponse, authRequired bool, methodName *descriptorpb.MethodDescriptorProto) {
 	// 获取并打印 google.api.http 注解
 	if path, method := r.getUri(methodName); path != "" {
 		r.AddRoute(path, &APIMethodDetails{
-			ServiceName:    serviceName,
-			HttpMethodName: string(methodName.GetName()),
-			AuthRequired:   authRequired,
-			RequestMethod:  method,
-			GrpcFullRouter: serviceName,
+			ServiceName:     serviceName,
+			HttpMethodName:  string(methodName.GetName()),
+			AuthRequired:    authRequired,
+			RequestMethod:   method,
+			GrpcFullRouter:  serviceName,
+			UseJsonResponse: useJsonResponse,
 		})
 
 	}
@@ -158,14 +160,18 @@ func (r *HttpURIRouteToSrvMethod) LoadAllRouters(pd gateway.ProtobufDescription)
 		for _, service := range fd.Service {
 
 			authRequired := false
+			httpResponse := false
 			// 获取并打印 pb.auth_reqiured 注解
 			if authRequiredExt := r.getServiceOptionByExt(service, common.E_AuthReqiured); authRequiredExt != nil {
 				authRequired, _ = authRequiredExt.(bool)
 			}
+			if httpResponseExt := r.getServiceOptionByExt(service, common.E_HttpResponse); httpResponseExt != nil {
+				httpResponse = true
+			}
 			// 遍历服务中的所有方法
 			for _, method := range service.GetMethod() {
 				key := fmt.Sprintf("/%s.%s/%s", fd.GetPackage(), service.GetName(), method.GetName())
-				r.addRouterDetails(strings.ToUpper(key), authRequired, method)
+				r.addRouterDetails(strings.ToUpper(key), httpResponse, authRequired, method)
 			}
 
 		}

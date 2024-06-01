@@ -83,6 +83,6 @@ func (d *maskDecoder) Decode(v interface{}) error {
 	}
 	// 设置更新掩码字段
 	SetUpdateMaskFields(message, fields)
-	
+
 	return nil
 }

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"net/http"
+	"sync"
 
 	"github.com/gorilla/websocket"
 )
@@ -21,6 +22,7 @@ type websocketForwarder struct {
 	http.ResponseWriter
 	websocket    *websocket.Conn
 	responseType int
+	mux sync.Mutex
 }
 
 func NewWebsocketForwarder(w http.ResponseWriter, req *http.Request, responseType int) (WebsocketForwarder, error) {
@@ -32,15 +34,17 @@ func NewWebsocketForwarder(w http.ResponseWriter, req *http.Request, responseTyp
 	if err != nil {
 		return nil, err
 	}
-	return &websocketForwarder{w, conn, responseType}, nil
+	return &websocketForwarder{w, conn, responseType,sync.Mutex{}}, nil
 }
 func (w *websocketForwarder) Flush() {
 }
 func (w *websocketForwarder) Close() error {
 	// w.websocket.NextWriter()
-	return w.websocket.WriteMessage(websocket.CloseMessage,websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+	w.mux.Lock()
+	defer w.mux.Unlock()
+	return w.websocket.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 }
-func (w *websocketForwarder)CloseConn() error{
+func (w *websocketForwarder) CloseConn() error {
 	return w.websocket.Close()
 }
 func (w *websocketForwarder) NextReader() (io.Reader, error) {

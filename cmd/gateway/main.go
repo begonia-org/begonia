@@ -4,10 +4,9 @@ import (
 	"log"
 
 	"github.com/begonia-org/begonia/config"
+	"github.com/begonia-org/begonia/gateway"
 	"github.com/begonia-org/begonia/internal"
 	"github.com/spf13/cobra"
-	"github.com/begonia-org/begonia/gateway"
-
 )
 
 // var ProviderSet = wire.NewSet(NewMasterCmd)

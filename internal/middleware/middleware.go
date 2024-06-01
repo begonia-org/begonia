@@ -2,12 +2,12 @@ package middleware
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"time"
 
 	"github.com/begonia-org/begonia/gateway"
 	"github.com/begonia-org/begonia/internal/biz"
-	"github.com/begonia-org/begonia/internal/data"
 	"github.com/begonia-org/begonia/internal/middleware/auth"
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	goloadbalancer "github.com/begonia-org/go-loadbalancer"
@@ -21,14 +21,14 @@ import (
 //	var Plugins = map[string]gosdk.GrpcPlugin{
 //		"jwt": &auth.JWTAuth{},
 //	}
-var ProviderSet = wire.NewSet(New,auth.NewAccessKeyAuth)
+var ProviderSet = wire.NewSet(New, auth.NewAccessKeyAuth)
 
 func New(config *config.Config,
 	rdb *tiga.RedisDao,
 	user *biz.AuthzUsecase,
 	log logger.Logger,
 	authz *biz.AccessKeyAuth,
-	local *data.LayeredCache) *PluginsApply {
+) *PluginsApply {
 	jwt := auth.NewJWTAuth(config, rdb, user, log)
 	ak := auth.NewAccessKeyAuth(authz, config, log)
 	apiKey := auth.NewApiKeyAuth(config)
@@ -50,15 +50,15 @@ func New(config *config.Config,
 		if plugin, ok := plugins[pluginName]; ok {
 			pluginsApply.Register(plugin, priority.(int))
 		} else {
-			log.Warnf(context.TODO(), "plugin %s not found", pluginName)
+			panic(fmt.Sprintf("plugin %s not found", pluginName))
 
 		}
 	}
 
 	rpcPlugins, err := config.GetRPCPlugins()
 	if err != nil {
-		log.Errorf(context.TODO(), "get rpc plugins error:%v", err)
-		return pluginsApply
+		panic(fmt.Sprintf("get rpc plugins error:%v", err))
+
 	}
 	for _, rpc := range rpcPlugins {
 		lb := goloadbalancer.NewGrpcLoadBalance(rpc)

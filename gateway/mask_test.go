@@ -73,7 +73,7 @@ func TestDecodeErr(t *testing.T) {
 		}
 		r := bytes.NewReader([]byte(`{"message":"John Doe","msg":{"msg":"hello world"},"allow":"DENY","repeated_msg":[{"msg":"John Doe"}]}`))
 		decoder := NewMaskDecoder(NewJsonDecoder(r))
-		mapData:=make(map[string]interface{})
+		mapData := make(map[string]interface{})
 		err := decoder.Decode(mapData)
 		c.So(err, c.ShouldBeNil)
 		c.So(len(mapData), c.ShouldEqual, 0)

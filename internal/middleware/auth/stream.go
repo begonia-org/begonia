@@ -11,8 +11,7 @@ import (
 )
 
 type StreamValidator interface {
-	ValidateStream(ctx context.Context, req interface{}, fullName string, headers Header) (context.Context, error) 
-
+	ValidateStream(ctx context.Context, req interface{}, fullName string, headers Header) (context.Context, error)
 }
 type grpcServerStream struct {
 	grpc.ServerStream
@@ -28,7 +27,8 @@ var streamPool = &sync.Pool{
 		}
 	},
 }
-func NewGrpcStream(s grpc.ServerStream, fullName string, ctx context.Context,validator StreamValidator) *grpcServerStream {
+
+func NewGrpcStream(s grpc.ServerStream, fullName string, ctx context.Context, validator StreamValidator) *grpcServerStream {
 	stream := streamPool.Get().(*grpcServerStream)
 	stream.ServerStream = s
 	stream.fullName = fullName
@@ -61,7 +61,7 @@ func (s *grpcServerStream) RecvMsg(m interface{}) error {
 
 	}
 
-	header :=NewGrpcStreamHeader(in, s.Context(), out, s.ServerStream)
+	header := NewGrpcStreamHeader(in, s.Context(), out, s.ServerStream)
 	_, err := s.validate.ValidateStream(s.Context(), m, s.fullName, header)
 	s.ctx = header.ctx
 	header.Release()

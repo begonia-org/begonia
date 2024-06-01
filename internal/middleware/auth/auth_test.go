@@ -455,12 +455,11 @@ func TestStreamInterceptorErr(t *testing.T) {
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, fmt.Errorf("metadata not exists in context").Error())
 
-		err = mid.StreamInterceptor(&hello.HelloRequest{}, &greeterSayHelloWebsocketServer{ServerStream: &testStream{ctx: metadata.NewIncomingContext(context.Background(),metadata.Pairs("Authorization", ""))}}, &grpc.StreamServerInfo{FullMethod: "/INTEGRATION.TESTSERVICE/GET"}, func(srv any, ss grpc.ServerStream) error {
+		err = mid.StreamInterceptor(&hello.HelloRequest{}, &greeterSayHelloWebsocketServer{ServerStream: &testStream{ctx: metadata.NewIncomingContext(context.Background(), metadata.Pairs("Authorization", ""))}}, &grpc.StreamServerInfo{FullMethod: "/INTEGRATION.TESTSERVICE/GET"}, func(srv any, ss grpc.ServerStream) error {
 			return ss.RecvMsg(srv)
 		})
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrTokenMissing.Error())
-
 
 	})
 

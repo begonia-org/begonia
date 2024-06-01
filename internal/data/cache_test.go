@@ -30,7 +30,7 @@ func TestGetFromLocalErr(t *testing.T) {
 		defer patch.Reset()
 		_, err = cache.GetFromLocal(context.Background(), fmt.Sprintf("test-local:%s", time.Now().Format("20060102150405")))
 		c.So(err, c.ShouldNotBeNil)
-		c.So(err.Error(),c.ShouldContainSubstring,"local cache value is not found")
+		c.So(err.Error(), c.ShouldContainSubstring, "local cache value is not found")
 
 		patch.Reset()
 		fk := fmt.Sprintf("test-local:%s", time.Now().Format("20060102150405"))
@@ -61,14 +61,14 @@ func TestCacheWatch(t *testing.T) {
 		cnf := config.NewConfig(conf)
 		key := fmt.Sprintf("%s:%s", cnf.GetKeyValuePrefix(), time.Now().Format("20060102150405"))
 		// _ = rdb.GetClient().Set(context.Background(), key, key, 10*time.Second)
-		cache2 := newCache(tiga.NewRedisDao(conf),cnf, gateway.Log)
+		cache2 := newCache(tiga.NewRedisDao(conf), cnf, gateway.Log)
 
-		err:=cache2.Set(context.Background(), key, []byte(key), 10*time.Second)
-		c.So(err,c.ShouldBeNil)
-		time.Sleep(2*time.Second)
-		val,err:=cache.GetFromLocal(context.Background(), key)
-		c.So(err,c.ShouldBeNil)
-		c.So(string(val),c.ShouldEqual,key)
+		err := cache2.Set(context.Background(), key, []byte(key), 10*time.Second)
+		c.So(err, c.ShouldBeNil)
+		time.Sleep(2 * time.Second)
+		val, err := cache.GetFromLocal(context.Background(), key)
+		c.So(err, c.ShouldBeNil)
+		c.So(string(val), c.ShouldEqual, key)
 
 	})
 }

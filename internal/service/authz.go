@@ -51,8 +51,6 @@ func (u *AuthzService) Logout(ctx context.Context, req *api.LogoutAPIRequest) (*
 
 }
 
-
-
 func (u *AuthzService) Desc() *grpc.ServiceDesc {
 	return &api.AuthService_ServiceDesc
 }

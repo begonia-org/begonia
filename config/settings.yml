@@ -109,14 +109,14 @@ test:
       private_key: "/tmp/auth_private_key.pem"
       public_key: "/tmp/auth_public_key.pem"
 common:
-  rdb_key_prefix: "begonia"
-  filter_key_prefix: "begonia:filter"
-  app_key_prefix: "begonia:kv:app"
-  blacklist_key_prefix: "begonia:blacklist"
-  pubsub_key_prefix: "begonia:pubsub"
+  cache_prefix_key: "begonia"
+  filter_key_prefix: "filter"
+  app_key_prefix: "kv:app"
+  # blacklist_key_prefix: "blacklist"
+  pubsub_key_prefix: "pubsub"
   multi_cache_strategy: 1
-  kv_prefix: "begonia:cache"
-  pubsub_key_channel: "begonia:pubsub:channel"
+  kv_prefix: "cache"
+  pubsub_key_channel: "pubsub:channel"
   etcd:
     endpoint:
       prefix: "/begonia/endpoints"

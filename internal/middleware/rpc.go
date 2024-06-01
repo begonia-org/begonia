@@ -22,15 +22,15 @@ import (
 
 type RPCPluginCaller interface{}
 
-type rpcPluginCallerImpl struct {
-	plugins gosdk.Plugins
-}
+// type rpcPluginCallerImpl struct {
+// 	plugins gosdk.Plugins
+// }
 
-func NewRPCPluginCaller() RPCPluginCaller {
-	return &rpcPluginCallerImpl{
-		plugins: make(gosdk.Plugins, 0),
-	}
-}
+// func NewRPCPluginCaller() RPCPluginCaller {
+// 	return &rpcPluginCallerImpl{
+// 		plugins: make(gosdk.Plugins, 0),
+// 	}
+// }
 
 type pluginImpl struct {
 	priority int
@@ -52,33 +52,15 @@ func (p *pluginImpl) Name() string {
 }
 
 func (p *pluginImpl) UnaryInterceptor(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
-	endpoint, err := p.getEndpoint(ctx)
-	if err != nil {
-		return nil, err
-	}
-	cn, err := endpoint.Get(ctx)
-	if err != nil {
-		return nil, gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_connection")
-	}
-	defer endpoint.AfterTransform(ctx, cn.((goloadbalancer.Connection)))
-	conn := cn.(goloadbalancer.Connection).ConnInstance().(*grpc.ClientConn)
-	plugin := api.NewPluginServiceClient(conn)
-	anyReq, err := anypb.New(req.(proto.Message))
-	if err != nil {
-		return nil, gosdk.NewError(fmt.Errorf("new any to plugin error: %w", err), int32(common.Code_PARAMS_ERROR), codes.InvalidArgument, "new_any")
-
-	}
-	rsp, err := plugin.Call(ctx, &api.PluginRequest{
-		Request:        anyReq,
-		FullMethodName: info.FullMethod,
-	})
-	if err != nil {
-		return nil, gosdk.NewError(fmt.Errorf("call plugin error: %w", err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "call_plugin")
-	}
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
 		md = metadata.New(nil)
 	}
+	rsp, err := p.Apply(ctx, req, info.FullMethod)
+	if err != nil {
+		return nil, gosdk.NewError(fmt.Errorf("call plugin error: %w", err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "call_plugin")
+	}
+
 	for k, v := range rsp.Metadata {
 		md.Append(k, v)
 	}
@@ -115,7 +97,7 @@ func (p *pluginImpl) getEndpoint(ctx context.Context) (lb.Endpoint, error) {
 	return endpoint, nil
 
 }
-func (p *pluginImpl) Call(ctx context.Context, in *api.PluginRequest, opts ...grpc.CallOption) (*api.PluginResponse, error) {
+func (p *pluginImpl) Apply(ctx context.Context, in interface{}, fullMethodName string) (*api.PluginResponse, error) {
 
 	endpoint, err := p.getEndpoint(ctx)
 	if err != nil {
@@ -129,9 +111,18 @@ func (p *pluginImpl) Call(ctx context.Context, in *api.PluginRequest, opts ...gr
 	conn := cn.(goloadbalancer.Connection).ConnInstance().(*grpc.ClientConn)
 
 	plugin := api.NewPluginServiceClient(conn)
-	return plugin.Call(ctx, in, opts...)
+	anyReq, err := anypb.New(in.(proto.Message))
+	if err != nil {
+		return nil, gosdk.NewError(fmt.Errorf("new any to plugin error: %w", err), int32(common.Code_PARAMS_ERROR), codes.InvalidArgument, "new_any")
+
+	}
+	return plugin.Apply(ctx, &api.PluginRequest{
+		Request:        anyReq,
+		FullMethodName: fullMethodName,
+	})
+	// return plugin.Call(ctx, anyReq, opts...)
 }
-func (p *pluginImpl) GetPluginInfo(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*api.PluginInfo, error) {
+func (p *pluginImpl) Info(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*api.PluginInfo, error) {
 	endpoint, err := p.getEndpoint(ctx)
 	if err != nil {
 		return nil, err
@@ -143,11 +134,22 @@ func (p *pluginImpl) GetPluginInfo(ctx context.Context, in *emptypb.Empty, opts 
 	defer endpoint.AfterTransform(ctx, cn.((goloadbalancer.Connection)))
 	conn := cn.(goloadbalancer.Connection).ConnInstance().(*grpc.ClientConn)
 	plugin := api.NewPluginServiceClient(conn)
-	return plugin.GetPluginInfo(ctx, in, opts...)
+	return plugin.Info(ctx, in, opts...)
 }
 func (p *pluginImpl) StreamInterceptor(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 
 	grpcStream := NewGrpcPluginStream(ss, info.FullMethod, ss.Context(), p)
+	if grpcStream != nil {
+		defer grpcStream.Release()
+
+	}
 	return handler(srv, grpcStream)
 
+}
+func NewPluginImpl(lb lb.LoadBalance, name string, timeout time.Duration) *pluginImpl {
+	return &pluginImpl{
+		lb:      lb,
+		name:    name,
+		timeout: timeout,
+	}
 }

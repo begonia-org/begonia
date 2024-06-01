@@ -314,7 +314,7 @@ func TestJWTStreamInterceptor(t *testing.T) {
 		c.So(err.Error(), c.ShouldContainSubstring, "test")
 		patch.Reset()
 
-		err=jwt.StreamResponseAfter(context.TODO(), auth.NewGrpcStream(&testStream{},"",context.TODO(),nil), nil)
+		err = jwt.StreamResponseAfter(context.TODO(), auth.NewGrpcStream(&testStream{}, "", context.TODO(), nil), nil)
 		c.So(err, c.ShouldBeNil)
 	})
 }

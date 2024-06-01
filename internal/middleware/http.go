@@ -3,8 +3,6 @@ package middleware
 import (
 	"context"
 	"fmt"
-	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/begonia-org/begonia/internal/pkg/routers"
@@ -18,7 +16,6 @@ import (
 	_ "github.com/begonia-org/go-sdk/api/user/v1"
 	common "github.com/begonia-org/go-sdk/common/api/v1"
 
-	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/genproto/googleapis/api/httpbody"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -52,13 +49,14 @@ func (s *HttpStream) SendMsg(m interface{}) error {
 	if !ok {
 		return s.ServerStream.SendMsg(m)
 	}
-	if protocol, ok := md["grpcgateway-content-type"]; ok {
+	if protocol, ok := md["grpcgateway-accept"]; ok {
 		if !strings.EqualFold(protocol[0], "application/json") {
 			return s.ServerStream.SendMsg(m)
 		}
 		routersList := routers.Get()
+		router := routersList.GetRouteByGrpcMethod(s.FullMethod)
 		// 对内置服务的http响应进行格式化
-		if routersList.IsLocalSrv(s.FullMethod) {
+		if routersList.IsLocalSrv(s.FullMethod) || router.UseJsonResponse {
 
 			rsp, _ := grpcToHttpResponse(m, nil)
 			return s.ServerStream.SendMsg(rsp)
@@ -83,86 +81,8 @@ func getClientMessageMap() map[int32]string {
 
 }
 
-//	func isValidContentType(ct string) bool {
-//		mimeType, _, err := mime.ParseMediaType(ct)
-//		return err == nil && mimeType != ""
-//	}
-
-func writeHttpHeaders(w http.ResponseWriter, key string, value []string) {
-	if httpKey := gosdk.GetHttpHeaderKey(key); httpKey != "" {
-		for _, v := range value {
-			w.Header().Del(key)
-			if v != "" {
-				if strings.EqualFold(httpKey, "Content-Type") {
-					w.Header().Set(httpKey, v)
-				} else {
-					w.Header().Add(httpKey, v)
-
-				}
-
-				headers := w.Header().Values("Access-Control-Expose-Headers")
-				for _, h := range headers {
-					if strings.EqualFold(h, httpKey) {
-						return
-					}
-				}
-				headers = append(headers, http.CanonicalHeaderKey(httpKey))
-				w.Header().Set("Access-Control-Expose-Headers", strings.Join(headers, ","))
-
-			}
-		}
-
-	}
-
-}
-func HttpResponseBodyModify(ctx context.Context, w http.ResponseWriter, msg proto.Message) error {
-	httpCode := http.StatusOK
-	for key, value := range w.Header() {
-		if strings.HasPrefix(key, "Grpc-Metadata-") {
-			w.Header().Del(key)
-		}
-		writeHttpHeaders(w, key, value)
-		if strings.HasSuffix(http.CanonicalHeaderKey(key), "X-Http-Code") {
-			codeStr := value[0]
-			code, err := strconv.ParseInt(codeStr, 10, 32)
-			if err != nil {
-				return gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "internal_error")
-			}
-			httpCode = int(code)
-
-		}
-
-	}
-
-	out, ok := metadata.FromOutgoingContext(ctx)
-	if ok {
-		for k, v := range out {
-			writeHttpHeaders(w, k, v)
-		}
-	}
-	if httpCode != http.StatusOK {
-		w.WriteHeader(httpCode)
-	}
-	return nil
-}
-
-func OutgoingMetaInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
-	md, ok := metadata.FromIncomingContext(ctx)
-	if ok {
-		if reqIds, ok := md["x-request-id"]; ok {
-			ctx = metadata.AppendToOutgoingContext(ctx, gosdk.GetMetadataKey("x-request-id"), reqIds[0])
-		}
-	}
-	resp, err = handler(ctx, req)
-	if err == nil {
-		return resp, err
-	}
-	return nil, err
-}
-
 func toStructMessage(msg protoreflect.ProtoMessage) (*structpb.Struct, error) {
 	jsonBytes, err := protojson.Marshal(msg)
-
 	if err != nil {
 		return nil, fmt.Errorf("Failed to serialize message to JSON: %w", err)
 	}
@@ -175,7 +95,6 @@ func toStructMessage(msg protoreflect.ProtoMessage) (*structpb.Struct, error) {
 	return structMsg, nil
 }
 func grpcToHttpResponse(rsp interface{}, err error) (*common.HttpResponse, error) {
-	// log.Printf("error code:%d", 2222222)
 
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
@@ -219,7 +138,7 @@ func grpcToHttpResponse(rsp interface{}, err error) (*common.HttpResponse, error
 			Code:    int32(common.Code_INTERNAL_ERROR),
 			Data:    nil,
 			Message: "internal error",
-		}, nil
+		}, err
 
 	}
 	anyData := &structpb.Struct{}
@@ -247,8 +166,9 @@ func (h *Http) UnaryInterceptor(ctx context.Context, req interface{}, info *grpc
 			return handler(ctx, req)
 		}
 		routersList := routers.Get()
+		router := routersList.GetRouteByGrpcMethod(info.FullMethod)
 		// 对内置服务的http响应进行格式化
-		if routersList.IsLocalSrv(info.FullMethod) {
+		if routersList.IsLocalSrv(info.FullMethod) || router.UseJsonResponse {
 			rsp, err := handler(ctx, req)
 			if _, ok := rsp.(*httpbody.HttpBody); ok {
 				return rsp, err
@@ -278,19 +198,4 @@ func (h *Http) SetPriority(priority int) {
 }
 func (h *Http) Name() string {
 	return h.name
-}
-
-func HandleRoutingError(ctx context.Context, mux *runtime.ServeMux, marshaler runtime.Marshaler, w http.ResponseWriter, r *http.Request, httpStatus int) {
-	if httpStatus != http.StatusMethodNotAllowed {
-		runtime.DefaultRoutingErrorHandler(ctx, mux, marshaler, w, r, httpStatus)
-		return
-	}
-
-	// Use HTTPStatusError to customize the DefaultHTTPErrorHandler status code
-	err := &runtime.HTTPStatusError{
-		HTTPStatus: httpStatus,
-		Err:        status.Error(codes.Unimplemented, http.StatusText(httpStatus)),
-	}
-
-	runtime.DefaultHTTPErrorHandler(ctx, mux, marshaler, w, r, err)
 }

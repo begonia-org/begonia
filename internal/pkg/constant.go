@@ -5,8 +5,6 @@ import (
 	"fmt"
 )
 
-
-
 var (
 	ErrUserNotFound        = errors.New("用户不存在")
 	ErrUserDisabled        = errors.New("用户已禁用")

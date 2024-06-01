@@ -190,7 +190,7 @@ func patchTest(t *testing.T) {
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "appid can not be updated")
 
-		patch := gomonkey.ApplyFuncReturn(getPrimaryColumnValue,"",nil, fmt.Errorf("getPrimaryColumnValue error"))
+		patch := gomonkey.ApplyFuncReturn(getPrimaryColumnValue, "", nil, fmt.Errorf("getPrimaryColumnValue error"))
 		defer patch.Reset()
 		err = repo.Patch(context.Background(), updated)
 		c.So(err, c.ShouldNotBeNil)

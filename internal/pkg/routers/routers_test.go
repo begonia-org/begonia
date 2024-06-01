@@ -27,9 +27,9 @@ func TestLoadAllRouters(t *testing.T) {
 		d = R.GetRouteByGrpcMethod("/INTEGRATION.TESTSERVICE/GET")
 		c.So(d, c.ShouldNotBeNil)
 
-		rs:=R.GetAllRoutes()
+		rs := R.GetAllRoutes()
 		c.So(len(rs), c.ShouldBeGreaterThan, 0)
-		d,ok:=rs["/test/custom"]
+		d, ok := rs["/test/custom"]
 		c.So(ok, c.ShouldBeTrue)
 		c.So(d.ServiceName, c.ShouldEqual, "/INTEGRATION.TESTSERVICE/CUSTOM")
 

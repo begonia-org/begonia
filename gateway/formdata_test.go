@@ -82,8 +82,8 @@ func TestFormDataContentType(t *testing.T) {
 		c.So(pb.SfixedData, c.ShouldEqual, 11949)
 		c.So(pb.Sfixed32Data, c.ShouldEqual, 21949)
 		c.So(pb.Fixed32Data, c.ShouldEqual, 31949)
-		marshal:=&FormDataMarshaler{}
-		c.So(marshal.ContentType(nil),c.ShouldEqual,"multipart/form-data")
+		marshal := &FormDataMarshaler{}
+		c.So(marshal.ContentType(nil), c.ShouldEqual, "multipart/form-data")
 	})
 }
 
@@ -108,8 +108,8 @@ func TestFormUrlEncodedContentType(t *testing.T) {
 		c.So(err, c.ShouldBeNil)
 		c.So(pb.Message, c.ShouldEqual, "John Doe")
 		c.So(pb.Allow, c.ShouldEqual, api.EnumAllow_DENY)
-		marshal:=&FormUrlEncodedMarshaler{}
-		c.So(marshal.ContentType(nil),c.ShouldEqual,"application/x-www-form-urlencoded")
+		marshal := &FormUrlEncodedMarshaler{}
+		c.So(marshal.ContentType(nil), c.ShouldEqual, "application/x-www-form-urlencoded")
 	})
 }
 
@@ -136,20 +136,19 @@ func TestFormUrlEncodedErr(t *testing.T) {
 			formData.Add("message", "John Doe")
 			formData.Add("allow", api.EnumAllow_DENY.String())
 			_, filePath, _, _ := runtime.Caller(0)
-	
+
 			// 添加文件
 			data, _ := os.ReadFile(filePath)
 			formData.Add("byte_data", string(data))
 			pb := &api.ExampleMessage{}
 			dpb := dynamicpb.NewMessage(pb.ProtoReflect().Descriptor())
 			decoder := &FormUrlEncodedDecoder{r: strings.NewReader(formData.Encode())}
-			patch:=gomonkey.ApplyFuncReturn(caseV.patch, caseV.output...)
+			patch := gomonkey.ApplyFuncReturn(caseV.patch, caseV.output...)
 			defer patch.Reset()
 			err := decoder.Decode(dpb)
 			c.So(err, c.ShouldNotBeNil)
 			patch.Reset()
 		}
-
 
 	})
 }

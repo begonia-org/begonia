@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"sync"
 	"time"
 
@@ -77,6 +78,7 @@ func (d *DataOperatorUsecase) Handle(ctx context.Context) {
 		a := action
 		go func(action operationAction, wg *sync.WaitGroup) {
 			defer wg.Done()
+			d.log.Infof(ctx, "start action")
 			errChan <- action(ctx)
 		}(a, wg)
 
@@ -96,20 +98,20 @@ func (d *DataOperatorUsecase) Handle(ctx context.Context) {
 // loadUsersBlacklist 加载用户黑名单
 func (d *DataOperatorUsecase) loadUsersBlacklist(ctx context.Context) error {
 	exp := d.config.GetUserBlackListExpiration() - 1
+
 	if exp <= 0 {
+
 		return fmt.Errorf("expiration time is too short")
 	}
 	lockKey := d.config.GetUserBlackListLockKey()
-	// d.log.Infof(ctx, "lock key:%d", exp)
-	lock, err := d.repo.Locker(ctx, lockKey, time.Second*time.Duration(exp))
+	log.Printf("lockKey:%s", lockKey)
+	lock, err := d.repo.Locker(ctx, lockKey, time.Second*time.Duration(10))
 	if err != nil {
-		d.log.Errorf(ctx, "get lock error:%s", err.Error())
 		return fmt.Errorf("get lock error:%w", err)
 
 	}
 
 	if err = lock.Lock(ctx); err != nil && err != redislock.ErrNotObtained {
-		// d.log.Error("lock error:", err)
 		return fmt.Errorf("lock error: %w", err)
 	}
 	defer func() {
@@ -126,6 +128,7 @@ func (d *DataOperatorUsecase) loadUsersBlacklist(ctx context.Context) error {
 	// 如果缓存时间小于3秒，说明刚刚更新过，不需要再次更新
 	// 直接加载远程缓存到本地
 	// lastUpdate ttl<exp,避免更新不到缓存的情况
+	log.Printf("lastUpdate:%v", lastUpdate)
 	if lastUpdate.IsZero() || time.Since(lastUpdate) < 3*time.Second {
 		users, err := d.repo.GetAllForbiddenUsers(ctx)
 		d.log.Infof(ctx, "load users:%d", len(users))
