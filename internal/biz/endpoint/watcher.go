@@ -23,7 +23,7 @@ import (
 type EndpointWatcher struct {
 	config *config.Config
 	repo   EndpointRepo
-	mux sync.Mutex
+	mux    sync.Mutex
 }
 
 // update
@@ -110,6 +110,6 @@ func NewWatcher(config *config.Config, repo EndpointRepo) *EndpointWatcher {
 	return &EndpointWatcher{
 		config: config,
 		repo:   repo,
-		mux:sync.Mutex{},
+		mux:    sync.Mutex{},
 	}
 }

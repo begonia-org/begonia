@@ -103,8 +103,8 @@ func testRegisterErr(t *testing.T) {
 
 		})
 }
-func testUpdateErr(t *testing.T){
-	c.Convey("test update user error",t,func(){
+func testUpdateErr(t *testing.T) {
+	c.Convey("test update user error", t, func() {
 		env := "dev"
 		if begonia.Env != "" {
 			env = begonia.Env
@@ -113,14 +113,14 @@ func testUpdateErr(t *testing.T){
 		srv := service.NewUserSvrForTest(cnf, gateway.Log)
 		patch := gomonkey.ApplyFuncReturn((*biz.UserUsecase).Update, fmt.Errorf("test update user error"))
 		defer patch.Reset()
-		_,err:=srv.Update(context.Background(),&api.PatchUserRequest{Uid: "",Owner: "test-user-01"})
-		c.So(err,c.ShouldNotBeNil)
-		c.So(err.Error(),c.ShouldContainSubstring,"test update user error")
+		_, err := srv.Update(context.Background(), &api.PatchUserRequest{Uid: "", Owner: "test-user-01"})
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "test update user error")
 		patch.Reset()
 	})
 }
-func testDelUserErr(t *testing.T){
-	c.Convey("test delete user error",t,func(){
+func testDelUserErr(t *testing.T) {
+	c.Convey("test delete user error", t, func() {
 		env := "dev"
 		if begonia.Env != "" {
 			env = begonia.Env
@@ -129,9 +129,9 @@ func testDelUserErr(t *testing.T){
 		srv := service.NewUserSvrForTest(cnf, gateway.Log)
 		patch := gomonkey.ApplyFuncReturn((*biz.UserUsecase).Delete, fmt.Errorf("test delete user error"))
 		defer patch.Reset()
-		_,err:=srv.Delete(context.Background(),&api.DeleteUserRequest{Uid: ""})
-		c.So(err,c.ShouldNotBeNil)
-		c.So(err.Error(),c.ShouldContainSubstring,"test delete user error")
+		_, err := srv.Delete(context.Background(), &api.DeleteUserRequest{Uid: ""})
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "test delete user error")
 		patch.Reset()
 	})
 }
@@ -142,6 +142,6 @@ func TestUser(t *testing.T) {
 	t.Run("patch user", patchUser)
 	t.Run("delete user", deleteUser)
 	t.Run("test register user error", testRegisterErr)
-	t.Run("test update user error",testUpdateErr)
-	t.Run("test delete user error",testDelUserErr)
+	t.Run("test update user error", testUpdateErr)
+	t.Run("test delete user error", testDelUserErr)
 }

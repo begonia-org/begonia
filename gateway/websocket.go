@@ -38,9 +38,9 @@ func (w *websocketForwarder) Flush() {
 }
 func (w *websocketForwarder) Close() error {
 	// w.websocket.NextWriter()
-	return w.websocket.WriteMessage(websocket.CloseMessage,websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+	return w.websocket.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 }
-func (w *websocketForwarder)CloseConn() error{
+func (w *websocketForwarder) CloseConn() error {
 	return w.websocket.Close()
 }
 func (w *websocketForwarder) NextReader() (io.Reader, error) {

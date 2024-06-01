@@ -43,7 +43,7 @@ func TestLoadPublicKeyFromFile(t *testing.T) {
 		}
 		config := config.ReadConfig(env)
 		cnf := cfg.NewConfig(config)
-		pub,err=utils.LoadPublicKeyFromFile(cnf.GetRSAPubKey())
+		pub, err = utils.LoadPublicKeyFromFile(cnf.GetRSAPubKey())
 		c.So(err, c.ShouldBeNil)
 		c.So(pub, c.ShouldNotBeNil)
 		patch := gomonkey.ApplyFuncReturn(pem.Decode, nil, nil)

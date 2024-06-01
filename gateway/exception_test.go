@@ -44,14 +44,14 @@ func TestUnaryInterceptor(t *testing.T) {
 		mid := NewException(Log)
 
 		ctx := context.Background()
-		handler:= func(ctx context.Context, req interface{}) (interface{}, error) {
+		handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 			panic("test panic error")
 		}
 		_, err := mid.UnaryInterceptor(ctx, nil, &grpc.UnaryServerInfo{}, handler)
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "test panic error")
 
-		handler2:= func(ctx context.Context, req interface{}) (interface{}, error) {
+		handler2 := func(ctx context.Context, req interface{}) (interface{}, error) {
 			return nil, fmt.Errorf("test error")
 		}
 		_, err2 := mid.UnaryInterceptor(ctx, nil, &grpc.UnaryServerInfo{}, handler2)

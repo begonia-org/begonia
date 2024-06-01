@@ -233,9 +233,9 @@ func HandleErrorWithLogger(logger logger.Logger) runtime.ErrorHandlerFunc {
 			"status": statusCode,
 		},
 		)
-		if _,ok:=metadata.FromIncomingContext(ctx);!ok{
-			md:=IncomingHeadersToMetadata(ctx,req)
-			ctx=metadata.NewIncomingContext(ctx,md)
+		if _, ok := metadata.FromIncomingContext(ctx); !ok {
+			md := IncomingHeadersToMetadata(ctx, req)
+			ctx = metadata.NewIncomingContext(ctx, md)
 		}
 		code := statusCode
 		data := &common.HttpResponse{}

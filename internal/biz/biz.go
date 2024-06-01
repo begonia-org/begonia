@@ -1,8 +1,8 @@
 package biz
 
 import (
-	"github.com/begonia-org/begonia/internal/biz/file"
 	"github.com/begonia-org/begonia/internal/biz/endpoint"
+	"github.com/begonia-org/begonia/internal/biz/file"
 	"github.com/google/wire"
 )
 

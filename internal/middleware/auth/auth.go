@@ -75,7 +75,7 @@ func (a *Auth) StreamInterceptor(srv any, ss grpc.ServerStream, info *grpc.Strea
 	if strings.Contains(authorization, "Bearer") {
 		return a.jwt.StreamInterceptor(srv, ss, info, handler)
 
-	} 
+	}
 	return a.ak.StreamInterceptor(srv, ss, info, handler)
 }
 

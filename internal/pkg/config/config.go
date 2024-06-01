@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	goloadbalancer "github.com/begonia-org/go-loadbalancer"
 	"github.com/spark-lence/tiga"
@@ -28,38 +29,43 @@ func NewConfig(config *tiga.Configuration) *Config {
 }
 
 func (c *Config) GetDefaultAdminPasswd() string {
-	return c.GetString("admin.password")
+	return c.getWithEnv("admin.password")
 }
 func (c *Config) GetDefaultAdminName() string {
-	return c.GetString("admin.name")
+	return c.getWithEnv("admin.name")
 }
 func (c *Config) GetDefaultAdminPhone() string {
-	return c.GetString("admin.phone")
+	return c.getWithEnv("admin.phone")
 }
 func (c *Config) GetDefaultAdminEmail() string {
-	return c.GetString("admin.email")
+	return c.getWithEnv("admin.email")
 }
 
 func (c *Config) GetAesKey() string {
-	return c.GetString("auth.aes_key")
+	return c.getWithEnv("auth.aes_key")
 }
 func (c *Config) GetAesIv() string {
-	return c.GetString("auth.aes_iv")
+	return c.getWithEnv("auth.aes_iv")
 }
-func (c *Config) GetCacheKeyPrefix() string {
-	return c.GetString("common.cache_key_prefix")
-}
+
+// func (c *Config) GetCachePrefixKey() string {
+// 	return c.getWithEnv("common.cache_key_prefix")
+// }
 
 // jwt_secret
 func (c *Config) GetJWTLockKey(uid string) string {
-	prefix := c.GetCacheKeyPrefix()
+	prefix := c.GetCachePrefixKey()
 	return fmt.Sprintf("%s:jwt_lock:%s", prefix, uid)
 }
 func (c *Config) GetJWTSecret() string {
-	return c.GetString("auth.jwt_secret")
+	return c.getWithEnv("auth.jwt_secret")
+}
+func (c *Config) GetCachePrefixKey() string {
+	return fmt.Sprintf("%s:%s", c.GetEnv(), c.getWithEnv("common.cache_prefix_key"))
+
 }
 func (c *Config) GetWhiteToken(uid string) string {
-	prefix := c.GetString("common.rdb_key_prefix")
+	prefix := c.GetCachePrefixKey()
 	return fmt.Sprintf("%s:white:token:%s", prefix, uid)
 }
 func (c *Config) GetUserBlackListKey(uid string) string {
@@ -75,18 +81,18 @@ func (c *Config) GetAppsLockKey() string {
 	return fmt.Sprintf("%s:lock", prefix)
 }
 func (c *Config) GetUserBlackListExpiration() int {
-	return c.GetInt("auth.blacklist.user.cache_expire")
+	return c.getIntWithEnv("auth.blacklist.user.cache_expire")
 }
 
 func (c *Config) GetAPPAccessKeyExpiration() int {
-	return c.GetInt("auth.app.cache_expire")
+	return c.getIntWithEnv("auth.app.cache_expire")
 }
 func (c *Config) GetUserTokenBlackListBloomKey(uid string) string {
 	prefix := c.GetUserTokenBlackListBloom()
 	return fmt.Sprintf("%s:%s", prefix, uid)
 }
 func (c *Config) GetUserBlackListPrefix() string {
-	prefix := c.GetCacheKeyPrefix()
+	prefix := c.GetCachePrefixKey()
 	return fmt.Sprintf("%s:user:black", prefix)
 }
 func (c *Config) GetUserTokenBlackListBloom() string {
@@ -94,40 +100,41 @@ func (c *Config) GetUserTokenBlackListBloom() string {
 	return fmt.Sprintf("%s:user:black", prefix)
 }
 func (c *Config) GetBlacklistPubSubChannel() string {
-	return c.GetString("auth.blacklist.pubsub.channel")
+	return c.getWithEnv("auth.blacklist.pubsub.channel")
 }
 func (c *Config) GetKeyValuePubsubKey() string {
-	prefix := c.GetString("common.pubsub_key_prefix")
+	prefix := fmt.Sprintf("%s:%s", c.GetCachePrefixKey(), c.getWithEnv("common.pubsub_key_prefix"))
 	return fmt.Sprintf("%s:kv", prefix)
 }
 func (c *Config) GetFilterPubsubKey() string {
-	prefix := c.GetString("common.pubsub_key_channel")
+	prefix := fmt.Sprintf("%s:%s", c.GetCachePrefixKey(), c.getWithEnv("common.pubsub_key_channel"))
 	return fmt.Sprintf("%s:filter", prefix)
 }
 func (c *Config) GetMultiCacheReadStrategy() int {
-	return c.GetInt("common.multi_cache_strategy")
+	return c.getIntWithEnv("common.multi_cache_strategy")
 }
 func (c *Config) GetKeyValuePrefix() string {
-	return c.GetString("common.kv_prefix")
+	return fmt.Sprintf("%s:%s", c.GetCachePrefixKey(), c.getWithEnv("common.kv_prefix"))
 }
 func (c *Config) GetFilterPrefix() string {
-	return c.GetString("common.filter_key_prefix")
+	prefix := c.GetCachePrefixKey()
+	return fmt.Sprintf("%s:%s", prefix, c.getWithEnv("common.filter_key_prefix"))
 }
 func (c *Config) GetBlacklistPubSubGroup() string {
-	return c.GetString("auth.blacklist.pubsub.group")
+	return c.getWithEnv("auth.blacklist.pubsub.group")
 }
 func (c *Config) GetBlacklistFilterEntries() int {
-	return c.GetInt("auth.blacklist.filter.entries")
+	return c.getIntWithEnv("auth.blacklist.filter.entries")
 }
 func (c *Config) GetBlacklistFilterErrorRate() int {
-	return c.GetInt("auth.blacklist.filter.error_rate")
+	return c.getIntWithEnv("auth.blacklist.filter.error_rate")
 }
 func (c *Config) GetBlacklistBloomErrRate() float64 {
 	return c.GetFloat64(fmt.Sprintf("%s.auth.blacklist.bloom.error_rate", c.GetEnv()))
 }
 
 func (c *Config) GetBlacklistBloomM() int {
-	return c.GetInt("auth.blacklist.bloom.m")
+	return c.getIntWithEnv("auth.blacklist.bloom.m")
 }
 
 func (c *Config) GetAPPAccessKey(access string) string {
@@ -139,19 +146,20 @@ func (c *Config) GetAppidKey(accessKey string) string {
 	return fmt.Sprintf("%s:%s", prefix, accessKey)
 }
 func (c *Config) GetAppPrefix() string {
-	return c.GetString("common.app_key_prefix")
+	prefix := c.GetCachePrefixKey()
+	return fmt.Sprintf("%s:%s", prefix, c.getWithEnv("common.app_key_prefix"))
 }
 func (c *Config) GetAPPAccessKeyPrefix() string {
-	prefix := c.GetString("common.app_key_prefix")
+	prefix := c.GetAppPrefix()
 	return fmt.Sprintf("%s:access_key", prefix)
 }
 func (c *Config) GetAppidPrefix() string {
-	prefix := c.GetString("common.app_key_prefix")
+	prefix := c.GetAppPrefix()
 	return fmt.Sprintf("%s:appid", prefix)
 }
 func (c *Config) GetAesConfig() (key string, iv string) {
-	key = c.GetString("auth.aes_key")
-	iv = c.GetString("auth.aes_iv")
+	key = c.getWithEnv("auth.aes_key")
+	iv = c.getWithEnv("auth.aes_iv")
 	return key, iv
 }
 
@@ -159,19 +167,19 @@ func (c *Config) GetCorsConfig() []string {
 	return c.GetStringSlice(fmt.Sprintf("%s.gateway.cors", c.GetEnv()))
 }
 func (c *Config) GetJWTExpiration() int {
-	return c.GetInt("auth.jwt_expiration")
+	return c.getIntWithEnv("auth.jwt_expiration")
 }
 func (c *Config) GetPluginDir() string {
-	return c.GetString("endpoints.plugins.dir")
+	return c.getWithEnv("endpoints.plugins.dir")
 }
 func (c *Config) GetUploadDir() string {
-	return c.GetString("file.upload.dir")
+	return c.getWithEnv("file.upload.dir")
 }
 func (c *Config) GetProtosDir() string {
-	return c.GetString("file.protos.dir")
+	return c.getWithEnv("file.protos.dir")
 }
 func (c *Config) GetLocalAPIDesc() string {
-	return c.GetString("file.protos.desc")
+	return c.getWithEnv("file.protos.desc")
 }
 
 func (c *Config) GetPlugins() map[string]interface{} {
@@ -194,19 +202,15 @@ func (c *Config) GetRPCPlugins() ([]*goloadbalancer.Server, error) {
 	return plugins, nil
 }
 func (c *Config) GetEndpointsPrefix() string {
-	key := fmt.Sprintf("%s.etcd.endpoint.prefix", c.GetEnv())
-	if val := c.GetString(key); val != "" {
-		return val
-	}
-	return c.GetString("common.etcd.endpoint.prefix")
+	return fmt.Sprintf("%s%s", c.GetEnv(), c.getWithEnv("common.etcd.endpoint.prefix"))
 }
 
 func (c *Config) GetGatewayDescriptionOut() string {
-	return c.GetString("gateway.descriptor.out_dir")
+	return c.getWithEnv("gateway.descriptor.out_dir")
 }
 
 func (c *Config) GetAdminAPIKey() string {
-	return c.GetString("auth.admin.apikey")
+	return c.getWithEnv("auth.admin.apikey")
 }
 
 func (c *Config) GetServicePrefix() string {
@@ -230,12 +234,8 @@ func (c *Config) GetServiceNameKey(name string) string {
 	return filepath.Join(prefix, name)
 }
 func (c *Config) GetAppKeyPrefix() string {
-	key := fmt.Sprintf("%s.etcd.app.prefix", c.GetEnv())
-	if val := c.GetString(key); val != "" {
-		return val
-	}
-	prefix := c.GetString("common.etcd.app.prefix")
-	return prefix
+	prefix := c.getWithEnv("common.etcd.app.prefix")
+	return fmt.Sprintf("%s%s", c.GetEnv(), prefix)
 }
 func (c *Config) GetAPPKey(id string) string {
 	prefix := c.GetAppKeyPrefix()
@@ -254,20 +254,28 @@ func (c *Config) GetTagsKey(tag, id string) string {
 	prefix := c.GetServiceTagsPrefix()
 	return filepath.Join(prefix, tag, id)
 }
+func (c *Config) getWithEnv(key string) string {
+	originKey := strings.TrimPrefix(key, "common.")
 
-func (c *Config) GetRSAPriKey() string {
-	key := fmt.Sprintf("%s.auth.rsa.private_key", c.GetEnv())
-	if val := c.GetString(key); val != "" {
+	envKey := fmt.Sprintf("%s.%s", c.GetEnv(), originKey)
+	if val := c.GetString(envKey); val != "" {
 		return val
-
 	}
-	return c.GetString("auth.rsa.private_key")
+	return c.GetString(key)
+}
+func (c *Config) getIntWithEnv(key string) int {
+	envKey := fmt.Sprintf("%s.%s", c.GetEnv(), key)
+	if val := c.GetInt(envKey); val != 0 {
+		return val
+	}
+	return c.GetInt(key)
+}
+func (c *Config) GetRSAPriKey() string {
+
+	return c.getWithEnv("auth.rsa.private_key")
 
 }
 func (c *Config) GetRSAPubKey() string {
-	key := fmt.Sprintf("%s.auth.rsa.public_key", c.GetEnv())
-	if val:= c.GetString(key);val!=""{
-		return val
-	}
-	return c.GetString("auth.rsa.public_key")
+
+	return c.getWithEnv("auth.rsa.public_key")
 }

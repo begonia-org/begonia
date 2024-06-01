@@ -23,7 +23,6 @@ func NewEndpointsService(biz *endpoint.EndpointUsecase, log logger.Logger, confi
 	return &EndpointsService{biz: biz, log: log, config: config}
 }
 
-
 func (e *EndpointsService) Update(ctx context.Context, in *api.EndpointSrvUpdateRequest) (*api.UpdateEndpointResponse, error) {
 	timestamp, err := e.biz.Patch(ctx, in)
 	if err != nil {

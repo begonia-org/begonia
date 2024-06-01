@@ -3,6 +3,7 @@ package biz_test
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"testing"
 	"time"
@@ -17,14 +18,67 @@ import (
 	cfg "github.com/begonia-org/begonia/internal/pkg/config"
 	loadbalance "github.com/begonia-org/go-loadbalancer"
 	appApi "github.com/begonia-org/go-sdk/api/app/v1"
-	api "github.com/begonia-org/go-sdk/api/user/v1"
 	ep "github.com/begonia-org/go-sdk/api/endpoint/v1"
+	api "github.com/begonia-org/go-sdk/api/user/v1"
 	gwRuntime "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	c "github.com/smartystreets/goconvey/convey"
+	clientv3 "go.etcd.io/etcd/client/v3"
+
+	"github.com/spark-lence/tiga"
 
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
+
+// func TestCreateInBatches(t *testing.T) {
+func TestMain(m *testing.M) {
+	log.Printf("Start testing")
+	setup()
+	code := m.Run()
+	log.Printf("All tests passed with code %d", code)
+}
+
+func setup() {
+	env := "dev"
+	if begonia.Env != "" {
+		env = begonia.Env
+	}
+	conf := config.ReadConfig(env)
+
+	// cnf:=config.NewConfig(conf)
+	rdb := tiga.NewRedisDao(conf)
+	luaScript := `
+		local prefix = KEYS[1]
+		local cursor = "0"
+		local count = 100
+		repeat
+			local result = redis.call("SCAN", cursor, "MATCH", prefix, "COUNT", count)
+			cursor = result[1]
+			local keys = result[2]
+			if #keys > 0 then
+				redis.call("DEL", unpack(keys))
+			end
+		until cursor == "0"
+		return "OK"
+		`
+
+	_, err := rdb.GetClient().Eval(context.Background(), luaScript, []string{"test:*"}).Result()
+	if err != nil {
+		log.Fatalf("Could not execute Lua script: %v", err)
+	}
+	etcd := tiga.NewEtcdDao(conf)
+	// 设置前缀
+	prefix := "/test"
+
+	// 使用前缀删除所有键
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	err = etcd.Delete(ctx, prefix, clientv3.WithPrefix())
+	if err != nil {
+		log.Fatalf("Failed to delete keys with prefix %s: %v", prefix, err)
+	}
+}
 
 func newDataOperatorUsecase() *biz.DataOperatorUsecase {
 	env := "dev"
@@ -102,6 +156,8 @@ func TestDo(t *testing.T) {
 		}
 		err = appBiz.Put(context.TODO(), app, u2.Uid)
 		c.So(err, c.ShouldBeNil)
+		patch := gomonkey.ApplyFuncReturn((*cfg.Config).GetUserBlackListExpiration, 3)
+		defer patch.Reset()
 		go dataOperator.Do(context.Background())
 		go dataOperator.Do(context.Background())
 
@@ -115,15 +171,15 @@ func TestDo(t *testing.T) {
 		c.So(err, c.ShouldBeNil)
 		c.So(val, c.ShouldNotBeEmpty)
 
-		patch := gomonkey.ApplyFuncReturn((*biz.DataOperatorUsecase).OnStart, fmt.Errorf("test data operator on start error"))
-		defer patch.Reset()
+		patch1 := gomonkey.ApplyFuncReturn((*biz.DataOperatorUsecase).OnStart, fmt.Errorf("test data operator on start error"))
+		defer patch1.Reset()
 		repo := data.NewOperator(config, gateway.Log)
 		patch2 := gomonkey.ApplyMethodReturn(repo, "Watcher", fmt.Errorf("test data watcher list error"))
 		defer patch2.Reset()
 		ctx, cancel := context.WithCancel(context.Background())
 		go dataOperator.Do(ctx)
 		time.Sleep(1 * time.Second)
-		patch.Reset()
+		patch1.Reset()
 		patch2.Reset()
 		cancel()
 		ctx, cancel = context.WithCancel(context.Background())
@@ -172,7 +228,7 @@ func TestHandleError(t *testing.T) {
 		cancel()
 
 		patch4 := gomonkey.ApplyMethodReturn(repo, "GetAllForbiddenUsers", nil, fmt.Errorf("test latest GetAllForbiddenUsers error"))
-		patch4 = patch4.ApplyMethodReturn(repo, "LastUpdated", time.Time{},nil)
+		patch4 = patch4.ApplyMethodReturn(repo, "LastUpdated", time.Time{}, nil)
 		defer patch4.Reset()
 		ctx, cancel = context.WithCancel(context.Background())
 		go dataOperator.Handle(ctx)
@@ -181,7 +237,7 @@ func TestHandleError(t *testing.T) {
 		cancel()
 
 		patch5 := gomonkey.ApplyMethodReturn(repo, "FlashUsersCache", fmt.Errorf("test latest FlashUsersCache error"))
-		patch5 = patch5.ApplyMethodReturn(repo, "LastUpdated", time.Time{},nil)
+		patch5 = patch5.ApplyMethodReturn(repo, "LastUpdated", time.Time{}, nil)
 		defer patch5.Reset()
 		ctx, cancel = context.WithCancel(context.Background())
 		go dataOperator.Handle(ctx)
@@ -211,7 +267,7 @@ func TestOnStart(t *testing.T) {
 		patch.Reset()
 		cancel()
 		// []*api.Endpoints, error
-		patch2:= gomonkey.ApplyMethodReturn(repo, "List", []*ep.Endpoints{{
+		patch2 := gomonkey.ApplyMethodReturn(repo, "List", []*ep.Endpoints{{
 			Name:        "test",
 			Owner:       "test",
 			Description: "test",

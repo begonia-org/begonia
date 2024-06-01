@@ -260,7 +260,7 @@ func testListApp(t *testing.T) {
 		config := config.ReadConfig(env)
 		repo := data.NewAppRepo(config, gateway.Log)
 
-		patch := gomonkey.ApplyMethodReturn(repo, "List",nil, fmt.Errorf("list error"))
+		patch := gomonkey.ApplyMethodReturn(repo, "List", nil, fmt.Errorf("list error"))
 		defer patch.Reset()
 		_, err = appBiz.List(context.TODO(), &api.AppsListRequest{
 			PageSize: 10,

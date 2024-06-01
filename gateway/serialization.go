@@ -198,8 +198,3 @@ func (m *JSONMarshaler) Marshal(v interface{}) ([]byte, error) {
 func (m *JSONMarshaler) ContentType(v interface{}) string {
 	return "application/json"
 }
-
-// func (m *JSONMarshaler) NewDecoder(r io.Reader) runtime.Decoder {
-// 	// return NewMaskDecoder(m.JSONPb.NewDecoder(r))
-// 	return json.NewDecoder(r)
-// }

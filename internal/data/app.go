@@ -28,13 +28,13 @@ func (r *appRepoImpl) Add(ctx context.Context, apps *api.Apps) error {
 	}
 	key := r.cfg.GetAPPAccessKey(apps.AccessKey)
 	exp := r.cfg.GetAPPAccessKeyExpiration()
-	appidKey:=r.cfg.GetAppidKey(apps.AccessKey)
+	appidKey := r.cfg.GetAppidKey(apps.AccessKey)
 	err := r.local.Set(ctx, key, []byte(apps.Secret), time.Duration(exp)*time.Second)
-	if err!=nil{
+	if err != nil {
 		return err
 	}
 
-	return r.local.Set(ctx,appidKey,[]byte(apps.Appid), time.Duration(exp)*time.Second)
+	return r.local.Set(ctx, appidKey, []byte(apps.Appid), time.Duration(exp)*time.Second)
 }
 func (r *appRepoImpl) Get(ctx context.Context, key string) (*api.Apps, error) {
 
@@ -69,9 +69,9 @@ func (r *appRepoImpl) List(ctx context.Context, tags []string, status []api.APPS
 	conds := make([]interface{}, 0)
 	if len(tags) > 0 {
 		for _, tag := range tags[:len(tags)-1] {
-			query += fmt.Sprintf(`JSON_CONTAINS(tags,'"%s"') OR `,tag)
+			query += fmt.Sprintf(`JSON_CONTAINS(tags,'"%s"') OR `, tag)
 		}
-		query += fmt.Sprintf(`JSON_CONTAINS(tags,'"%s"')`,tags[len(tags)-1])
+		query += fmt.Sprintf(`JSON_CONTAINS(tags,'"%s"')`, tags[len(tags)-1])
 
 	}
 	if len(status) > 0 {
@@ -102,7 +102,7 @@ func (a *appRepoImpl) GetSecret(ctx context.Context, accessKey string) (string, 
 	secret := string(secretBytes)
 	if err != nil {
 		apps, err := a.Get(ctx, accessKey)
-		if err != nil||apps.Secret=="" {
+		if err != nil || apps.Secret == "" {
 			return "", fmt.Errorf("get app secret failed: %w", err)
 		}
 		secret = apps.Secret
@@ -118,8 +118,8 @@ func (a *appRepoImpl) GetAppid(ctx context.Context, accessKey string) (string, e
 	appid := string(secretBytes)
 	if err != nil {
 		apps, err := a.Get(ctx, accessKey)
-		if err != nil|| apps.Appid=="" {
-			return "", fmt.Errorf("get app appid err:%w",err)
+		if err != nil || apps.Appid == "" {
+			return "", fmt.Errorf("get app appid err:%w", err)
 		}
 		appid = apps.Appid
 

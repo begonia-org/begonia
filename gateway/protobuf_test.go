@@ -77,15 +77,15 @@ func testSetHttpResponseErr(t *testing.T) {
 			c.So(err, c.ShouldNotBeNil)
 			patch.Reset()
 		}
-		patch:=gomonkey.ApplyFunc((*json.Decoder).Decode, func(_ *json.Decoder, v any) error {
-			val:=v.(*map[string]interface{})
-			(*val)["/SayHello"]=[]interface{}{map[string]interface{}{"OutName":"HttpBody"}}
+		patch := gomonkey.ApplyFunc((*json.Decoder).Decode, func(_ *json.Decoder, v any) error {
+			val := v.(*map[string]interface{})
+			(*val)["/SayHello"] = []interface{}{map[string]interface{}{"OutName": "HttpBody"}}
 			return nil
 		})
 		defer patch.Reset()
 		err = pd.SetHttpResponse(common.E_HttpResponse)
 		c.So(err, c.ShouldNotBeNil)
-		c.So(err.Error(),c.ShouldContainSubstring,"invalid gateway.json")
+		c.So(err.Error(), c.ShouldContainSubstring, "invalid gateway.json")
 		patch.Reset()
 	})
 }

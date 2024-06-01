@@ -50,5 +50,5 @@ func NewFileSvr(config *tiga.Configuration, log logger.Logger) file.FileServiceS
 	panic(wire.Build(biz.ProviderSet, pkg.ProviderSet, service.ProviderSet))
 }
 func NewSysSvr(config *tiga.Configuration, log logger.Logger) sys.SystemServiceServer {
-	panic(wire.Build( service.ProviderSet))
+	panic(wire.Build(service.ProviderSet))
 }

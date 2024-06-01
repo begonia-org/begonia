@@ -218,7 +218,7 @@ func testListUser(t *testing.T) {
 			env = begonia.Env
 		}
 		repo := data.NewUserRepo(config.ReadConfig(env), gateway.Log)
-		patch := gomonkey.ApplyMethodReturn(repo, "List",nil, fmt.Errorf("error in your SQL syntax"))
+		patch := gomonkey.ApplyMethodReturn(repo, "List", nil, fmt.Errorf("error in your SQL syntax"))
 		defer patch.Reset()
 		_, err = userBiz.List(context.TODO(), []string{"unknown"}, []api.USER_STATUS{api.USER_STATUS_DELETED}, 1, 20)
 		c.So(err, c.ShouldNotBeNil)

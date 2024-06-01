@@ -54,28 +54,28 @@ func TestAccessKeyAuthMiddleware(t *testing.T) {
 
 		err = ak.StreamInterceptor(context.Background(), &testStream{ctx: context.Background()}, &grpc.StreamServerInfo{
 			FullMethod: "/example.v1.HelloService/TEST",
-		},func(srv any, stream grpc.ServerStream) error {
+		}, func(srv any, stream grpc.ServerStream) error {
 			return fmt.Errorf("metadata not exists in context")
 		})
 		c.So(err.Error(), c.ShouldContainSubstring, fmt.Errorf("metadata not exists in context").Error())
 
-		patch:=gomonkey.ApplyFuncReturn((*auth.AccessKeyAuthMiddleware).StreamRequestBefore, nil, nil)
-		patch =patch.ApplyFuncReturn((*auth.AccessKeyAuthMiddleware).StreamResponseAfter, fmt.Errorf("StreamResponseAfter err"))
+		patch := gomonkey.ApplyFuncReturn((*auth.AccessKeyAuthMiddleware).StreamRequestBefore, nil, nil)
+		patch = patch.ApplyFuncReturn((*auth.AccessKeyAuthMiddleware).StreamResponseAfter, fmt.Errorf("StreamResponseAfter err"))
 		defer patch.Reset()
-		err = ak.StreamInterceptor(context.Background(), &testStream{ctx: context.Background()}, &grpc.StreamServerInfo{FullMethod: "/integration.TestService/Get"},func(srv any, stream grpc.ServerStream) error {
+		err = ak.StreamInterceptor(context.Background(), &testStream{ctx: context.Background()}, &grpc.StreamServerInfo{FullMethod: "/integration.TestService/Get"}, func(srv any, stream grpc.ServerStream) error {
 			return nil
-		
+
 		})
-		c.So(err,c.ShouldBeNil)
+		c.So(err, c.ShouldBeNil)
 		patch.Reset()
-		patch2:=gomonkey.ApplyFuncReturn((*auth.AccessKeyAuthMiddleware).StreamRequestBefore, nil, fmt.Errorf("StreamRequestBefore err"))
+		patch2 := gomonkey.ApplyFuncReturn((*auth.AccessKeyAuthMiddleware).StreamRequestBefore, nil, fmt.Errorf("StreamRequestBefore err"))
 		defer patch2.Reset()
-		err = ak.StreamInterceptor(context.Background(), &testStream{ctx: context.Background()}, &grpc.StreamServerInfo{FullMethod: "/integration.TestService/Get"},func(srv any, stream grpc.ServerStream) error {
+		err = ak.StreamInterceptor(context.Background(), &testStream{ctx: context.Background()}, &grpc.StreamServerInfo{FullMethod: "/integration.TestService/Get"}, func(srv any, stream grpc.ServerStream) error {
 			return nil
-		
+
 		})
 		patch2.Reset()
-		c.So(err.Error(),c.ShouldContainSubstring,fmt.Errorf("StreamRequestBefore err").Error())
+		c.So(err.Error(), c.ShouldContainSubstring, fmt.Errorf("StreamRequestBefore err").Error())
 	})
 }
 func TestRequestBeforeErr(t *testing.T) {
@@ -138,8 +138,8 @@ func TestValidateStream(t *testing.T) {
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "NewGatewayRequestFromGrpc err")
 
-		stream:=auth.NewGrpcStream(&testStream{},"",context.TODO(),nil)
-		err=ak.StreamResponseAfter(context.TODO(),stream,nil)
-		c.So(err,c.ShouldBeNil)
+		stream := auth.NewGrpcStream(&testStream{}, "", context.TODO(), nil)
+		err = ak.StreamResponseAfter(context.TODO(), stream, nil)
+		c.So(err, c.ShouldBeNil)
 	})
 }

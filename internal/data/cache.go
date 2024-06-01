@@ -24,7 +24,8 @@ type LayeredCache struct {
 }
 
 var layered *LayeredCache
-func newCache(rdb *tiga.RedisDao, config *config.Config, log logger.Logger)*LayeredCache{
+
+func newCache(rdb *tiga.RedisDao, config *config.Config, log logger.Logger) *LayeredCache {
 	kvWatcher := source.NewWatchOptions([]interface{}{config.GetKeyValuePubsubKey()})
 	strategy := glc.CacheReadStrategy(config.GetMultiCacheReadStrategy())
 	KvOptions := glc.LayeredBuildOptions{
@@ -57,6 +58,7 @@ func newCache(rdb *tiga.RedisDao, config *config.Config, log logger.Logger)*Laye
 	})
 	return &LayeredCache{kv: kv, config: config, log: log, mux: sync.Mutex{}, onceOnStart: sync.Once{}, filters: filter}
 }
+
 // NewLayeredCache creates a new layered cache only once
 func NewLayeredCache(rdb *tiga.RedisDao, config *config.Config, log logger.Logger) *LayeredCache {
 	onceLayered.Do(func() {
@@ -105,7 +107,7 @@ func (l *LayeredCache) DelInFilter(ctx context.Context, key string, value []byte
 func (l *LayeredCache) Watch(ctx context.Context) {
 	errChan := l.kv.Watch(ctx)
 	for err := range errChan {
-		l.log.Errorf(ctx,"Watch layered-cache error:%v", err)
+		l.log.Errorf(ctx, "Watch layered-cache error:%v", err)
 	}
 
 }

@@ -71,7 +71,7 @@ func New(config2 *tiga.Configuration, log logger.Logger, endpoint2 string) Gatew
 	userServiceServer := service.NewUserService(userUsecase, log, configConfig)
 	v := service.NewServices(fileServiceServer, authServiceServer, endpointServiceServer, appsServiceServer, systemServiceServer, userServiceServer)
 	accessKeyAuth := biz.NewAccessKeyAuth(appRepo, configConfig, log)
-	pluginsApply := middleware.New(configConfig, redisDao, authzUsecase, log, accessKeyAuth, layeredCache)
+	pluginsApply := middleware.New(configConfig, redisDao, authzUsecase, log, accessKeyAuth)
 	gatewayServer := server.NewGateway(gatewayConfig, configConfig, v, pluginsApply)
 	gatewayWorker := NewGatewayWorkerImpl(daemonDaemon, gatewayServer)
 	return gatewayWorker

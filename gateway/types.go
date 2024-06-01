@@ -67,10 +67,10 @@ func (x *serverSideStreamClient) Recv() (protoreflect.ProtoMessage, error) {
 	}
 	return x.buildEventStreamResponse(out)
 }
-func (x *serverSideStreamClient)SendMsg(v any)error{
+func (x *serverSideStreamClient) SendMsg(v any) error {
 	return x.ClientStream.SendMsg(v)
 }
-func (x *serverSideStreamClient)CloseSend()error{
+func (x *serverSideStreamClient) CloseSend() error {
 	return x.ClientStream.CloseSend()
 
 }
@@ -81,7 +81,7 @@ func (x *clientSideStreamClient) Send(m protoreflect.ProtoMessage) error {
 func (x *clientSideStreamClient) CloseSend() error {
 	return x.ClientStream.CloseSend()
 }
-func (x *clientSideStreamClient)RecvMsg(v any)error{
+func (x *clientSideStreamClient) RecvMsg(v any) error {
 	return x.ClientStream.RecvMsg(v)
 }
 func (x *clientSideStreamClient) CloseAndRecv() (protoreflect.ProtoMessage, error) {

@@ -234,18 +234,18 @@ func testWatcher(t *testing.T) {
 			env = begonia.Env
 		}
 		operator := NewOperator(cfg.ReadConfig(env), gateway.Log)
-		updated := make(chan string,1)
-		deleted := make(chan string,1)
-		ctx,cancel:=context.WithCancel(context.Background())
+		updated := make(chan string, 1)
+		deleted := make(chan string, 1)
+		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		defer close(updated)
 		defer close(deleted)
 		go func(ctx context.Context) {
 			err := operator.Watcher(ctx, "/test/watcher/user/info", func(ctx context.Context, op mvccpb.Event_EventType, key, value string) error {
 				if op == mvccpb.PUT {
-					updated<-key
+					updated <- key
 				} else if op == mvccpb.DELETE {
-					deleted<-key
+					deleted <- key
 				}
 				return nil
 			})
@@ -257,16 +257,16 @@ func testWatcher(t *testing.T) {
 		uid := snk.GenerateIDString()
 		err := operator.(*dataOperatorRepo).data.etcd.Put(context.Background(), fmt.Sprintf("/test/watcher/user/info/%s", uid), fmt.Sprintf("user-%s", time.Now().Format("20060102150405")))
 		c.So(err, c.ShouldBeNil)
-		up:=<-updated
+		up := <-updated
 		c.So(up, c.ShouldEqual, fmt.Sprintf("/test/watcher/user/info/%s", uid))
 
 		err = operator.(*dataOperatorRepo).data.etcd.Delete(context.Background(), fmt.Sprintf("/test/watcher/user/info/%s", uid))
 		c.So(err, c.ShouldBeNil)
-		d:=<-deleted
+		d := <-deleted
 		c.So(d, c.ShouldEqual, fmt.Sprintf("/test/watcher/user/info/%s", uid))
 
 		cancel()
-		
+
 	})
 
 }
