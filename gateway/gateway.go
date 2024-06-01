@@ -90,6 +90,10 @@ func (g *GatewayServer) RegisterService(ctx context.Context, pd ProtobufDescript
 	return g.httpGateway.RegisterHandlerClient(ctx, pd, g.gatewayMux)
 }
 func (g *GatewayServer) RegisterLocalService(ctx context.Context, pd ProtobufDescription, sd *grpc.ServiceDesc, ss any) error {
+	info:=g.grpcServer.GetServiceInfo()
+	if _,ok:=info[sd.ServiceName];ok{
+		return fmt.Errorf("service %s already exists",sd.ServiceName)
+	}
 	g.grpcServer.RegisterService(sd, ss)
 	return g.httpGateway.RegisterHandlerClient(ctx, pd, g.gatewayMux)
 }
