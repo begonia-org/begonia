@@ -1,0 +1,101 @@
+syntax = "proto3";
+
+option go_package = "example";
+option java_multiple_files = true;
+option java_package = "io.grpc.examples.example";
+option java_outer_classname = "ExampleProto";
+option objc_class_prefix = "HLW";
+
+package helloworld;
+
+import "google/api/annotations.proto";
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/descriptor.proto";
+import "google/api/httpbody.proto";
+
+// The greeting service definition.
+// The greeting service definition.
+service Greeter {
+  // Sends a greeting
+  rpc SayHello (HelloRequest) returns (HelloReply) {
+    option (google.api.http)={
+		post:"/api/v1/example/post"
+		body:"*"
+	};
+  }
+    rpc SayHelloGet (HelloRequest) returns (HelloReply) {
+    option (google.api.http)={
+		get:"/api/v1/example/{name}"
+	};
+  }
+
+  rpc SayHelloServerSideEvent (HelloRequest) returns (stream HelloReply) {
+    option (google.api.http) = {
+        get: "/api/v1/example/server/sse/{name}"
+      };
+  }
+
+  rpc SayHelloClientStream (stream HelloRequest) returns (RepeatedReply) {
+    option (google.api.http) = {
+        post: "/api/v1/example/client/stream"
+        body: "*"
+      };
+
+  }
+  rpc SayHelloWebsocket (stream HelloRequest) returns (stream HelloReply) {
+    option (google.api.http) = {
+        get: "/api/v1/example/server/websocket"
+      };
+  }
+  rpc SayHelloBody (google.api.HttpBody) returns (google.api.HttpBody) {
+    option (google.api.http) = {
+        post: "/api/v1/example/body"
+      };
+  }
+  rpc SayHelloError (ErrorRequest) returns (HelloReply) {
+    option (google.api.http) = {
+        get: "/api/v1/example/error/test"
+      };
+  }
+  
+}
+
+message ErrorRequest {
+  string msg = 1;
+  int32 code = 2;
+}
+// The request message containing the user's name.
+message HelloRequest {
+  string msg = 1;
+  string name = 2;
+}
+message HelloSubRequest{
+    // @gotags: validate:"required"
+    string sub_msg = 1[json_name="sub_msg"];
+    // @gotags: validate:"required"
+    string sub_name = 2[json_name="sub_name"];
+    google.protobuf.FieldMask update_mask = 3[json_name="update_mask"];
+}
+message HelloRequestWithValidator{
+    // @gotags: validate:"required"
+    string msg = 1;
+    // @gotags: validate:"required"
+    string name = 2;
+    // @gotags: validate:"gte=18,lte=35"
+    int32 age = 3;
+    // @gotags: validate:"required"
+    HelloSubRequest sub = 4;
+    // @gotags: validate:"dive,required"
+    repeated HelloSubRequest subs = 5;
+    google.protobuf.FieldMask update_mask = 6[json_name="update_mask"];
+
+
+}
+// The response message containing the greetings
+message HelloReply {
+  string message = 1;
+  string name = 2;
+}
+message RepeatedReply{
+    repeated HelloReply replies = 1;
+}

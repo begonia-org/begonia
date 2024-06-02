@@ -69,23 +69,23 @@ gateway:
       auth: 4
       # only_api_key_auth: 4
     rpc:
-      - server:
-        name: "example-server"
-        endpoint:
-          - addr: "127.0.0.1:21216"
-            weight: 1
-          - addr: "127.0.0.1:21217"
-            weight: 2
-        priority: 10
-        timeout: 30
-        lb: "round_robin"
-        pool:
-          max_open_conns: 100
-          max_idle_conns: 50
-          size: 50
-          timeout: 10
-          min_idle_conns: 25
-          max_active_conns: 20
+      # - server:
+      #   name: "example-server"
+      #   endpoint:
+      #     - addr: "127.0.0.1:21216"
+      #       weight: 1
+      #     - addr: "127.0.0.1:21217"
+      #       weight: 2
+      #   priority: 10
+      #   timeout: 30
+      #   lb: "round_robin"
+      #   pool:
+      #     max_open_conns: 100
+      #     max_idle_conns: 50
+      #     size: 50
+      #     timeout: 10
+      #     min_idle_conns: 25
+      #     max_active_conns: 20
   descriptor:
     out_dir: "/tmp/begonia/descriptors"
 test:
@@ -108,6 +108,37 @@ test:
     rsa:
       private_key: "/tmp/auth_private_key.pem"
       public_key: "/tmp/auth_public_key.pem"
+  gateway:
+    cors:
+      - "localhost"
+      - "127.0.0.1:8081"
+      - "example.com"
+    plugins:
+      local:
+        logger: 1
+        exception: 0
+        http: 2
+        params_validator: 3
+        auth: 4
+        # only_api_key_auth: 4
+      rpc:
+        - server:
+          name: "example-server"
+          endpoint:
+            - addr: "127.0.0.1:21216"
+              weight: 1
+            - addr: "127.0.0.1:21217"
+              weight: 2
+          priority: 10
+          timeout: 30
+          lb: "round_robin"
+          pool:
+            max_open_conns: 100
+            max_idle_conns: 50
+            size: 50
+            timeout: 10
+            min_idle_conns: 25
+            max_active_conns: 20
 common:
   cache_prefix_key: "begonia"
   filter_key_prefix: "filter"
