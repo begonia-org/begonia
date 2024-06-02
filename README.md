@@ -91,7 +91,7 @@ curl -vvv http://127.0.0.1:12138/api/v1/example/hello
 
 Feel free to PR and raise issues.
 
-## Special thanks to
+# Special thanks to
 
 Thanks to the following projects for providing inspiration and reference:
 
