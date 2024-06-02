@@ -17,6 +17,7 @@ Begonia is an HTTP to gRPC reverse proxy server, which registers services define
 </p>
 
 # Features
+
 ## Support
 
 - Compatible with all `gRPC-gateway` functionality features.
@@ -26,10 +27,12 @@ Begonia is an HTTP to gRPC reverse proxy server, which registers services define
 - Forwards gRPC client streaming requests based on a custom `application/begonia-client-stream` request type.
 - Allows requests with `application/x-www-form-urlencoded` and `multipart/form-data` parameter formats.
 - Rich built-in middleware, such as APIKEY verification, AKSK verification, and `go-playground/validator` for parameter validation middleware.parameter verification middleware
+- Dynamic registration, updating, and deletion of gRPC service routes based on the protoc descriptor_set_out.
 
 # Getting Started
 
 ### Installation
+
 ```bash
 git clone https://github.com/begonia-org/begonia.git
 ```
@@ -39,6 +42,7 @@ cd begonia && make install
 ```
 
 ### Define proto
+
 Refer to [example/example.proto](example/example.proto)
 
 ### Generate Descriptor Set
@@ -68,11 +72,28 @@ begonia start -e dev
 ```
 
 #### 4. Register the service
+
 ```bash
 go run . endpoint add -n "example" -d /data/work/begonia-org/begonia/example/example.pb -p 127.0.0.1:1949 -p 127.0.0.1:2024
 ```
 
 #### 5. Test request service
+
 ```
 curl -vvv http://127.0.0.1:12138/api/v1/example/hello
 ```
+
+# License
+
+[Apache License2.0](LICENSE) © geebytes 
+
+# Contribution
+
+Feel free to PR and raise issues.
+
+## Special thanks to
+
+Thanks to the following projects for providing inspiration and reference:
+
+- [gRPC-gateway](https://github.com/grpc-ecosystem/grpc-gateway) - Begonia gateway's routing management references and incorporates some code from gRPC-gateway.
+- [Kratos](https://github.com/go-kratos/kratos) - Begonia's gRPC traffic proxy and forwarding functionality reference and incorporate some code from the Kratos project.

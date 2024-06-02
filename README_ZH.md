@@ -27,6 +27,7 @@ Begonia 是一个 HTTP 到 gRPC 的反向代理服务器，它基于 protoc 生�
 - 基于自定义的`application/begonia-client-stream` 请求类型转发 gRPC 的客户端流式请求
 - 允许`application/x-www-form-urlencoded`和`multipart/form-data`格式的参数请求
 - 丰富的内置中间件，例如 APIKEY 校验、AKSK 校验，`go-playground/validator`参数校验中间件
+- 基于 protoc `descriptor_set_out` 实现gRPC服务路由的动态注册、更新和删除
 
 # 开始
 
@@ -81,3 +82,18 @@ go run . endpoint add  -n "example" -d /data/work/begonia-org/begonia/example/ex
 ```
 curl -vvv http://127.0.0.1:12138/api/v1/example/hello
 ```
+
+# 许可证
+
+[Apache License2.0](LICENSE) © geebytes 
+
+# 贡献
+
+Feel free to PR and raise issues.
+
+## 致谢
+
+感谢以下项目提供的灵感和参考:
+
+- [gRPC-gateway](https://github.com/grpc-ecosystem/grpc-gateway) - Begonia 网关的路由管理参考和引用了 gRPC-gateway 的部分代码
+- [Kratos](https://github.com/go-kratos/kratos) - Begonia 的 gRPC 流量代理和转发功能参考和引用了 Kratos 项目的部分代码
