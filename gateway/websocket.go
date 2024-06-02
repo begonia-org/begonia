@@ -22,7 +22,7 @@ type websocketForwarder struct {
 	http.ResponseWriter
 	websocket    *websocket.Conn
 	responseType int
-	mux sync.Mutex
+	mux          sync.Mutex
 }
 
 func NewWebsocketForwarder(w http.ResponseWriter, req *http.Request, responseType int) (WebsocketForwarder, error) {
@@ -34,7 +34,7 @@ func NewWebsocketForwarder(w http.ResponseWriter, req *http.Request, responseTyp
 	if err != nil {
 		return nil, err
 	}
-	return &websocketForwarder{w, conn, responseType,sync.Mutex{}}, nil
+	return &websocketForwarder{w, conn, responseType, sync.Mutex{}}, nil
 }
 func (w *websocketForwarder) Flush() {
 }

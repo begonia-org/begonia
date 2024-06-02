@@ -1,302 +1,296 @@
 {
-  "/integration.TestService/Body": [
-    {
-      "FullMethodName": "/integration.TestService/Body",
-      "HttpMethod": "GET",
-      "HttpUri": "/test/body",
-      "InName": "TestRequest",
-      "InPkg": "integration",
-      "IsClientStream": false,
-      "IsServerStream": false,
-      "OutName": "HttpBody",
-      "OutPkg": "google.api",
-      "PathParams": [],
-      "Pattern": {},
-      "Pkg": "integration",
-      "Template": {
-        "Fields": null,
-        "OpCodes": [
-          2,
-          0,
-          2,
-          1
-        ],
-        "Pool": [
-          "test",
-          "body"
-        ],
-        "Template": "/test/body",
-        "Verb": "",
-        "Version": 1
-      }
-    }
-  ],
-  "/integration.TestService/Custom": [
-    {
-      "FullMethodName": "/integration.TestService/Custom",
-      "HttpMethod": "GET",
-      "HttpUri": "/test/custom",
-      "InName": "TestRequest",
-      "InPkg": "integration",
-      "IsClientStream": false,
-      "IsServerStream": false,
-      "OutName": "TestRequest",
-      "OutPkg": "integration",
-      "PathParams": [],
-      "Pattern": {},
-      "Pkg": "integration",
-      "Template": {
-        "Fields": null,
-        "OpCodes": [
-          2,
-          0,
-          2,
-          1
-        ],
-        "Pool": [
-          "test",
-          "custom"
-        ],
-        "Template": "/test/custom",
-        "Verb": "",
-        "Version": 1
-      },
-      "http_response": "begonia.org.sdk.common.HttpResponse"
-    }
-  ],
-  "/integration.TestService/Delete": [
-    {
-      "FullMethodName": "/integration.TestService/Delete",
-      "HttpMethod": "DELETE",
-      "HttpUri": "/test/del",
-      "InName": "TestRequest",
-      "InPkg": "integration",
-      "IsClientStream": false,
-      "IsServerStream": false,
-      "OutName": "TestResponse",
-      "OutPkg": "integration",
-      "PathParams": [],
-      "Pattern": {},
-      "Pkg": "integration",
-      "Template": {
-        "Fields": null,
-        "OpCodes": [
-          2,
-          0,
-          2,
-          1
-        ],
-        "Pool": [
-          "test",
-          "del"
-        ],
-        "Template": "/test/del",
-        "Verb": "",
-        "Version": 1
-      },
-      "http_response": "begonia.org.sdk.common.HttpResponse"
-    }
-  ],
-  "/integration.TestService/Get": [
-    {
-      "FullMethodName": "/integration.TestService/Get",
-      "HttpMethod": "GET",
-      "HttpUri": "/test/get",
-      "InName": "TestRequest",
-      "InPkg": "integration",
-      "IsClientStream": false,
-      "IsServerStream": false,
-      "OutName": "TestResponse",
-      "OutPkg": "integration",
-      "PathParams": [],
-      "Pattern": {},
-      "Pkg": "integration",
-      "Template": {
-        "Fields": null,
-        "OpCodes": [
-          2,
-          0,
-          2,
-          1
-        ],
-        "Pool": [
-          "test",
-          "get"
-        ],
-        "Template": "/test/get",
-        "Verb": "",
-        "Version": 1
-      },
-      "http_response": "begonia.org.sdk.common.HttpResponse"
-    }
-  ],
-  "/integration.TestService/Patch": [
-    {
-      "FullMethodName": "/integration.TestService/Patch",
-      "HttpMethod": "PATCH",
-      "HttpUri": "/test/patch",
-      "InName": "TestRequest",
-      "InPkg": "integration",
-      "IsClientStream": false,
-      "IsServerStream": false,
-      "OutName": "TestResponse",
-      "OutPkg": "integration",
-      "PathParams": [],
-      "Pattern": {},
-      "Pkg": "integration",
-      "Template": {
-        "Fields": null,
-        "OpCodes": [
-          2,
-          0,
-          2,
-          1
-        ],
-        "Pool": [
-          "test",
-          "patch"
-        ],
-        "Template": "/test/patch",
-        "Verb": "",
-        "Version": 1
-      },
-      "http_response": "begonia.org.sdk.common.HttpResponse"
-    }
-  ],
-  "/integration.TestService/Post": [
-    {
-      "FullMethodName": "/integration.TestService/Post",
-      "HttpMethod": "POST",
-      "HttpUri": "/test/post",
-      "InName": "TestRequest",
-      "InPkg": "integration",
-      "IsClientStream": false,
-      "IsServerStream": false,
-      "OutName": "TestResponse",
-      "OutPkg": "integration",
-      "PathParams": [],
-      "Pattern": {},
-      "Pkg": "integration",
-      "Template": {
-        "Fields": null,
-        "OpCodes": [
-          2,
-          0,
-          2,
-          1
-        ],
-        "Pool": [
-          "test",
-          "post"
-        ],
-        "Template": "/test/post",
-        "Verb": "",
-        "Version": 1
-      },
-      "http_response": "begonia.org.sdk.common.HttpResponse"
-    }
-  ],
-  "/integration.TestService/Put": [
-    {
-      "FullMethodName": "/integration.TestService/Put",
-      "HttpMethod": "PUT",
-      "HttpUri": "/test/put",
-      "InName": "TestRequest",
-      "InPkg": "integration",
-      "IsClientStream": false,
-      "IsServerStream": false,
-      "OutName": "TestResponse",
-      "OutPkg": "integration",
-      "PathParams": [],
-      "Pattern": {},
-      "Pkg": "integration",
-      "Template": {
-        "Fields": null,
-        "OpCodes": [
-          2,
-          0,
-          2,
-          1
-        ],
-        "Pool": [
-          "test",
-          "put"
-        ],
-        "Template": "/test/put",
-        "Verb": "",
-        "Version": 1
-      },
-      "http_response": "begonia.org.sdk.common.HttpResponse"
-    }
-  ],
-  "/integration.TestServiceWithoutOptions/Get": [
-    {
-      "FullMethodName": "/integration.TestServiceWithoutOptions/Get",
-      "HttpMethod": "GET",
-      "HttpUri": "/test/v2/get",
-      "InName": "TestRequest",
-      "InPkg": "integration",
-      "IsClientStream": false,
-      "IsServerStream": false,
-      "OutName": "TestResponse",
-      "OutPkg": "integration",
-      "PathParams": [],
-      "Pattern": {},
-      "Pkg": "integration",
-      "Template": {
-        "Fields": null,
-        "OpCodes": [
-          2,
-          0,
-          2,
-          1,
-          2,
-          2
-        ],
-        "Pool": [
-          "test",
-          "v2",
-          "get"
-        ],
-        "Template": "/test/v2/get",
-        "Verb": "",
-        "Version": 1
-      }
-    }
-  ],
-  "/integration.TestServiceWithoutOptions/Post": [
-    {
-      "FullMethodName": "/integration.TestServiceWithoutOptions/Post",
-      "HttpMethod": "POST",
-      "HttpUri": "/test/v2/post",
-      "InName": "TestRequest",
-      "InPkg": "integration",
-      "IsClientStream": false,
-      "IsServerStream": false,
-      "OutName": "TestResponse",
-      "OutPkg": "integration",
-      "PathParams": [],
-      "Pattern": {},
-      "Pkg": "integration",
-      "Template": {
-        "Fields": null,
-        "OpCodes": [
-          2,
-          0,
-          2,
-          1,
-          2,
-          2
-        ],
-        "Pool": [
-          "test",
-          "v2",
-          "post"
-        ],
-        "Template": "/test/v2/post",
-        "Verb": "",
-        "Version": 1
-      }
-    }
-  ]
+    "/integration.TestService/Body": [
+        {
+            "Pattern": {},
+            "Template": {
+                "Version": 1,
+                "OpCodes": [
+                    2,
+                    0,
+                    2,
+                    1
+                ],
+                "Pool": [
+                    "test",
+                    "body"
+                ],
+                "Verb": "",
+                "Fields": null,
+                "Template": "/test/body"
+            },
+            "HttpMethod": "GET",
+            "FullMethodName": "/integration.TestService/Body",
+            "HttpUri": "/test/body",
+            "PathParams": [],
+            "InName": "TestRequest",
+            "OutName": "HttpBody",
+            "IsClientStream": false,
+            "IsServerStream": false,
+            "Pkg": "integration",
+            "InPkg": "integration",
+            "OutPkg": "google.api"
+        }
+    ],
+    "/integration.TestService/Custom": [
+        {
+            "Pattern": {},
+            "Template": {
+                "Version": 1,
+                "OpCodes": [
+                    2,
+                    0,
+                    2,
+                    1
+                ],
+                "Pool": [
+                    "test",
+                    "custom"
+                ],
+                "Verb": "",
+                "Fields": null,
+                "Template": "/test/custom"
+            },
+            "HttpMethod": "GET",
+            "FullMethodName": "/integration.TestService/Custom",
+            "HttpUri": "/test/custom",
+            "PathParams": [],
+            "InName": "TestRequest",
+            "OutName": "TestRequest",
+            "IsClientStream": false,
+            "IsServerStream": false,
+            "Pkg": "integration",
+            "InPkg": "integration",
+            "OutPkg": "integration"
+        }
+    ],
+    "/integration.TestService/Delete": [
+        {
+            "Pattern": {},
+            "Template": {
+                "Version": 1,
+                "OpCodes": [
+                    2,
+                    0,
+                    2,
+                    1
+                ],
+                "Pool": [
+                    "test",
+                    "del"
+                ],
+                "Verb": "",
+                "Fields": null,
+                "Template": "/test/del"
+            },
+            "HttpMethod": "DELETE",
+            "FullMethodName": "/integration.TestService/Delete",
+            "HttpUri": "/test/del",
+            "PathParams": [],
+            "InName": "TestRequest",
+            "OutName": "TestResponse",
+            "IsClientStream": false,
+            "IsServerStream": false,
+            "Pkg": "integration",
+            "InPkg": "integration",
+            "OutPkg": "integration"
+        }
+    ],
+    "/integration.TestService/Get": [
+        {
+            "Pattern": {},
+            "Template": {
+                "Version": 1,
+                "OpCodes": [
+                    2,
+                    0,
+                    2,
+                    1
+                ],
+                "Pool": [
+                    "test",
+                    "get"
+                ],
+                "Verb": "",
+                "Fields": null,
+                "Template": "/test/get"
+            },
+            "HttpMethod": "GET",
+            "FullMethodName": "/integration.TestService/Get",
+            "HttpUri": "/test/get",
+            "PathParams": [],
+            "InName": "TestRequest",
+            "OutName": "TestResponse",
+            "IsClientStream": false,
+            "IsServerStream": false,
+            "Pkg": "integration",
+            "InPkg": "integration",
+            "OutPkg": "integration"
+        }
+    ],
+    "/integration.TestService/Patch": [
+        {
+            "Pattern": {},
+            "Template": {
+                "Version": 1,
+                "OpCodes": [
+                    2,
+                    0,
+                    2,
+                    1
+                ],
+                "Pool": [
+                    "test",
+                    "patch"
+                ],
+                "Verb": "",
+                "Fields": null,
+                "Template": "/test/patch"
+            },
+            "HttpMethod": "PATCH",
+            "FullMethodName": "/integration.TestService/Patch",
+            "HttpUri": "/test/patch",
+            "PathParams": [],
+            "InName": "TestRequest",
+            "OutName": "TestResponse",
+            "IsClientStream": false,
+            "IsServerStream": false,
+            "Pkg": "integration",
+            "InPkg": "integration",
+            "OutPkg": "integration"
+        }
+    ],
+    "/integration.TestService/Post": [
+        {
+            "Pattern": {},
+            "Template": {
+                "Version": 1,
+                "OpCodes": [
+                    2,
+                    0,
+                    2,
+                    1
+                ],
+                "Pool": [
+                    "test",
+                    "post"
+                ],
+                "Verb": "",
+                "Fields": null,
+                "Template": "/test/post"
+            },
+            "HttpMethod": "POST",
+            "FullMethodName": "/integration.TestService/Post",
+            "HttpUri": "/test/post",
+            "PathParams": [],
+            "InName": "TestRequest",
+            "OutName": "TestResponse",
+            "IsClientStream": false,
+            "IsServerStream": false,
+            "Pkg": "integration",
+            "InPkg": "integration",
+            "OutPkg": "integration"
+        }
+    ],
+    "/integration.TestService/Put": [
+        {
+            "Pattern": {},
+            "Template": {
+                "Version": 1,
+                "OpCodes": [
+                    2,
+                    0,
+                    2,
+                    1
+                ],
+                "Pool": [
+                    "test",
+                    "put"
+                ],
+                "Verb": "",
+                "Fields": null,
+                "Template": "/test/put"
+            },
+            "HttpMethod": "PUT",
+            "FullMethodName": "/integration.TestService/Put",
+            "HttpUri": "/test/put",
+            "PathParams": [],
+            "InName": "TestRequest",
+            "OutName": "TestResponse",
+            "IsClientStream": false,
+            "IsServerStream": false,
+            "Pkg": "integration",
+            "InPkg": "integration",
+            "OutPkg": "integration"
+        }
+    ],
+    "/integration.TestServiceWithoutOptions/Get": [
+        {
+            "Pattern": {},
+            "Template": {
+                "Version": 1,
+                "OpCodes": [
+                    2,
+                    0,
+                    2,
+                    1,
+                    2,
+                    2
+                ],
+                "Pool": [
+                    "test",
+                    "v2",
+                    "get"
+                ],
+                "Verb": "",
+                "Fields": null,
+                "Template": "/test/v2/get"
+            },
+            "HttpMethod": "GET",
+            "FullMethodName": "/integration.TestServiceWithoutOptions/Get",
+            "HttpUri": "/test/v2/get",
+            "PathParams": [],
+            "InName": "TestRequest",
+            "OutName": "TestResponse",
+            "IsClientStream": false,
+            "IsServerStream": false,
+            "Pkg": "integration",
+            "InPkg": "integration",
+            "OutPkg": "integration"
+        }
+    ],
+    "/integration.TestServiceWithoutOptions/Post": [
+        {
+            "Pattern": {},
+            "Template": {
+                "Version": 1,
+                "OpCodes": [
+                    2,
+                    0,
+                    2,
+                    1,
+                    2,
+                    2
+                ],
+                "Pool": [
+                    "test",
+                    "v2",
+                    "post"
+                ],
+                "Verb": "",
+                "Fields": null,
+                "Template": "/test/v2/post"
+            },
+            "HttpMethod": "POST",
+            "FullMethodName": "/integration.TestServiceWithoutOptions/Post",
+            "HttpUri": "/test/v2/post",
+            "PathParams": [],
+            "InName": "TestRequest",
+            "OutName": "TestResponse",
+            "IsClientStream": false,
+            "IsServerStream": false,
+            "Pkg": "integration",
+            "InPkg": "integration",
+            "OutPkg": "integration"
+        }
+    ]
 }

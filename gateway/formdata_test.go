@@ -150,6 +150,23 @@ func TestFormUrlEncodedErr(t *testing.T) {
 			patch.Reset()
 		}
 
+		formData := url.Values{}
+		formData.Add("message", "John Doe")
+		formData.Add("allow", api.EnumAllow_DENY.String())
+		req := make(map[string]interface{})
+		decoder := &FormUrlEncodedDecoder{r: strings.NewReader(formData.Encode())}
+		err := decoder.Decode(req)
+		c.So(err, c.ShouldBeNil)
+
+		patch := gomonkey.ApplyFuncReturn(url.ParseQuery, nil, fmt.Errorf("parseQuery error"))
+		defer patch.Reset()
+		req2 := make(map[string]interface{})
+
+		decoder2 := &FormUrlEncodedDecoder{r: strings.NewReader(formData.Encode())}
+		err = decoder2.Decode(req2)
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "parseQuery error")
+		patch.Reset()
 	})
 }
 
@@ -270,5 +287,6 @@ func TestFormDataValueErr(t *testing.T) {
 				c.So(err, c.ShouldNotBeNil)
 			}
 		}
+
 	})
 }

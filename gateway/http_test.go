@@ -1180,8 +1180,18 @@ func testPanicRecover(t *testing.T) {
 		patch.Reset()
 	})
 }
+func testHttp2(t *testing.T) {
+	c.Convey("test http2", t, func() {
+		exampleCli := example.NewClient(fmt.Sprintf("127.0.0.1:%d", gwPort))
+		msg, err := exampleCli.SayHello()
+		c.So(err, c.ShouldBeNil)
+		t.Log(msg)
+		c.So(msg, c.ShouldNotBeEmpty)
+	})
+}
 func TestHttp(t *testing.T) {
 	t.Run("testRegisterClient", testRegisterClient)
+	t.Run("testHttp2", testHttp2)
 	t.Run("testRequestGet", testRequestGet)
 	t.Run("testPanicRecover", testPanicRecover)
 	t.Run("testCors", testCors)
