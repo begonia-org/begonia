@@ -4,6 +4,7 @@
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/begonia-org/begonia)](https://goreportcard.com/report/github.com/begonia-org/begonia)
 [![codecov](https://codecov.io/github/begonia-org/begonia/graph/badge.svg?token=VGGAA5A87B)](https://codecov.io/github/begonia-org/begonia)
+[![Go](https://github.com/begonia-org/begonia/actions/workflows/go.yml/badge.svg)](https://github.com/begonia-org/begonia/actions/workflows/go.yml)
 
 </center>
 
