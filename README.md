@@ -28,7 +28,8 @@ Begonia is an HTTP to gRPC reverse proxy server, which registers services define
 - Allows requests with `application/x-www-form-urlencoded` and `multipart/form-data` parameter formats.
 - Rich built-in middleware, such as APIKEY verification, AKSK verification, and `go-playground/validator` for parameter validation middleware.parameter verification middleware
 - Dynamic registration, updating, and deletion of gRPC service routes based on the protoc descriptor_set_out.
-
+# Architecture
+![Architecture](docs/begonia.png)
 # Getting Started
 
 ### Installation

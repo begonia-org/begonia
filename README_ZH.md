@@ -29,6 +29,9 @@ Begonia 是一个 HTTP 到 gRPC 的反向代理服务器，它基于 protoc 生�
 - 丰富的内置中间件，例如 APIKEY 校验、AKSK 校验，`go-playground/validator`参数校验中间件
 - 基于 protoc `descriptor_set_out` 实现gRPC服务路由的动态注册、更新和删除
 
+# 架构
+![架构](docs/begonia.png)
+
 # 开始
 
 ### 安装
