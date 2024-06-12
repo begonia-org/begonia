@@ -65,19 +65,19 @@ docker compose up -d
 #### 2、初始化数据库
 
 ```bash
-begonia init -e dev
+begonia init -e dev -c config/settings.yml
 ```
 
 #### 3、启动服务
 
 ```bash
-begonia start -e dev
+begonia start -e dev -c config/settings.yml
 ```
 
 #### 4、注册服务
 
 ```bash
-go run . endpoint add  -n "example" -d /data/work/begonia-org/begonia/example/example.pb -p 127.0.0.1:1949  -p 127.0.0.1:2024
+begonia endpoint add  -n "example" -d /data/work/begonia-org/begonia/example/example.pb -p 127.0.0.1:1949  -p 127.0.0.1:2024
 ```
 
 #### 5、测试请求服务

@@ -9,6 +9,7 @@ import (
 	conf "github.com/begonia-org/begonia/config"
 	cfg "github.com/begonia-org/begonia/internal/pkg/config"
 	c "github.com/smartystreets/goconvey/convey"
+	"github.com/spark-lence/tiga"
 	"github.com/spf13/viper"
 )
 
@@ -72,8 +73,10 @@ func TestConfig(t *testing.T) {
 		c.So(config.GetServicePrefix(), c.ShouldEndWith, "/service")
 		c.So(config.GetServiceNamePrefix(), c.ShouldEndWith, "/service_name")
 		c.So(config.GetServiceTagsPrefix(), c.ShouldEndWith, "/tags")
-		t.Logf("service prefix: %s", config.GetServicePrefix())
-		c.So(config.GetServiceKey("test"), c.ShouldStartWith, config.GetServicePrefix())
+		snk,_:=tiga.NewSnowflake(1)		
+		c.So(config.GetServiceKey("test"), c.ShouldStartWith, config.GetServiceNamePrefix())
+		c.So(config.GetServiceKey(snk.GenerateIDString()), c.ShouldStartWith, config.GetServicePrefix())
+
 		c.So(config.GetServiceNameKey("test"), c.ShouldStartWith, config.GetServiceNamePrefix())
 		c.So(config.GetAppKeyPrefix(), c.ShouldNotBeEmpty)
 		c.So(config.GetAPPKey("test"), c.ShouldStartWith, config.GetAppKeyPrefix())

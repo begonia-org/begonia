@@ -35,7 +35,7 @@ func postEndpoint(t *testing.T) {
 		endpoint := &api.EndpointSrvConfig{
 			DescriptorSet: pb,
 			Name:          "test",
-			ServiceName:   "test",
+			ServiceName:   fmt.Sprintf("test-service-%d", time.Now().Unix()),
 			Description:   "test",
 			Balance:       string(goloadbalancer.RRBalanceType),
 			Endpoints: []*api.EndpointMeta{

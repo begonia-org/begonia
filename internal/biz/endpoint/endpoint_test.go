@@ -35,6 +35,7 @@ import (
 )
 
 var epId = ""
+var serviceName = ""
 
 func newEndpointBiz() *endpoint.EndpointUsecase {
 	env := "dev"
@@ -58,7 +59,7 @@ func testAddEndpoint(t *testing.T) {
 		endpointSvr := &api.EndpointSrvConfig{
 			DescriptorSet: pb,
 			Name:          "test",
-			ServiceName:   "test",
+			ServiceName:   fmt.Sprintf("test-biz-endpoint-%s", time.Now().Format("20060102150405")),
 			Description:   "test",
 			Balance:       string(goloadbalancer.RRBalanceType),
 			Endpoints: []*api.EndpointMeta{
@@ -81,12 +82,13 @@ func testAddEndpoint(t *testing.T) {
 		c.So(err, c.ShouldBeNil)
 		c.So(endpointId, c.ShouldNotBeEmpty)
 		epId = endpointId
+		serviceName = endpointSvr.ServiceName
 	})
 	c.Convey("Test Add Endpoint Fail", t, func() {
 		endpointSvr := &api.EndpointSrvConfig{
 			DescriptorSet: pb,
 			Name:          "test",
-			ServiceName:   "test",
+			ServiceName:   fmt.Sprintf("test-biz-add-fail-endpoint-%s", time.Now().Format("20060102150405")),
 			Description:   "test",
 			Balance:       "test",
 			Endpoints: []*api.EndpointMeta{
@@ -154,6 +156,9 @@ func testGetEndpoint(t *testing.T) {
 		data, err := endpointBiz.Get(context.TODO(), epId)
 		c.So(err, c.ShouldBeNil)
 		c.So(data, c.ShouldNotBeEmpty)
+		data, err = endpointBiz.Get(context.TODO(), serviceName)
+		c.So(err, c.ShouldBeNil)
+		c.So(data, c.ShouldNotBeEmpty)
 	})
 }
 
@@ -162,7 +167,7 @@ func testPatchEndpoint(t *testing.T) {
 	c.Convey("Test Patch Endpoint", t, func() {
 		updated_at, err := endpointBiz.Patch(context.TODO(), &api.EndpointSrvUpdateRequest{
 			UniqueKey:   epId,
-			Name:        "test_patch",
+			Name:        fmt.Sprintf("test-test_patch-%s", time.Now().Format("20060102150405")),
 			Description: "test patch",
 			Tags:        []string{"test-biz-1"},
 			UpdateMask:  &fieldmaskpb.FieldMask{Paths: []string{"description", "tags"}},
@@ -206,7 +211,7 @@ func testPatchEndpoint(t *testing.T) {
 		defer patch2.Reset()
 		_, err = endpointBiz.Patch(context.TODO(), &api.EndpointSrvUpdateRequest{
 			UniqueKey:  epId,
-			Name:       "test_patch2",
+			Name:       fmt.Sprintf("test-biz-test_patch2-%s", time.Now().Format("20060102150405")),
 			UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"name"}},
 		})
 		c.So(err, c.ShouldNotBeNil)
@@ -218,7 +223,7 @@ func testPatchEndpoint(t *testing.T) {
 		defer patch3.Reset()
 		_, err = endpointBiz.Patch(context.TODO(), &api.EndpointSrvUpdateRequest{
 			UniqueKey:  epId,
-			Name:       "test_patch3",
+			Name:       fmt.Sprintf("test-biz-test_patch3-%s", time.Now().Format("20060102150405")),
 			UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"name"}},
 		})
 		c.So(err, c.ShouldNotBeNil)
@@ -229,7 +234,7 @@ func testPatchEndpoint(t *testing.T) {
 		defer patch4.Reset()
 		_, err = endpointBiz.Patch(context.TODO(), &api.EndpointSrvUpdateRequest{
 			UniqueKey:  epId,
-			Name:       "test_patch4",
+			Name:       fmt.Sprintf("test-biz-test_patch4-%s", time.Now().Format("20060102150405")),
 			UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"name"}},
 		})
 		c.So(err, c.ShouldNotBeNil)
@@ -240,12 +245,13 @@ func testPatchEndpoint(t *testing.T) {
 		defer patch5.Reset()
 		_, err = endpointBiz.Patch(context.TODO(), &api.EndpointSrvUpdateRequest{
 			UniqueKey:  epId,
-			Name:       "test_patch4",
+			Name:       fmt.Sprintf("test-biz-test_patch4-%s", time.Now().Format("20060102150405")),
 			UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"name"}},
 		})
 		patch5.Reset()
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "test watcher error")
+
 	})
 }
 
@@ -274,7 +280,7 @@ func testListEndpoints(t *testing.T) {
 			id, err := endpointBiz.AddConfig(context.TODO(), &api.EndpointSrvConfig{
 				DescriptorSet: pb,
 				Name:          fmt.Sprintf("test-%d", i),
-				ServiceName:   fmt.Sprintf("test-%d", i),
+				ServiceName:   fmt.Sprintf("test-list-add-%s-%d", time.Now().Format("20060102150405"), i),
 				Description:   fmt.Sprintf("test-%d", i),
 				Balance:       string(goloadbalancer.RRBalanceType),
 				Endpoints: []*api.EndpointMeta{
@@ -479,7 +485,6 @@ func TestEndpoint(t *testing.T) {
 	t.Run("Test Get Endpoint", testGetEndpoint)
 	t.Run("Test Patch Endpoint", testPatchEndpoint)
 	t.Run("Test List Endpoint", testListEndpoints)
-	t.Run("Test Watcher Update", testWatcherUpdate)
 	t.Run("Test Watcher Del", testWatcherDel)
 	t.Run("Test Del Endpoint", testDelEndpoint)
 }

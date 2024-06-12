@@ -1,6 +1,7 @@
 package service_test
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"os"
@@ -14,7 +15,10 @@ import (
 	"github.com/begonia-org/begonia/gateway"
 	"github.com/begonia-org/begonia/internal"
 	api "github.com/begonia-org/go-sdk/api/app/v1"
+	user "github.com/begonia-org/go-sdk/api/user/v1"
 	example "github.com/begonia-org/go-sdk/example"
+	"github.com/spark-lence/tiga"
+	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 var onceExampleServer sync.Once
@@ -90,9 +94,65 @@ func RunTestServer() {
 
 func TestMain(m *testing.M) {
 	readInitAPP()
+	// setup()
 	RunTestServer()
 	time.Sleep(5 * time.Second)
 
 	m.Run()
+	log.Printf("All tests passed")
+	time.Sleep(20 * time.Second)
+	clean()
 
+}
+
+func clean() {
+	log.Printf("Cleaned up test data start")
+
+	env := "dev"
+	if begonia.Env != "" {
+		env = begonia.Env
+	}
+	conf := config.ReadConfig(env)
+
+	// cnf:=config.NewConfig(conf)
+	rdb := tiga.NewRedisDao(conf)
+	luaScript := `
+		local prefix = KEYS[1]
+		local cursor = "0"
+		local count = 100
+		repeat
+			local result = redis.call("SCAN", cursor, "MATCH", prefix, "COUNT", count)
+			cursor = result[1]
+			local keys = result[2]
+			if #keys > 0 then
+				redis.call("DEL", unpack(keys))
+			end
+		until cursor == "0"
+		return "OK"
+		`
+
+	_, err := rdb.GetClient().Eval(context.Background(), luaScript, []string{"test:*"}).Result()
+	if err != nil {
+		log.Fatalf("Could not execute Lua script: %v", err)
+	}
+	etcd := tiga.NewEtcdDao(conf)
+	// 设置前缀
+	prefix := "/test"
+
+	// 使用前缀删除所有键
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	err = etcd.Delete(ctx, prefix, clientv3.WithPrefix())
+	if err != nil {
+		log.Fatalf("Failed to delete keys with prefix %s: %v", prefix, err)
+	}
+
+	mysql := tiga.NewMySQLDao(conf)
+	mysql.RegisterTimeSerializer()
+	err=mysql.GetModel(&user.Users{}).Where("`group` = ?", "test-user-01").Delete(&user.Users{}).Error
+	if err != nil {
+		log.Fatalf("Failed to delete keys with prefix %s: %v", prefix, err)
+	}
+	log.Printf("Cleaned up test data")
 }

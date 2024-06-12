@@ -202,7 +202,7 @@ func (c *Config) GetRPCPlugins() ([]*goloadbalancer.Server, error) {
 	return plugins, nil
 }
 func (c *Config) GetEndpointsPrefix() string {
-	return fmt.Sprintf("%s%s", c.GetEnv(), c.getWithEnv("common.etcd.endpoint.prefix"))
+	return fmt.Sprintf("/%s%s", c.GetEnv(), c.getWithEnv("common.etcd.endpoint.prefix"))
 }
 
 func (c *Config) GetGatewayDescriptionOut() string {
@@ -225,9 +225,13 @@ func (c *Config) GetServiceTagsPrefix() string {
 	prefix := c.GetEndpointsPrefix()
 	return fmt.Sprintf("%s/tags", prefix)
 }
-func (c *Config) GetServiceKey(id string) string {
-	prefix := c.GetServicePrefix()
-	return filepath.Join(prefix, id)
+func (c *Config) GetServiceKey(key string) string {
+	if tiga.IsSnowflakeID(key){
+		prefix := c.GetServicePrefix()
+		return filepath.Join(prefix, key)
+	}
+	return c.GetServiceNameKey(key)
+
 }
 func (c *Config) GetServiceNameKey(name string) string {
 	prefix := c.GetServiceNamePrefix()

@@ -23,6 +23,8 @@ import (
 )
 
 var endpointId = ""
+var endpointId2 = ""
+var serviceName = ""
 var tag = fmt.Sprintf("test-endpoint-data-%s", time.Now().Format("20060102150405"))
 var tag3 = fmt.Sprintf("test3-%s", time.Now().Format("20060102150405"))
 
@@ -40,11 +42,11 @@ func putTest(t *testing.T) {
 		repo := NewEndpointRepo(conf, gateway.Log)
 		snk, _ := tiga.NewSnowflake(1)
 		endpointId = snk.GenerateIDString()
-		err := repo.Put(context.Background(), &api.Endpoints{
+		ep := &api.Endpoints{
 			Key:           endpointId,
 			DescriptorSet: pb,
 			Name:          "test",
-			ServiceName:   "test",
+			ServiceName:   fmt.Sprintf("test-data-ep-%s", time.Now().Format("20060102150405")),
 			Description:   "test",
 			Balance:       string(goloadbalancer.RRBalanceType),
 			Endpoints: []*api.EndpointMeta{
@@ -65,9 +67,43 @@ func putTest(t *testing.T) {
 			Version:   fmt.Sprintf("%d", time.Now().UnixMilli()),
 			CreatedAt: timestamppb.New(time.Now()).AsTime().Format(time.RFC3339),
 			UpdatedAt: timestamppb.New(time.Now()).AsTime().Format(time.RFC3339),
-		})
+		}
+		serviceName = ep.ServiceName
+		err := repo.Put(context.Background(), ep)
 		c.So(err, c.ShouldBeNil)
-
+		ep.Key = snk.GenerateIDString()
+		err = repo.Put(context.Background(), ep)
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "service name already exists")
+		ep2 := &api.Endpoints{
+			Key:           snk.GenerateIDString(),
+			DescriptorSet: pb,
+			Name:          "test",
+			ServiceName:   fmt.Sprintf("test-data-2-ep-%s", time.Now().Format("20060102150405")),
+			Description:   "test",
+			Balance:       string(goloadbalancer.RRBalanceType),
+			Endpoints: []*api.EndpointMeta{
+				{
+					Addr:   "127.0.0.1:21213",
+					Weight: 0,
+				},
+				{
+					Addr:   "127.0.0.1:21214",
+					Weight: 0,
+				},
+				{
+					Addr:   "127.0.0.1:21215",
+					Weight: 0,
+				},
+			},
+			Tags:      []string{},
+			Version:   fmt.Sprintf("%d", time.Now().UnixMilli()),
+			CreatedAt: timestamppb.New(time.Now()).AsTime().Format(time.RFC3339),
+			UpdatedAt: timestamppb.New(time.Now()).AsTime().Format(time.RFC3339),
+		}
+		endpointId2 = ep2.Key
+		err = repo.Put(context.Background(), ep2)
+		c.So(err, c.ShouldBeNil)
 		patch := gomonkey.ApplyFuncReturn((*Data).PutEtcdWithTxn, false, fmt.Errorf("put endpoint fail"))
 		defer patch.Reset()
 		err = repo.Put(context.Background(), &api.Endpoints{
@@ -268,11 +304,19 @@ func patchEndpointTest(t *testing.T) {
 		c.So(updated.Tags, c.ShouldContain, tag1)
 		keys, err := repo.GetKeysByTags(context.Background(), []string{tag})
 		c.So(err, c.ShouldBeNil)
+		t.Logf("endpointID %s", endpointId)
 		c.So(keys, c.ShouldBeEmpty)
 		keys, err = repo.GetKeysByTags(context.Background(), []string{tag1})
 		c.So(err, c.ShouldBeNil)
-		t.Logf("keys:%v", keys)
 		c.So(keys, c.ShouldContain, endpointKey)
+		err = repo.Patch(context.Background(), endpointId2, map[string]interface{}{
+			"description":  "test description",
+			"balance":      string(goloadbalancer.WRRBalanceType),
+			"tags":         []string{tag1, tag3},
+			"service_name": serviceName,
+		})
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "service name already exists")
 		invalidPatch := map[string]interface{}{
 			"description": "test description",
 			"balance":     string(goloadbalancer.WRRBalanceType),
@@ -442,9 +486,37 @@ func putTagsTest(t *testing.T) {
 
 	})
 }
+func checkServiceNameExistsTest(t *testing.T) {
+	c.Convey("test check service name exists", t, func() {
+		env := "dev"
+		if begonia.Env != "" {
+			env = begonia.Env
+		}
+		conf := cfg.ReadConfig(env)
+		repo := NewEndpointRepo(conf, gateway.Log)
+		patch := gomonkey.ApplyFuncReturn(json.Unmarshal, fmt.Errorf("unmarshal fail"))
+		defer patch.Reset()
+		err := repo.ServiceNameExists(context.Background(), serviceName, endpointId)
+		patch.Reset()
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "unmarshal fail")
 
+		patch2 := gomonkey.ApplyFuncReturn((*endpointRepoImpl).Get, "", fmt.Errorf("get endpoint fail"))
+		defer patch2.Reset()
+		err = repo.ServiceNameExists(context.Background(), serviceName, endpointId)
+		patch2.Reset()
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(),c.ShouldContainSubstring,"get endpoint fail")
+
+		err = repo.ServiceNameExists(context.Background(), serviceName, endpointId)
+		c.So(err, c.ShouldBeNil)
+
+	})
+
+}
 func TestEndpoint(t *testing.T) {
 	t.Run("put", putTest)
+	t.Run("checkServiceNameExistsTest", checkServiceNameExistsTest)
 	t.Run("get", getEndpointTest)
 	t.Run("getKeysByTags", getKeysByTagsTest)
 	t.Run("list", testList)

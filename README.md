@@ -63,19 +63,19 @@ docker compose up -d
 #### 2. Initialize the database
 
 ```bash
-begonia init -e dev
+begonia init -e dev -c config/settings.yml
 ```
 
 #### 3. Start the service
 
 ```bash
-begonia start -e dev
+begonia start -e dev -c config/settings.yml
 ```
 
 #### 4. Register the service
 
 ```bash
-go run . endpoint add -n "example" -d /data/work/begonia-org/begonia/example/example.pb -p 127.0.0.1:1949 -p 127.0.0.1:2024
+begonia endpoint add -n "example" -d /data/work/begonia-org/begonia/example/example.pb -p 127.0.0.1:1949 -p 127.0.0.1:2024
 ```
 
 #### 5. Test request service

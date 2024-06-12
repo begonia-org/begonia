@@ -102,6 +102,23 @@ func RegisterEndpoint(name string, endpoints []string, pbFile string, opts ...cl
 	log.Printf("#####################Add Endpoint Success#####################")
 	log.Printf("#####################ID:%s####################################", rsp.Id)
 }
+func UpdateEndpoint(id string, mask []string, opts ...client.EndpointOption) {
+	readInitAPP()
+	apiClient := client.NewEndpointAPI(addr, accessKey, secret)
+	log.Printf("#####################Update Endpoint###########################")
+	patch := &endpoint.EndpointSrvUpdateRequest{}
+	patch.UniqueKey = id
+	for _, opt := range opts {
+		opt(patch)
+	}
+	_, err := apiClient.PatchEndpointConfig(context.Background(), patch)
+	if err != nil {
+		log.Fatalf(err.Error())
+		panic(err.Error())
+	}
+	log.Printf("#####################Update Endpoint %s Success#####################", id)
+
+}
 func DeleteEndpoint(id string) {
 	readInitAPP()
 	apiClient := client.NewEndpointAPI(addr, accessKey, secret)
