@@ -26,6 +26,7 @@ type EndpointRepo interface {
 	List(ctx context.Context, keys []string) ([]*api.Endpoints, error)
 	Put(ctx context.Context, endpoint *api.Endpoints) error
 	Patch(ctx context.Context, id string, patch map[string]interface{}) error
+	ServiceNameExists(ctx context.Context, serviceName, exceptId string) error
 	PutTags(ctx context.Context, id string, tags []string) error
 	GetKeysByTags(ctx context.Context, tags []string) ([]string, error)
 }
@@ -131,6 +132,10 @@ func (u *EndpointUsecase) Delete(ctx context.Context, uniqueKey string) error {
 
 func (u *EndpointUsecase) Get(ctx context.Context, uniqueKey string) (*api.Endpoints, error) {
 	detailsKey := u.config.GetServiceKey(uniqueKey)
+	if !tiga.IsSnowflakeID(uniqueKey) {
+		detailsKey = u.config.GetServiceNameKey(uniqueKey)
+	}
+	// detailsKey := u.config.GetServiceKey(uniqueKey)
 	value, err := u.repo.Get(ctx, detailsKey)
 	if err != nil {
 		return nil, gosdk.NewError(fmt.Errorf("%s:%w", pkg.ErrEndpointNotExists.Error(), err), int32(common.Code_NOT_FOUND), codes.NotFound, "get_endpoint")

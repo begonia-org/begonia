@@ -29,6 +29,9 @@ Begonia 是一个 HTTP 到 gRPC 的反向代理服务器，它基于 protoc 生�
 - 丰富的内置中间件，例如 APIKEY 校验、AKSK 校验，`go-playground/validator`参数校验中间件
 - 基于 protoc `descriptor_set_out` 实现gRPC服务路由的动态注册、更新和删除
 
+# 架构
+![架构](docs/begonia.png)
+
 # 开始
 
 ### 安装
@@ -62,19 +65,19 @@ docker compose up -d
 #### 2、初始化数据库
 
 ```bash
-begonia init -e dev
+begonia init -e dev -c config/settings.yml
 ```
 
 #### 3、启动服务
 
 ```bash
-begonia start -e dev
+begonia start -e dev -c config/settings.yml
 ```
 
 #### 4、注册服务
 
 ```bash
-go run . endpoint add  -n "example" -d /data/work/begonia-org/begonia/example/example.pb -p 127.0.0.1:1949  -p 127.0.0.1:2024
+begonia endpoint add  -n "example" -d /data/work/begonia-org/begonia/example/example.pb -p 127.0.0.1:1949  -p 127.0.0.1:2024
 ```
 
 #### 5、测试请求服务

@@ -28,7 +28,8 @@ Begonia is an HTTP to gRPC reverse proxy server, which registers services define
 - Allows requests with `application/x-www-form-urlencoded` and `multipart/form-data` parameter formats.
 - Rich built-in middleware, such as APIKEY verification, AKSK verification, and `go-playground/validator` for parameter validation middleware.parameter verification middleware
 - Dynamic registration, updating, and deletion of gRPC service routes based on the protoc descriptor_set_out.
-
+# Architecture
+![Architecture](docs/begonia.png)
 # Getting Started
 
 ### Installation
@@ -62,19 +63,19 @@ docker compose up -d
 #### 2. Initialize the database
 
 ```bash
-begonia init -e dev
+begonia init -e dev -c config/settings.yml
 ```
 
 #### 3. Start the service
 
 ```bash
-begonia start -e dev
+begonia start -e dev -c config/settings.yml
 ```
 
 #### 4. Register the service
 
 ```bash
-go run . endpoint add -n "example" -d /data/work/begonia-org/begonia/example/example.pb -p 127.0.0.1:1949 -p 127.0.0.1:2024
+begonia endpoint add -n "example" -d /data/work/begonia-org/begonia/example/example.pb -p 127.0.0.1:1949 -p 127.0.0.1:2024
 ```
 
 #### 5. Test request service
