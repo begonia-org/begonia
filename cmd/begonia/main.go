@@ -19,7 +19,6 @@ import (
 func addCommonCommand(cmd *cobra.Command) *cobra.Command {
 	cmd.Flags().StringP("env", "e", "dev", "Runtime Environment")
 	cmd.Flags().StringP("config", "c", "./config/settings.yml", "Config file path")
-	_ = cmd.MarkFlagRequired("config")
 	return cmd
 }
 func NewInitCmd() *cobra.Command {
