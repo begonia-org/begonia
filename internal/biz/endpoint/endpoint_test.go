@@ -44,7 +44,7 @@ func newEndpointBiz() *endpoint.EndpointUsecase {
 	conf := config.ReadConfig(env)
 	cnf := cfg.NewConfig(conf)
 	repo := data.NewEndpointRepo(conf, gateway.Log)
-	return endpoint.NewEndpointUsecase(repo, nil, cnf)
+	return endpoint.NewEndpointUsecase(repo, cnf)
 }
 
 func testAddEndpoint(t *testing.T) {

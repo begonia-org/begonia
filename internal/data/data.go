@@ -52,6 +52,7 @@ func NewEtcd(config *tiga.Configuration) *tiga.EtcdDao {
 var ProviderSet = wire.NewSet(NewMySQL,
 	NewRDB,
 	NewEtcd,
+	NewFileRepoImpl,
 	GetRDBClient,
 	NewData,
 	NewCurdImpl,

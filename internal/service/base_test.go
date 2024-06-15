@@ -42,14 +42,22 @@ func runExampleServer() {
 func readInitAPP() {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		log.Fatalf(err.Error())
+
+		log.Fatalf("use home idr error: %s", err.Error())
 		return
 	}
+	env := "dev"
+	if begonia.Env != "" {
+		env = begonia.Env
+	}
+	op := internal.InitOperatorApp(config.ReadConfig(env))
+	_ = op.Init()
 	path := filepath.Join(homeDir, ".begonia")
 	path = filepath.Join(path, "admin-app.json")
 	file, err := os.Open(path)
 	if err != nil {
-		log.Fatalf(err.Error())
+
+		log.Fatalf("open file %s error: %s", path, err.Error())
 		return
 
 	}
@@ -59,7 +67,7 @@ func readInitAPP() {
 	app := &api.Apps{}
 	err = decoder.Decode(app)
 	if err != nil {
-		log.Fatalf(err.Error())
+		log.Fatalf("decode file %s error: %s", path, err.Error())
 		return
 
 	}

@@ -30,7 +30,7 @@ func NewEndpointSvrForTest(config *tiga.Configuration, log logger.Logger) ep.End
 	panic(wire.Build(biz.ProviderSet, pkg.ProviderSet, data.ProviderSet, NewEndpointsService))
 }
 func NewFileSvrForTest(config *tiga.Configuration, log logger.Logger) file.FileServiceServer {
-	panic(wire.Build(biz.ProviderSet, pkg.ProviderSet, NewFileService))
+	panic(wire.Build(biz.ProviderSet, data.ProviderSet, pkg.ProviderSet, NewFileService))
 }
 func NewSysSvrForTest(config *tiga.Configuration, log logger.Logger) sys.SystemServiceServer {
 	panic(wire.Build(NewSysService))

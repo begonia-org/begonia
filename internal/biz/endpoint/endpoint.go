@@ -7,7 +7,6 @@ import (
 	"math"
 	"time"
 
-	"github.com/begonia-org/begonia/internal/biz/file"
 	"github.com/begonia-org/begonia/internal/pkg"
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	loadbalance "github.com/begonia-org/go-loadbalancer"
@@ -34,14 +33,13 @@ type EndpointRepo interface {
 type EndpointUsecase struct {
 	repo    EndpointRepo
 	config  *config.Config
-	file    *file.FileUsecase
 	snk     *tiga.Snowflake
 	watcher *EndpointWatcher
 }
 
-func NewEndpointUsecase(repo EndpointRepo, file *file.FileUsecase, config *config.Config) *EndpointUsecase {
+func NewEndpointUsecase(repo EndpointRepo, config *config.Config) *EndpointUsecase {
 	snk, _ := tiga.NewSnowflake(1)
-	return &EndpointUsecase{repo: repo, file: file, config: config, snk: snk, watcher: NewWatcher(config, repo)}
+	return &EndpointUsecase{repo: repo, config: config, snk: snk, watcher: NewWatcher(config, repo)}
 }
 
 func (e *EndpointUsecase) AddConfig(ctx context.Context, srvConfig *api.EndpointSrvConfig) (string, error) {

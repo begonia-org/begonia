@@ -8,6 +8,13 @@ endpoints:
 file:
   upload:
     dir: /data/work/begonia-org/begonia/upload
+  engines:
+    - name: "FILE_ENGINE_MINIO"
+      endpoint: "127.0.0.1:9000"
+      accessKey: "7OdVJK1alV8cpRMeBLBW"
+      secretKey: "2GNNRqqElReC1KnV3kX9jSjyLU4kwOaTZEqDS2vH"
+    - name: "FILE_ENGINE_LOCAL"
+      endpoint: "/data/work/begonia-org/begonia/upload"
   protos:
     dir: /data/work/begonia-org/begonia-go-sdk/protos
     desc: /data/work/begonia-org/begonia-go-sdk/protos/api.bin
@@ -16,7 +23,8 @@ mysql:
   port: 3306
   user: "test"
   password: "test"
-  database: "test"
+  database: "begonia-test"
+  table_prefix: "begonia_"
 admin:
   name: "admin"
   password: "admin"
@@ -95,6 +103,13 @@ test:
     protos:
       dir: "/tmp/protos"
       desc: "/tmp/protos/api.bin"
+    engines:
+      - name: "FILE_ENGINE_MINIO"
+        endpoint: "127.0.0.1:9000"
+        accessKey: "begonia"
+        secretKey: "begoniabegonia"
+      - name: "FILE_ENGINE_LOCAL"
+        endpoint: "/tmp/upload"
   etcd:
     endpoint:
       prefix: "/begonia/endpoints"

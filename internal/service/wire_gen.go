@@ -59,16 +59,21 @@ func NewEndpointSvrForTest(config2 *tiga.Configuration, log logger.Logger) v1_3.
 	dataData := data.NewData(mySQLDao, redisDao, etcdDao)
 	configConfig := config.NewConfig(config2)
 	endpointRepo := data.NewEndpointRepoImpl(dataData, configConfig)
-	fileUsecase := file.NewFileUsecase(configConfig)
-	endpointUsecase := endpoint.NewEndpointUsecase(endpointRepo, fileUsecase, configConfig)
+	endpointUsecase := endpoint.NewEndpointUsecase(endpointRepo, configConfig)
 	endpointServiceServer := NewEndpointsService(endpointUsecase, log, configConfig)
 	return endpointServiceServer
 }
 
 func NewFileSvrForTest(config2 *tiga.Configuration, log logger.Logger) v1_4.FileServiceServer {
 	configConfig := config.NewConfig(config2)
-	fileUsecase := file.NewFileUsecase(configConfig)
-	fileServiceServer := NewFileService(fileUsecase, configConfig)
+	mySQLDao := data.NewMySQL(config2)
+	redisDao := data.NewRDB(config2)
+	etcdDao := data.NewEtcd(config2)
+	dataData := data.NewData(mySQLDao, redisDao, etcdDao)
+	curd := data.NewCurdImpl(mySQLDao, configConfig)
+	fileRepo := data.NewFileRepoImpl(dataData, curd)
+	v := file.NewFileUsecase(configConfig, fileRepo)
+	fileServiceServer := NewFileService(v, configConfig)
 	return fileServiceServer
 }
 

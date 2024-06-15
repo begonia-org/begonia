@@ -13,13 +13,17 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+	"time"
 
 	"github.com/agiledragon/gomonkey/v2"
 	"github.com/begonia-org/begonia"
 	"github.com/begonia-org/begonia/config"
 	"github.com/begonia-org/begonia/gateway"
 	"github.com/begonia-org/begonia/internal/biz/file"
+	"github.com/begonia-org/begonia/internal/data"
+
 	"github.com/begonia-org/begonia/internal/pkg"
+
 	cfg "github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/service"
 	api "github.com/begonia-org/go-sdk/api/file/v1"
@@ -28,6 +32,8 @@ import (
 	c "github.com/smartystreets/goconvey/convey"
 	"google.golang.org/grpc/metadata"
 )
+
+var fileBucket = ""
 
 func sumFileSha256(src string) (string, error) {
 	file, err := os.Open(src)
@@ -43,7 +49,30 @@ func sumFileSha256(src string) (string, error) {
 
 	return hex.EncodeToString(hash.Sum(nil)), nil
 }
+func newFileUsecases() map[string]file.FileUsecase {
+	env := "dev"
+	if begonia.Env != "" {
+		env = begonia.Env
+	}
+	cnf := config.ReadConfig(env)
+	conf := cfg.NewConfig(cnf)
+	repo := data.NewFileRepo(cnf, gateway.Log)
+	return file.NewFileUsecase(conf, repo)
+}
+func makeBucket(t *testing.T) {
+	c.Convey("test make bucket", t, func() {
+		fileBucket = fmt.Sprintf("test-service-bucket-%s", time.Now().Format("20060102150405"))
+		apiClient := client.NewFilesAPI(apiAddr, accessKey, secret, api.FileEngine_FILE_ENGINE_LOCAL)
+		rsp, err := apiClient.CreateBucket(context.Background(), fileBucket, "test", false)
+		c.So(err, c.ShouldBeNil)
+		c.So(rsp.StatusCode, c.ShouldEqual, common.Code_OK)
+		minioFile := client.NewFilesAPI(apiAddr, accessKey, secret, api.FileEngine_FILE_ENGINE_MINIO)
+		rsp, err = minioFile.CreateBucket(context.Background(), fileBucket, "test", false)
+		c.So(err, c.ShouldBeNil)
+		c.So(rsp.StatusCode, c.ShouldEqual, common.Code_OK)
 
+	})
+}
 func upload(t *testing.T) {
 	env := begonia.Env
 	if env == "" {
@@ -51,20 +80,18 @@ func upload(t *testing.T) {
 	}
 	c.Convey("test upload file", t, func() {
 		// test upload file
-		apiClient := client.NewFilesAPI(apiAddr, accessKey, secret)
+		apiClient := client.NewFilesAPI(apiAddr, accessKey, secret, api.FileEngine_FILE_ENGINE_LOCAL)
 		_, filename, _, _ := runtime.Caller(0)
 
 		pbFile := filepath.Join(filepath.Dir(filepath.Dir(filepath.Dir(filename))), "testdata", "helloworld.pb")
 		srcSha256, _ := sumFileSha256(pbFile)
-		rsp, err := apiClient.UploadFile(context.Background(), pbFile, "test/helloworld.pb", true)
+		rsp, err := apiClient.UploadFile(context.Background(), pbFile, "test/helloworld.pb", fileBucket, true)
 		c.So(err, c.ShouldBeNil)
 		c.So(rsp.StatusCode, c.ShouldEqual, common.Code_OK)
 		c.So(rsp.Uri, c.ShouldNotBeEmpty)
 		conf := cfg.NewConfig(config.ReadConfig(env))
 
-		filePath := filepath.Join(conf.GetUploadDir(), rsp.Uri)
-		// filename = filepath.Base(rsp.Uri)
-		// filePath := filepath.Join(saveDir, filename)
+		filePath := filepath.Join(conf.GetUploadDir(), fileBucket, rsp.Uri)
 
 		_, err = os.Stat(filePath)
 		c.So(err, c.ShouldBeNil)
@@ -72,7 +99,6 @@ func upload(t *testing.T) {
 		c.So(err, c.ShouldBeNil)
 		c.So(srcSha256, c.ShouldEqual, dstSha256)
 		c.So(rsp.Version, c.ShouldNotBeEmpty)
-		// c.So(info.Size(), c., 102)
 	})
 }
 
@@ -127,12 +153,12 @@ func generateRandomFile(size int64) (*TmpFile, error) {
 }
 func uploadParts(t *testing.T) {
 	c.Convey("test upload file", t, func() {
-		apiClient := client.NewFilesAPI(apiAddr, accessKey, secret)
+		apiClient := client.NewFilesAPI(apiAddr, accessKey, secret, api.FileEngine_FILE_ENGINE_LOCAL)
 		var err error
 		tmpFile, err = generateRandomFile(1024 * 1024 * 2)
 		c.So(err, c.ShouldBeNil)
 		defer os.Remove(tmpFile.path)
-		rsp, err := apiClient.UploadFileWithMuiltParts(context.Background(), tmpFile.path, "test/tmp.bin", true)
+		rsp, err := apiClient.UploadFileWithMuiltParts(context.Background(), tmpFile.path, "test/tmp.bin", fileBucket, true)
 		c.So(err, c.ShouldBeNil)
 		c.So(rsp.StatusCode, c.ShouldEqual, common.Code_OK)
 		c.So(rsp.Uri, c.ShouldNotBeEmpty)
@@ -144,7 +170,7 @@ func uploadParts(t *testing.T) {
 		}
 		conf := cfg.NewConfig(config.ReadConfig(env))
 
-		filePath := filepath.Join(conf.GetUploadDir(), rsp.Uri)
+		filePath := filepath.Join(conf.GetUploadDir(), fileBucket, rsp.Uri)
 
 		file, err := os.Open(filePath)
 		c.So(err, c.ShouldBeNil)
@@ -174,12 +200,12 @@ func uploadParts(t *testing.T) {
 }
 func download(t *testing.T) {
 	c.Convey("test download file", t, func() {
-		apiClient := client.NewFilesAPI(apiAddr, accessKey, secret)
+		apiClient := client.NewFilesAPI(apiAddr, accessKey, secret, api.FileEngine_FILE_ENGINE_LOCAL)
 		tmp, err := os.CreateTemp("", "testfile-*.txt")
 		c.So(err, c.ShouldBeNil)
 		defer tmp.Close()
 		defer os.Remove(tmp.Name())
-		sha256Str, err := apiClient.DownloadFile(context.Background(), sdkAPPID+"/test/helloworld.pb", tmp.Name(), "")
+		sha256Str, err := apiClient.DownloadFile(context.Background(), sdkAPPID+"/test/helloworld.pb", tmp.Name(), "", fileBucket)
 		c.So(err, c.ShouldBeNil)
 		_, err = os.Stat(tmp.Name())
 		c.So(err, c.ShouldBeNil)
@@ -191,12 +217,12 @@ func download(t *testing.T) {
 }
 func downloadParts(t *testing.T) {
 	c.Convey("test download parts file", t, func() {
-		apiClient := client.NewFilesAPI(apiAddr, accessKey, secret)
+		apiClient := client.NewFilesAPI(apiAddr, accessKey, secret, api.FileEngine_FILE_ENGINE_LOCAL)
 		tmp, err := os.CreateTemp("", "testfile-*.txt")
 		c.So(err, c.ShouldBeNil)
 		defer tmp.Close()
 		defer os.Remove(tmp.Name())
-		rsp, err := apiClient.DownloadMultiParts(context.Background(), sdkAPPID+"/test/tmp.bin", tmp.Name(), "")
+		rsp, err := apiClient.DownloadMultiParts(context.Background(), sdkAPPID+"/test/tmp.bin", tmp.Name(), "", fileBucket)
 		c.So(err, c.ShouldBeNil)
 		// c.So(rsp.StatusCode, c.ShouldEqual, common.Code_OK)
 		downloadedSha256, _ := sumFileSha256(tmp.Name())
@@ -211,8 +237,8 @@ func deleteFile(t *testing.T) {
 		env = begonia.Env
 	}
 	c.Convey("test delete file", t, func() {
-		apiClient := client.NewFilesAPI(apiAddr, accessKey, secret)
-		rsp, err := apiClient.DeleteFile(context.Background(), sdkAPPID+"/test/helloworld.pb")
+		apiClient := client.NewFilesAPI(apiAddr, accessKey, secret, api.FileEngine_FILE_ENGINE_LOCAL)
+		rsp, err := apiClient.DeleteFile(context.Background(), sdkAPPID+"/test/helloworld.pb", fileBucket)
 		c.So(err, c.ShouldBeNil)
 		c.So(rsp.StatusCode, c.ShouldEqual, common.Code_OK)
 		conf := cfg.NewConfig(config.ReadConfig(env))
@@ -229,18 +255,24 @@ func deleteFile(t *testing.T) {
 }
 func testRangeDownload(t *testing.T) {
 	c.Convey("test range download file", t, func() {
-		apiClient := client.NewFilesAPI(apiAddr, accessKey, secret)
+		apiClient := client.NewFilesAPI(apiAddr, accessKey, secret, api.FileEngine_FILE_ENGINE_LOCAL)
 		tmp, err := os.CreateTemp("", "testfile-*.txt")
 		c.So(err, c.ShouldBeNil)
 		defer tmp.Close()
 		defer os.Remove(tmp.Name())
-		rsp, err := apiClient.RangeDownload(context.Background(), sdkAPPID+"/test/tmp.bin", "", -1, 128)
+		rsp, err := apiClient.RangeDownload(context.Background(), sdkAPPID+"/test/tmp.bin", "", -1, 128, fileBucket)
 		c.So(err, c.ShouldBeNil)
 		c.So(len(rsp), c.ShouldEqual, 129)
 
-		rsp, err = apiClient.RangeDownload(context.Background(), sdkAPPID+"/test/tmp.bin", "", 128, -1)
+		rsp, err = apiClient.RangeDownload(context.Background(), sdkAPPID+"/test/tmp.bin", "", 128, -1, fileBucket)
 		c.So(err, c.ShouldBeNil)
 		c.So(len(rsp), c.ShouldEqual, 1024*1024*2-128)
+
+		patch := gomonkey.ApplyFuncReturn(service.GetIdentity, "")
+		defer patch.Reset()
+		_, err = apiClient.RangeDownload(context.Background(), sdkAPPID+"/test/tmp.bin", "", 128, -1, fileBucket)
+		c.So(err, c.ShouldNotBeNil)
+		patch.Reset()
 
 	})
 }
@@ -344,14 +376,15 @@ func testRangeDownloadErr(t *testing.T) {
 			c.So(err, c.ShouldNotBeNil)
 			c.So(err.Error(), c.ShouldContainSubstring, cs.err.Error())
 		}
+		fileUseCase := newFileUsecases()
 
-		patch := gomonkey.ApplyFuncReturn((*file.FileUsecase).DownloadForRange, nil, int64(0), fmt.Errorf("test download for range error"))
+		patch := gomonkey.ApplyMethodReturn(fileUseCase[api.FileEngine_FILE_ENGINE_LOCAL.String()], "DownloadForRange", nil, int64(0), fmt.Errorf("test download for range error"))
 		defer patch.Reset()
 		md := metadata.New(nil)
 		md.Set("x-identity", sdkAPPID)
 		md.Set("range", "bytes=0-0")
 		ctx := metadata.NewIncomingContext(context.Background(), md)
-		_, err := srv.DownloadForRange(ctx, &api.DownloadRequest{Key: sdkAPPID + "/test/helloworld.pb"})
+		_, err := srv.DownloadForRange(ctx, &api.DownloadRequest{Key: sdkAPPID + "/test/helloworld.pb", Engine: api.FileEngine_FILE_ENGINE_LOCAL.String(), Bucket: fileBucket})
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "test download for range error")
 		patch.Reset()
@@ -361,20 +394,9 @@ func testRangeDownloadErr(t *testing.T) {
 
 func testAbortUpload(t *testing.T) {
 	c.Convey("test range download file", t, func() {
-		apiClient := client.NewFilesAPI(apiAddr, accessKey, secret)
+		apiClient := client.NewFilesAPI(apiAddr, accessKey, secret, api.FileEngine_FILE_ENGINE_LOCAL)
 		_, err := apiClient.AbortUpload(context.Background(), "test/tmp.bindddasd")
 		c.So(err, c.ShouldNotBeNil)
-		// tmp, err := os.CreateTemp("", "testfile-*.txt")
-		// c.So(err, c.ShouldBeNil)
-		// defer tmp.Close()
-		// defer os.Remove(tmp.Name())
-		// rsp, err := apiClient.RangeDownload(context.Background(), sdkAPPID+"/test/tmp.bin", "", -1, 128)
-		// c.So(err, c.ShouldBeNil)
-		// c.So(len(rsp), c.ShouldEqual, 129)
-
-		// rsp, err = apiClient.RangeDownload(context.Background(), sdkAPPID+"/test/tmp.bin", "", 128, -1)
-		// c.So(err, c.ShouldBeNil)
-		// c.So(len(rsp), c.ShouldEqual, 1024*1024*2-128)
 
 	})
 }
@@ -405,23 +427,52 @@ func testMetaErr(t *testing.T) {
 		_, err := srv.Metadata(ctx, &api.FileMetadataRequest{})
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrIdentityMissing.Error())
+		fileUseCase := newFileUsecases()
 
-		patch := gomonkey.ApplyFuncReturn((*file.FileUsecase).Metadata, nil, fmt.Errorf("test metadata error"))
+		patch := gomonkey.ApplyMethodReturn(fileUseCase[api.FileEngine_FILE_ENGINE_LOCAL.String()], "Metadata", nil, fmt.Errorf("test metadata error"))
 		defer patch.Reset()
 		ctx = metadata.NewIncomingContext(context.Background(), metadata.Pairs("x-identity", sdkAPPID))
-		_, err = srv.Metadata(ctx, &api.FileMetadataRequest{Key: sdkAPPID + "/test/helloworld.pb"})
+		_, err = srv.Metadata(ctx, &api.FileMetadataRequest{Key: sdkAPPID + "/test/helloworld.pb", Bucket: fileBucket, Engine: api.FileEngine_FILE_ENGINE_LOCAL.String()})
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "test metadata error")
 
 	})
 }
+func testFileList(t *testing.T) {
+	c.Convey("test file list", t, func() {
+		apiClient := client.NewFilesAPI(apiAddr, accessKey, secret, api.FileEngine_FILE_ENGINE_LOCAL)
+		rsp, err := apiClient.ListFiles(context.Background(), api.FileEngine_FILE_ENGINE_LOCAL.String(), fileBucket, 1, 10)
+		c.So(err, c.ShouldBeNil)
+		c.So(rsp.StatusCode, c.ShouldEqual, common.Code_OK)
+	})
+	c.Convey("test file list err", t, func() {
+		apiClient := client.NewFilesAPI(apiAddr, accessKey, secret, api.FileEngine_FILE_ENGINE_LOCAL)
+		fileUseCase := newFileUsecases()
+		patch := gomonkey.ApplyMethodReturn(fileUseCase[api.FileEngine_FILE_ENGINE_LOCAL.String()], "List", nil, fmt.Errorf("test metadata error"))
+		defer patch.Reset()
+		_, err := apiClient.ListFiles(context.Background(), api.FileEngine_FILE_ENGINE_LOCAL.String(), fileBucket, 1, 10)
+		c.So(err, c.ShouldNotBeNil)
+		patch.Reset()
+		patch2 := gomonkey.ApplyFuncReturn(service.GetIdentity, "")
+		defer patch2.Reset()
+		_, err = apiClient.ListFiles(context.Background(), api.FileEngine_FILE_ENGINE_LOCAL.String(), fileBucket, 1, 10)
+		c.So(err, c.ShouldNotBeNil)
+		patch2.Reset()
+
+		_, err = apiClient.ListFiles(context.Background(), "api.FileEngine_FILE_ENGINE_LOCAL.String()", fileBucket, 1, 10)
+		c.So(err, c.ShouldNotBeNil)
+
+	})
+}
 func TestFile(t *testing.T) {
+	t.Run("makeBucket", makeBucket)
 	t.Run("upload", upload)
 	t.Run("download", download)
 	t.Run("testUploadErr", testUploadErr)
 	t.Run("testDownloadErr", testDownloadErr)
 	t.Run("uploadParts", uploadParts)
 	t.Run("testRangeDownload", testRangeDownload)
+	t.Run("testFileList", testFileList)
 	t.Run("testAbortUpload", testAbortUpload)
 	t.Run("testRangeDownloadErr", testRangeDownloadErr)
 	t.Run("downloadParts", downloadParts)

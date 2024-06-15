@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	goloadbalancer "github.com/begonia-org/go-loadbalancer"
+	file "github.com/begonia-org/go-sdk/api/file/v1"
 	"github.com/spark-lence/tiga"
 )
 
@@ -278,4 +279,16 @@ func (c *Config) GetRSAPriKey() string {
 func (c *Config) GetRSAPubKey() string {
 
 	return c.getWithEnv("auth.rsa.public_key")
+}
+func (c *Config) GetFileEngines() ([]*file.FileSystemEngine, error) {
+	engines := make([]*file.FileSystemEngine, 0)
+	if err := c.UnmarshalKey(fmt.Sprintf("%s.file.engines", c.GetEnv()), &engines); err == nil && len(engines) > 0 {
+		return engines, nil
+	}
+	err := c.UnmarshalKey("file.engines", &engines)
+	if err != nil {
+		return nil, fmt.Errorf("get file engines failed:%w", err)
+	}
+	return engines, nil
+
 }
