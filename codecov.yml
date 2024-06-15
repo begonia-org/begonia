@@ -2,3 +2,4 @@ ignore:
   - "cmd"
   - "version.go"
   - "example"
+  - "config"
