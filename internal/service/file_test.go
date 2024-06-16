@@ -34,7 +34,7 @@ import (
 )
 
 var fileBucket = ""
-
+var localFileId=""
 func sumFileSha256(src string) (string, error) {
 	file, err := os.Open(src)
 	if err != nil {
@@ -89,6 +89,7 @@ func upload(t *testing.T) {
 		c.So(err, c.ShouldBeNil)
 		c.So(rsp.StatusCode, c.ShouldEqual, common.Code_OK)
 		c.So(rsp.Uri, c.ShouldNotBeEmpty)
+		localFileId = rsp.GetUid()
 		conf := cfg.NewConfig(config.ReadConfig(env))
 
 		filePath := filepath.Join(conf.GetUploadDir(), fileBucket, rsp.Uri)
@@ -213,6 +214,26 @@ func download(t *testing.T) {
 		c.So(err, c.ShouldBeNil)
 		t.Log(sha256Str)
 		c.So(sha256Str, c.ShouldEqual, downloadedSha256)
+
+
+		patch2 := gomonkey.ApplyFuncReturn((*service.FileService).Metadata, nil, fmt.Errorf("test metadata error"))
+		defer patch2.Reset()
+		_, err = apiClient.DownloadFile(context.Background(), sdkAPPID+"/test/helloworld.pb", tmp.Name(), "", fileBucket)
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "unknown error")
+		patch2.Reset()
+
+		// query by fid
+		sha256Str, err = apiClient.DownloadFile(context.Background(), localFileId, tmp.Name(), "", fileBucket)
+		c.So(err,c.ShouldBeNil)
+		c.So(sha256Str,c.ShouldNotBeEmpty)
+
+		patch3:=gomonkey.ApplyFuncReturn((*service.FileService).GetFileById, nil, fmt.Errorf("test get file by id error"))
+		defer patch3.Reset()
+		_, err = apiClient.DownloadFile(context.Background(), localFileId, tmp.Name(), "", fileBucket)
+		patch3.Reset()
+		c.So(err,c.ShouldNotBeNil)
+
 	})
 }
 func downloadParts(t *testing.T) {

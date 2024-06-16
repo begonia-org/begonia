@@ -130,8 +130,28 @@ func (p *ParamsValidatorImpl) FiltersFields(v interface{}, parent string) []stri
 	}
 	return nil
 }
+func RegisterCustomValidators(v *validator.Validate) {
+	_=v.RegisterValidation("required_if", requiredIf)
+}
+
+// requiredIf 自定义验证器逻辑
+func requiredIf(fl validator.FieldLevel) bool {
+	param := fl.Param()
+	field := fl.Field()
+
+	// 获取参数字段值
+	paramField := fl.Parent().FieldByName(param)
+
+	// 如果参数字段为空，当前字段必须非空
+	if paramField.String() == "" {
+		return field.String() != ""
+	}
+
+	return true
+}
 func (p *ParamsValidatorImpl) ValidateParams(v interface{}) error {
 	validate := validator.New()
+	RegisterCustomValidators(validate)
 	err := validate.Struct(v)
 	filters := p.FiltersFields(v, "")
 	if len(filters) > 0 {

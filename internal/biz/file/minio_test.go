@@ -180,6 +180,16 @@ func testMinioMeta(t *testing.T) {
 		patch.Reset()
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "get meta error")
+
+		patch4:=gomonkey.ApplyFuncReturn(tiga.MySQLDao.First,fmt.Errorf("get error"))
+		defer patch4.Reset()
+		_, err = fileBiz.Metadata(context.Background(), &api.FileMetadataRequest{
+			Key:     "test.txt",
+			Bucket:  minioBucket,
+		}, fileAuthor)
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "get error")
+		patch4.Reset()
 	})
 
 }
@@ -292,6 +302,7 @@ func testMinioCompleteMultipartUploadFile(t *testing.T) {
 			ContentType: "text/plain",
 			UseVersion:  true,
 			Sha256:      minioBigFileSha256,
+			Engine: 	api.FileEngine_FILE_ENGINE_MINIO.String(),
 		}, minioUploadId)
 		c.So(err, c.ShouldBeNil)
 		c.So(rsp, c.ShouldNotBeNil)

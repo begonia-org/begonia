@@ -17,7 +17,7 @@ import (
 )
 
 var fileBucketId = ""
-
+var fileFileId=""
 func testUpsertFile(t *testing.T) {
 	c.Convey("Test UpsertFile", t, func() {
 		env := "dev"
@@ -27,16 +27,18 @@ func testUpsertFile(t *testing.T) {
 		conf := cfg.ReadConfig(env)
 		f := NewFileRepo(conf, gateway.Log)
 		snk, _ := tiga.NewSnowflake(1)
+		fileFileId = snk.GenerateIDString()
 		file := &api.Files{
 			Engine:     "test",
 			Bucket:     "test",
 			Key:        "test",
-			Uid:        snk.GenerateIDString(),
+			Uid:        fileFileId,
 			Owner:      "test",
 			CreatedAt:  timestamppb.Now(),
 			UpdatedAt:  timestamppb.Now(),
 			UpdateMask: &fieldmaskpb.FieldMask{},
 		}
+		// t.Logf("fileFileId:%s,file id %s",fileFileId,file.Uid)
 		err := f.UpsertFile(context.Background(), file)
 		c.So(err, c.ShouldBeNil)
 
@@ -46,7 +48,33 @@ func testUpsertFile(t *testing.T) {
 		c.So(err, c.ShouldBeNil)
 	})
 }
+func testGetFileById(t *testing.T) {
+	c.Convey("Test GetFileById", t, func(){
+		env := "dev"
+		if begonia.Env != "" {
+			env = begonia.Env
+		}
+		conf := cfg.ReadConfig(env)
+		f := NewFileRepo(conf, gateway.Log)
+		file,err := f.GetFileById(context.Background(),fileFileId)
+		c.So(err,c.ShouldBeNil)
+		c.So(file,c.ShouldNotBeNil)
 
+		file,err=f.GetFile(context.Background(),"test","test","test")
+		c.So(err,c.ShouldBeNil)
+		c.So(file,c.ShouldNotBeNil)
+		patch:=gomonkey.ApplyFuncReturn(tiga.MySQLDao.First,fmt.Errorf("get error"))
+		defer patch.Reset()
+		_,err = f.GetFileById(context.Background(),"")
+
+		c.So(err,c.ShouldNotBeNil)
+		c.So(err.Error(),c.ShouldContainSubstring,"get error")
+		_,err=f.GetFile(context.Background(),"test","test","test")
+		c.So(err,c.ShouldNotBeNil)
+		c.So(err.Error(),c.ShouldContainSubstring,"get error")
+
+	})
+}
 func testUpsertBucket(t *testing.T) {
 	c.Convey("Test UpsertBucket", t, func() {
 		env := "dev"
@@ -127,6 +155,7 @@ func testDeleteBucket(t *testing.T) {
 }
 func TestFile(t *testing.T) {
 	t.Run("TestUpsertFile", testUpsertFile)
+	t.Run("TestGetFileById", testGetFileById)
 	t.Run("TestUpsertBucket", testUpsertBucket)
 	t.Run("TestFileList", testFileList)
 	t.Run("TestDeleteFile", testDeleteFile)

@@ -771,6 +771,7 @@ func testCompleteMultipartUploadFile(t *testing.T) {
 			UseVersion: true,
 			Sha256:     bigFileSha256,
 			Bucket:     bucket,
+			Engine: api.FileEngine_FILE_ENGINE_LOCAL.String(),
 		}, fileAuthor)
 		c.So(err, c.ShouldBeNil)
 		c.So(rsp, c.ShouldNotBeNil)
@@ -898,6 +899,7 @@ func testFileMeta(t *testing.T) {
 			Key:     fileAuthor + "/test/upload.parts.test1",
 			Version: "",
 			Bucket:  bucket,
+			Engine: api.FileEngine_FILE_ENGINE_LOCAL.String(),
 		}, fileAuthor)
 		c.So(err, c.ShouldBeNil)
 		c.So(meta, c.ShouldNotBeNil)
@@ -908,6 +910,7 @@ func testFileMeta(t *testing.T) {
 			Key:     fileAuthor + "/test/upload.parts.test1",
 			Version: "latest",
 			Bucket:  bucket,
+			Engine: api.FileEngine_FILE_ENGINE_LOCAL.String(),
 		}, fileAuthor)
 		c.So(err, c.ShouldBeNil)
 		c.So(meta, c.ShouldNotBeNil)
@@ -961,6 +964,18 @@ func testFileMeta(t *testing.T) {
 			Version: "latest", Bucket: bucket}, fileAuthor)
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "io.copy error")
+		patch3.Reset()
+
+		patch4:=gomonkey.ApplyFuncReturn(tiga.MySQLDao.First,fmt.Errorf("get error"))
+		defer patch4.Reset()
+		_, err = fileBiz.Metadata(context.Background(), &api.FileMetadataRequest{
+			Key:     fileAuthor + "/test/upload.parts.test1",
+			Version: "latest",
+			Bucket:  bucket,
+		}, fileAuthor)
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "get error")
+		patch4.Reset()
 
 	})
 }

@@ -22,8 +22,8 @@ github.com/begonia-org/go-layered-cache v0.0.0-20240510102605-41bdb7aa07fa h1:DH
 github.com/begonia-org/go-layered-cache v0.0.0-20240510102605-41bdb7aa07fa/go.mod h1:xEqoca1vNGqH8CV7X9EzhDV5Ihtq9J95p7ZipzUB6pc=
 github.com/begonia-org/go-loadbalancer v0.0.0-20240519060752-71ca464f0f1a h1:Mpw7T+90KC5QW7yCa8Nn/5psnlvsexipAOrQAcc7YE0=
 github.com/begonia-org/go-loadbalancer v0.0.0-20240519060752-71ca464f0f1a/go.mod h1:crPS67sfgmgv47psftwfmTMbmTfdepVm8MPeqApINlI=
-github.com/begonia-org/go-sdk v0.0.0-20240615083549-ad7c60806f6a h1:wOekXxD7AfUyptf49fMJqK2u+su6Wo7uCl5NxWM5bho=
-github.com/begonia-org/go-sdk v0.0.0-20240615083549-ad7c60806f6a/go.mod h1:I70a3fiAADGrOoOC3lv408rFcTRhTwLt3pwr6cQwB4Y=
+github.com/begonia-org/go-sdk v0.0.0-20240616112226-0e6ed4e2a9b2 h1:Bxx3CAQnYw6cDTY9h4lqfdYCMMZ6n10QsRXsLKAKlxM=
+github.com/begonia-org/go-sdk v0.0.0-20240616112226-0e6ed4e2a9b2/go.mod h1:I70a3fiAADGrOoOC3lv408rFcTRhTwLt3pwr6cQwB4Y=
 github.com/bmatcuk/doublestar v1.1.1/go.mod h1:UD6OnuiIn0yFxxA2le/rnRU1G4RaI4UvFv1sNto9p6w=
 github.com/bsm/ginkgo/v2 v2.12.0 h1:Ny8MWAHyOepLGlLKYmXG4IEkioBysk6GpaRTLC8zwWs=
 github.com/bsm/gomega v1.27.10 h1:yeMWxP2pV2fG3FgAODIY8EiRE3dy0aeFYt4l7wh6yKA=
@@ -229,8 +229,8 @@ github.com/smartystreets/goconvey v1.8.1 h1:qGjIddxOk4grTu9JPOU31tVfq3cNdBlNa5sS
 github.com/smartystreets/goconvey v1.8.1/go.mod h1:+/u4qLyY6x1jReYOp7GOM2FSt8aP9CzCZL03bI28W60=
 github.com/sourcegraph/conc v0.3.0 h1:OQTbbt6P72L20UqAkXXuLOj79LfEanQ+YQFNpLA9ySo=
 github.com/sourcegraph/conc v0.3.0/go.mod h1:Sdozi7LEKbFPqYX2/J+iBAM6HpqSLTASQIKqDmF7Mt0=
-github.com/spark-lence/tiga v0.0.0-20240615083703-1e293faf6e11 h1:D7LhqyeoUVS23NZmziKBNIW9jc3xvrBRg4fcwZPR4uM=
-github.com/spark-lence/tiga v0.0.0-20240615083703-1e293faf6e11/go.mod h1:MSL8X9t+qvpQ4Tq3vVPKncq9RJcCzF2XGEWkCuNhm6Q=
+github.com/spark-lence/tiga v0.0.0-20240616174249-efb5797d3643 h1:hFu6LvrCrPBpPU8JbgsxKPSQK+M6A5O2TzO5o7w9c70=
+github.com/spark-lence/tiga v0.0.0-20240616174249-efb5797d3643/go.mod h1:MSL8X9t+qvpQ4Tq3vVPKncq9RJcCzF2XGEWkCuNhm6Q=
 github.com/spf13/afero v1.11.0 h1:WJQKhtpdm3v2IzqG8VMqrr6Rf3UYpEF239Jy9wNepM8=
 github.com/spf13/afero v1.11.0/go.mod h1:GH9Y3pIexgf1MTIWtNGyogA5MwRIDXGUr+hbWNoBjkY=
 github.com/spf13/cast v1.6.0 h1:GEiTHELF+vaR5dhz3VqZfFSzZjYbgeKDpBxQVS4GYJ0=

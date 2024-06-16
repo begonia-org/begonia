@@ -27,6 +27,7 @@ func (f *fileRepoImpl) UpsertFile(ctx context.Context, in *api.Files) error {
 	if in.UpdateMask != nil {
 		mask = in.UpdateMask.Paths
 	}
+	// log.Printf("mask:%v", in.Uid)
 	return f.data.db.Upsert(ctx, in, mask...)
 }
 func (f *fileRepoImpl) DelFile(ctx context.Context, engine, bucket, key string) error {
@@ -44,6 +45,22 @@ func (f *fileRepoImpl) UpsertBucket(ctx context.Context, bucket *api.Buckets) er
 func (f *fileRepoImpl) DelBucket(ctx context.Context, bucketId string) error {
 	return f.curd.Del(ctx, &api.Buckets{Uid: bucketId}, false)
 }
+func (f *fileRepoImpl) GetFileById(ctx context.Context, fid string) (*api.Files, error) {
+	file := &api.Files{Uid: fid}
+	err := f.curd.Get(ctx, file, false, "uid = ?", fid)
+	if err != nil {
+		return nil, err
+	}
+	return file, nil
+}
+func (f *fileRepoImpl) GetFile(ctx context.Context, engine, bucket, key string) (*api.Files, error) {
+	file := &api.Files{}
+	err := f.curd.Get(ctx, file, false, "`file_key`=? and `bucket`=? and `fs_engine`=?", key, bucket, engine)
+	if err != nil {
+		return nil, err
+	}
+	return file, nil
+}
 func (f *fileRepoImpl) List(ctx context.Context, page, pageSize int32, bucket, engine, owner string) ([]*api.Files, error) {
 	files := make([]*api.Files, 0)
 	pagination := &tiga.Pagination{
@@ -58,7 +75,7 @@ func (f *fileRepoImpl) List(ctx context.Context, page, pageSize int32, bucket, e
 		pagination.Args = append(pagination.Args, bucket)
 	}
 	if engine != "" {
-		pagination.Query = fmt.Sprintf("%s and engine = ?", pagination.Query)
+		pagination.Query = fmt.Sprintf("%s and fs_engine = ?", pagination.Query)
 		pagination.Args = append(pagination.Args, engine)
 	}
 	err := f.curd.List(ctx, &files, pagination)

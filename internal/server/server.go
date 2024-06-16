@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"os"
@@ -33,6 +34,7 @@ func NewGatewayConfig(gw string) *gateway.GatewayConfig {
 }
 func readDesc(conf *config.Config) (gateway.ProtobufDescription, error) {
 	desc := conf.GetLocalAPIDesc()
+	log.Printf("read desc file:%s", desc)
 	bin, err := os.ReadFile(desc)
 	if err != nil {
 		return nil, fmt.Errorf("read desc file error:%w", err)

@@ -32,4 +32,5 @@ func (g *GatewayWorkerImpl) Start() {
 	g.daemon.Start(context.Background())
 	time.Sleep(time.Second * 2)
 	g.server.Start()
+	
 }

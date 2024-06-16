@@ -66,7 +66,6 @@ func (p *protobufDescription) SetHttpResponse(option protoreflect.ExtensionType)
 			return fmt.Errorf("invalid gateway.json")
 		}
 		svr := svrAndMethod[0]
-
 		desc, err := p.fs.FindDescriptorByName(protoreflect.FullName(svr))
 		if err != nil {
 			return err
@@ -174,6 +173,7 @@ func NewDescriptionFromBinary(data []byte, outDir string) (ProtobufDescription, 
 		return nil, fmt.Errorf("Failed to write gateway.json: %w", err)
 	}
 	desc.gatewayJsonSchema = filepath.Join(outDir, "gateway.json")
+	// log.Printf("gateway.json:%s", desc.gatewayJsonSchema)
 	return desc, nil
 }
 func (p *protobufDescription) GetFileDescriptorSet() *descriptorpb.FileDescriptorSet {

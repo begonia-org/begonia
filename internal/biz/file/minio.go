@@ -59,7 +59,7 @@ func (m *MinioUseCase) Upload(ctx context.Context, in *api.UploadFileRequest, au
 		return nil, gosdk.NewError(fmt.Errorf("failed to upload object: %w", err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "upload_object")
 
 	}
-	err = m.localFile.repo.UpsertFile(ctx, &api.Files{
+	f:=&api.Files{
 		Uid:       m.localFile.snowflake.GenerateIDString(),
 		Engine:    api.FileEngine_name[int32(*api.FileEngine_FILE_ENGINE_MINIO.Enum())],
 		Bucket:    in.Bucket,
@@ -68,13 +68,14 @@ func (m *MinioUseCase) Upload(ctx context.Context, in *api.UploadFileRequest, au
 		Owner:     authorId,
 		CreatedAt: timestamppb.Now(),
 		UpdatedAt: timestamppb.Now(),
-	})
+	}
+	err = m.localFile.repo.UpsertFile(ctx, f)
 	if err != nil {
 		return nil, gosdk.NewError(fmt.Errorf("failed to upsert file: %w", err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "upsert_file")
 
 	}
 	// log.Printf("upload object:%s,%s", info.Key, info.ChecksumSHA256)
-	return &api.UploadFileResponse{Uri: info.Key, Version: info.VersionID}, err
+	return &api.UploadFileResponse{Uri: info.Key, Version: info.VersionID,Uid: f.Uid}, err
 }
 func (m *MinioUseCase) InitiateUploadFile(ctx context.Context, in *api.InitiateMultipartUploadRequest) (*api.InitiateMultipartUploadResponse, error) {
 	return m.localFile.InitiateUploadFile(ctx, in)
@@ -162,6 +163,14 @@ func (m *MinioUseCase) Metadata(ctx context.Context, in *api.FileMetadataRequest
 	if checksum == "" {
 		checksum = info.UserMetadata["Sha256"]
 	}
+	fileId:=in.FileId
+	if fileId==""{
+		file,err:=m.localFile.repo.GetFile(ctx,in.Engine,in.Bucket,in.Key)
+		if err!=nil{
+			return nil, gosdk.NewError(fmt.Errorf("failed to get file: %w", err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_file")
+		}
+		fileId=file.Uid
+	}
 	return &api.FileMetadataResponse{Size: info.Size,
 		ContentType: info.ContentType,
 		Version:     info.VersionID,
@@ -169,6 +178,7 @@ func (m *MinioUseCase) Metadata(ctx context.Context, in *api.FileMetadataRequest
 		Etag:        info.ETag,
 		Name:        info.Key,
 		Sha256:      checksum,
+		Uid: fileId,
 	}, nil
 }
 func (m *MinioUseCase) Version(ctx context.Context, bucket, key, authorId string) (string, error) {
@@ -205,4 +215,7 @@ func (m *MinioUseCase) Delete(ctx context.Context, in *api.DeleteRequest, author
 }
 func (m *MinioUseCase) List(ctx context.Context, in *api.ListFilesRequest, authorId string) ([]*api.Files, error) {
 	return m.localFile.List(ctx, in, authorId)
+}
+func (m *MinioUseCase) GetFileByID(ctx context.Context, fileId string) (*api.Files, error){
+	return m.localFile.GetFileByID(ctx, fileId)
 }

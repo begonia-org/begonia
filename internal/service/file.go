@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -22,12 +23,21 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 type FileService struct {
 	api.UnimplementedFileServiceServer
 	biz    map[string]file.FileUsecase
 	config *config.Config
+}
+type ReadFileRequest interface {
+	GetEngine() string
+	GetBucket() string
+	GetKey() string
+	GetVersion() string
+	ProtoReflect() protoreflect.Message
+	GetFileId() string
 }
 
 func NewFileService(biz map[string]file.FileUsecase, config *config.Config) api.FileServiceServer {
@@ -44,11 +54,21 @@ func (f *FileService) checkFsEngine(engine string) error {
 	}
 	return nil
 }
-func (f *FileService) serviceDecorator(_ context.Context, req request, handle func() (interface{}, error)) (interface{}, error) {
+func (f *FileService) serviceDecorator(ctx context.Context, req request, handle func(in request) (interface{}, error)) (interface{}, error) {
 	if err := f.checkFsEngine(req.GetEngine()); err != nil {
 		return nil, err
 	}
-	return handle()
+	if in, ok := req.(ReadFileRequest); ok {
+		if in.GetFileId() != "" {
+			var err error
+			req, err = f.getFile(ctx, in)
+			if err != nil {
+				return nil, gosdk.NewError(err, int32(common.Code_UNKNOWN), codes.InvalidArgument, "get_file_by_id")
+			}
+		}
+	}
+
+	return handle(req)
 
 }
 func (f *FileService) Upload(ctx context.Context, in *api.UploadFileRequest) (*api.UploadFileResponse, error) {
@@ -57,8 +77,8 @@ func (f *FileService) Upload(ctx context.Context, in *api.UploadFileRequest) (*a
 		return nil, gosdk.NewError(pkg.ErrIdentityMissing, int32(user.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
 	}
 
-	rsp, err := f.serviceDecorator(ctx, in, func() (interface{}, error) {
-		return f.biz[in.GetEngine()].Upload(ctx, in, identity)
+	rsp, err := f.serviceDecorator(ctx, in, func(req request) (interface{}, error) {
+		return f.biz[in.GetEngine()].Upload(ctx, req.(*api.UploadFileRequest), identity)
 	})
 	r, _ := rsp.(*api.UploadFileResponse)
 	return r, err
@@ -66,15 +86,15 @@ func (f *FileService) Upload(ctx context.Context, in *api.UploadFileRequest) (*a
 }
 
 func (f *FileService) InitiateMultipartUpload(ctx context.Context, in *api.InitiateMultipartUploadRequest) (*api.InitiateMultipartUploadResponse, error) {
-	rsp, err := f.serviceDecorator(ctx, in, func() (interface{}, error) {
-		return f.biz[in.Engine].InitiateUploadFile(ctx, in)
+	rsp, err := f.serviceDecorator(ctx, in, func(req request) (interface{}, error) {
+		return f.biz[in.Engine].InitiateUploadFile(ctx, req.(*api.InitiateMultipartUploadRequest))
 	})
 	r, _ := rsp.(*api.InitiateMultipartUploadResponse)
 	return r, err
 }
 func (f *FileService) UploadMultipartFile(ctx context.Context, in *api.UploadMultipartFileRequest) (*api.UploadMultipartFileResponse, error) {
-	rsp, err := f.serviceDecorator(ctx, in, func() (interface{}, error) {
-		return f.biz[in.Engine].UploadMultipartFileFile(ctx, in)
+	rsp, err := f.serviceDecorator(ctx, in, func(req request) (interface{}, error) {
+		return f.biz[in.Engine].UploadMultipartFileFile(ctx, req.(*api.UploadMultipartFileRequest))
 	})
 	r, _ := rsp.(*api.UploadMultipartFileResponse)
 	return r, err
@@ -84,33 +104,37 @@ func (f *FileService) CompleteMultipartUpload(ctx context.Context, in *api.Compl
 	if identity = GetIdentity(ctx); identity == "" {
 		return nil, gosdk.NewError(pkg.ErrIdentityMissing, int32(user.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
 	}
-	rsp, err := f.serviceDecorator(ctx, in, func() (interface{}, error) {
-		return f.biz[in.Engine].CompleteMultipartUploadFile(ctx, in, identity)
+	rsp, err := f.serviceDecorator(ctx, in, func(req request) (interface{}, error) {
+		return f.biz[in.Engine].CompleteMultipartUploadFile(ctx, req.(*api.CompleteMultipartUploadRequest), identity)
 	})
 	r, _ := rsp.(*api.CompleteMultipartUploadResponse)
 	return r, err
 
 }
 func (f *FileService) AbortMultipartUpload(ctx context.Context, in *api.AbortMultipartUploadRequest) (*api.AbortMultipartUploadResponse, error) {
-	rsp, err := f.serviceDecorator(ctx, in, func() (interface{}, error) {
-		return f.biz[in.Engine].AbortMultipartUpload(ctx, in)
+	rsp, err := f.serviceDecorator(ctx, in, func(req request) (interface{}, error) {
+		return f.biz[in.Engine].AbortMultipartUpload(ctx, req.(*api.AbortMultipartUploadRequest))
 	})
 	r, _ := rsp.(*api.AbortMultipartUploadResponse)
 	return r, err
+}
+func (f *FileService) GetFileById(ctx context.Context, fid, engine string) (*api.Files, error) {
+
+	return f.biz[engine].GetFileByID(ctx, fid)
 }
 func (f *FileService) Download(ctx context.Context, in *api.DownloadRequest) (*httpbody.HttpBody, error) {
 	identity := ""
 	if identity = GetIdentity(ctx); identity == "" {
 		return nil, gosdk.NewError(pkg.ErrIdentityMissing, int32(user.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
 	}
-
 	newKey, err := url.PathUnescape(in.Key)
 	if err != nil {
 		return nil, gosdk.NewError(err, int32(common.Code_UNKNOWN), codes.InvalidArgument, "url_unescape")
 	}
+	log.Printf("Download file id:%s", in.GetFileId())
 	in.Key = newKey
-	r, err := f.serviceDecorator(ctx, in, func() (interface{}, error) {
-		return f.biz[in.Engine].Download(ctx, in, identity)
+	r, err := f.serviceDecorator(ctx, in, func(req request) (interface{}, error) {
+		return f.biz[in.Engine].Download(ctx, req.(*api.DownloadRequest), identity)
 	})
 	if err != nil {
 		return nil, err
@@ -120,9 +144,15 @@ func (f *FileService) Download(ctx context.Context, in *api.DownloadRequest) (*h
 
 	shaer := sha256.New()
 	shaer.Write(buf)
+	meta, err := f.Metadata(ctx, &api.FileMetadataRequest{Bucket: in.Bucket, Engine: in.Engine, Key: in.Key, Version: in.Version})
+	if err != nil {
+		return nil, err
+	}
 	rspMd := metadata.Pairs(
 		gosdk.GetMetadataKey("Content-Length"), fmt.Sprintf("%d", len(buf)),
 		gosdk.GetMetadataKey("X-File-Sha256"), hex.EncodeToString(shaer.Sum(nil)),
+		gosdk.GetMetadataKey("Content-Type"), meta.ContentType,
+		gosdk.GetMetadataKey("X-File-Version"), meta.Version,
 	)
 	_ = grpc.SendHeader(ctx, rspMd)
 
@@ -226,19 +256,31 @@ func (f *FileService) Delete(ctx context.Context, in *api.DeleteRequest) (*api.D
 	if identity == "" {
 		return nil, gosdk.NewError(pkg.ErrIdentityMissing, int32(user.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
 	}
-	r, err := f.serviceDecorator(ctx, in, func() (interface{}, error) {
-		return f.biz[in.Engine].Delete(ctx, in, identity)
+	r, err := f.serviceDecorator(ctx, in, func(req request) (interface{}, error) {
+		return f.biz[in.Engine].Delete(ctx, req.(*api.DeleteRequest), identity)
 	})
 	rsp, _ := r.(*api.DeleteResponse)
 	return rsp, err
+}
+func (f *FileService) getFile(ctx context.Context, in ReadFileRequest) (ReadFileRequest, error) {
+	file, err := f.GetFileById(ctx, in.GetFileId(), in.GetEngine())
+	if err != nil {
+		return nil, gosdk.NewError(err, int32(common.Code_UNKNOWN), codes.InvalidArgument, "get_file_by_id")
+	}
+	fields := in.ProtoReflect().Descriptor().Fields()
+	in.ProtoReflect().Set(fields.ByName("bucket"), protoreflect.ValueOfString(file.Bucket))
+	in.ProtoReflect().Set(fields.ByName("key"), protoreflect.ValueOfString(file.Key))
+	in.ProtoReflect().Set(fields.ByName("engine"), protoreflect.ValueOfString(file.Engine))
+	return in, nil
 }
 func (f *FileService) Metadata(ctx context.Context, in *api.FileMetadataRequest) (*api.FileMetadataResponse, error) {
 	identity := GetIdentity(ctx)
 	if identity == "" {
 		return nil, gosdk.NewError(pkg.ErrIdentityMissing, int32(user.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
 	}
-	r, err := f.serviceDecorator(ctx, in, func() (interface{}, error) {
-		return f.biz[in.Engine].Metadata(ctx, in, identity)
+	// log.Printf("get file metadata:%s,%s,%s", in.Bucket, in.Key, in.Engine)
+	r, err := f.serviceDecorator(ctx, in, func(req request) (interface{}, error) {
+		return f.biz[in.Engine].Metadata(ctx, req.(*api.FileMetadataRequest), identity)
 	})
 	if err != nil {
 		return nil, err
@@ -280,8 +322,8 @@ func (f *FileService) ListFiles(ctx context.Context, in *api.ListFilesRequest) (
 	if identity == "" {
 		return nil, gosdk.NewError(pkg.ErrIdentityMissing, int32(user.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
 	}
-	r, err := f.serviceDecorator(ctx, in, func() (interface{}, error) {
-		return f.biz[in.Engine].List(ctx, in, identity)
+	r, err := f.serviceDecorator(ctx, in, func(req request) (interface{}, error) {
+		return f.biz[in.Engine].List(ctx, req.(*api.ListFilesRequest), identity)
 	})
 	if err != nil {
 		return nil, err
@@ -290,8 +332,8 @@ func (f *FileService) ListFiles(ctx context.Context, in *api.ListFilesRequest) (
 	return &api.ListFilesResponse{Files: files}, err
 }
 func (f *FileService) MakeBucket(ctx context.Context, in *api.MakeBucketRequest) (*api.MakeBucketResponse, error) {
-	r, err := f.serviceDecorator(ctx, in, func() (interface{}, error) {
-		return f.biz[in.Engine].MakeBucket(ctx, in)
+	r, err := f.serviceDecorator(ctx, in, func(req request) (interface{}, error) {
+		return f.biz[in.Engine].MakeBucket(ctx, req.(*api.MakeBucketRequest))
 	})
 	rsp, _ := r.(*api.MakeBucketResponse)
 	return rsp, err
