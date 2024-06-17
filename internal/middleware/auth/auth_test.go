@@ -90,8 +90,12 @@ func readInitAPP() (string, string, string) {
 		log.Fatalf(err.Error())
 		return "", "", ""
 	}
+	env := "dev"
+	if begonia.Env != "" {
+		env = begonia.Env
+	}
 	path := filepath.Join(homeDir, ".begonia")
-	path = filepath.Join(path, "admin-app.json")
+	path = filepath.Join(path, fmt.Sprintf("admin-app.%s.json", env))
 	file, err := os.Open(path)
 	if err != nil {
 		log.Fatalf(err.Error())
@@ -241,6 +245,12 @@ func TestUnaryInterceptor(t *testing.T) {
 		if identify:=md.Get(gosdk.HeaderXIdentity);len(identify)==0||identify[0]==""{
 			return nil,fmt.Errorf("no app identity")
 		}
+		XAccessKey:=md.Get(gosdk.HeaderXAccessKey)
+		XApiKey:=md.Get(gosdk.HeaderXApiKey)
+		XAuthz:=md.Get("authorization")
+		if len(XAccessKey)==0 && len(XApiKey)==0 && len(XAuthz)==0{
+			return nil,fmt.Errorf("no app auth key")
+		}
 		return nil, nil
 	}
 	R := routers.Get()
@@ -342,7 +352,15 @@ func TestStreamInterceptor(t *testing.T) {
 
 		ctx = metadata.NewIncomingContext(ctx, metadata.Pairs(gosdk.HeaderXApiKey, cnf.GetAdminAPIKey()))
 		err = mid.StreamInterceptor(&v1.Users{}, &greeterSayHelloWebsocketServer{ServerStream: &testStream{ctx: ctx}}, &grpc.StreamServerInfo{FullMethod: "/INTEGRATION.TESTSERVICE/GET"}, func(srv interface{}, ss grpc.ServerStream) error {
-			return nil
+			err:= ss.RecvMsg(srv)
+			md,_:=metadata.FromIncomingContext(ss.Context())
+			if identify:=md.Get(gosdk.HeaderXIdentity);len(identify)==0||identify[0]==""{
+				return fmt.Errorf("no app identity")
+			}
+			if xAppKey:=md.Get(gosdk.HeaderXApiKey);len(xAppKey)==0||xAppKey[0]==""{
+				return fmt.Errorf("no app key")
+			}
+			return err
 		})
 		c.So(err, c.ShouldBeNil)
 		ctx = metadata.NewIncomingContext(context.Background(), metadata.Pairs(gosdk.HeaderXApiKey, "cnf.GetAdminAPIKey()"))
@@ -356,7 +374,15 @@ func TestStreamInterceptor(t *testing.T) {
 		jwt := getJWT()
 		ctx = metadata.NewIncomingContext(context.Background(), metadata.Pairs("authorization", "Bearer "+jwt))
 		err = mid.StreamInterceptor(&v1.Users{}, &greeterSayHelloWebsocketServer{ServerStream: &testStream{ctx: ctx}}, &grpc.StreamServerInfo{FullMethod: "/INTEGRATION.TESTSERVICE/GET"}, func(srv interface{}, ss grpc.ServerStream) error {
-			return ss.RecvMsg(srv)
+			err:= ss.RecvMsg(srv)
+			md,_:=metadata.FromIncomingContext(ss.Context())
+			if identify:=md.Get(gosdk.HeaderXIdentity);len(identify)==0||identify[0]==""{
+				return fmt.Errorf("no app identity")
+			}
+			if xAuthorization:=md.Get("authorization");len(xAuthorization)==0||xAuthorization[0]==""{
+				return fmt.Errorf("no jwt key")
+			}
+			return err
 		})
 		c.So(err, c.ShouldBeNil)
 		ctx = metadata.NewIncomingContext(context.Background(), metadata.Pairs("authorization", "Bearer 123"))
@@ -398,6 +424,10 @@ func TestStreamInterceptor(t *testing.T) {
 			}
 			if identify:=md.Get(gosdk.HeaderXIdentity);len(identify)==0||identify[0]==""{
 				return fmt.Errorf("no app identity")
+			}
+			if xAccessKey:=md.Get(gosdk.HeaderXAccessKey);len(xAccessKey)==0||xAccessKey[0]==""{
+				t.Logf("error metadata:%v",md)
+				return fmt.Errorf("no app access key")
 			}
 			return err
 		})

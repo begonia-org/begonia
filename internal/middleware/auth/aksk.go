@@ -63,8 +63,13 @@ func (a *AccessKeyAuthMiddleware) RequestBefore(ctx context.Context, info *grpc.
 	if !ok {
 		md = metadata.MD{}
 	}
-	md.Set(gosdk.HeaderXIdentity, owner)
+	// md.Set(gosdk.HeaderXIdentity, owner)
+	md = metadata.Join(md, metadata.Pairs(gosdk.HeaderXIdentity, owner))
+
 	ctx = metadata.NewIncomingContext(ctx, md)
+	// md2, _ := metadata.FromIncomingContext(ctx)
+
+
 	return ctx, nil
 
 }

@@ -3,6 +3,7 @@ package service_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -57,7 +58,7 @@ func readInitAPP() {
 	op := internal.InitOperatorApp(config.ReadConfig(env))
 	_ = op.Init()
 	path := filepath.Join(homeDir, ".begonia")
-	path = filepath.Join(path, "admin-app.json")
+	path = filepath.Join(path, fmt.Sprintf("admin-app.%s.json",env))
 	file, err := os.Open(path)
 	if err != nil {
 

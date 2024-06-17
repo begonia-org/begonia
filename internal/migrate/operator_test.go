@@ -126,7 +126,7 @@ func TestAppOperatorFail(t *testing.T) {
 		}
 		patch := gomonkey.ApplyFuncReturn(tiga.MySQLDao.First, fmt.Errorf("first failed"))
 		defer patch.Reset()
-		err := operator.InitAdminAPP("test")
+		err := operator.InitAdminAPP("test",env)
 		patch.Reset()
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "first failed")
@@ -137,7 +137,7 @@ func TestAppOperatorFail(t *testing.T) {
 		for _, caseV := range cases {
 			patch2 := gomonkey.ApplyFuncReturn(caseV.patch, caseV.output...)
 			defer patch2.Reset()
-			err := operator.InitAdminAPP("test")
+			err := operator.InitAdminAPP("test",env)
 			patch2.Reset()
 			c.So(err, c.ShouldNotBeNil)
 			c.So(err.Error(), c.ShouldContainSubstring, caseV.err.Error())

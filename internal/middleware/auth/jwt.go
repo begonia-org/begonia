@@ -168,8 +168,7 @@ func (a *JWTAuth) checkJWT(ctx context.Context, authorization string, rspHeader 
 
 }
 func (a *JWTAuth) jwtValidator(ctx context.Context, headers Header) (context.Context, error) {
-	// 获取请求的方法名
-	// 获取路由
+	
 
 	md, _ := metadata.FromIncomingContext(ctx)
 

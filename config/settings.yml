@@ -23,7 +23,7 @@ mysql:
   port: 3306
   user: "test"
   password: "test"
-  database: "begonia-test"
+  database: "begonia-dev"
   table_prefix: "begonia_"
 admin:
   name: "admin"
@@ -110,6 +110,13 @@ test:
         secretKey: "begoniabegonia"
       - name: "FILE_ENGINE_LOCAL"
         endpoint: "/tmp/upload"
+  mysql:
+    host: "127.0.0.1"
+    port: 3306
+    user: "test"
+    password: "test"
+    database: "begonia-test"
+    table_prefix: "begonia_"
   etcd:
     endpoint:
       prefix: "/begonia/endpoints"

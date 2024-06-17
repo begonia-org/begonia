@@ -52,8 +52,9 @@ func (g *GrpcHeader) Release() {
 }
 func (g *GrpcHeader) Set(key, value string) {
 	g.in.Set(key, value)
-	newCtx := metadata.NewIncomingContext(g.ctx, g.in)
-	g.ctx = newCtx
+	md, _ := metadata.FromIncomingContext(g.ctx)
+	newMd := metadata.Join(md, g.in)
+	g.ctx = metadata.NewIncomingContext(g.ctx, newMd)
 
 }
 func (g *GrpcHeader) SendHeader(key, value string) {

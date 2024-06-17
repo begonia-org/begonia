@@ -75,8 +75,9 @@ func NewEndpointDelCmd() *cobra.Command {
 
 		Run: func(cmd *cobra.Command, args []string) {
 			id, _ := cmd.Flags().GetString("id")
+			env, _ := cmd.Flags().GetString("env")
 
-			DeleteEndpoint(id)
+			DeleteEndpoint(env,id)
 		},
 	}
 	cmd.Flags().StringP("id", "i", "", "ID Of Your Service")
@@ -95,8 +96,9 @@ func NewEndpointAddCmd() *cobra.Command {
 			tags, _ := cmd.Flags().GetStringArray("tags")
 			balance, _ := cmd.Flags().GetString("balance")
 			endpoints, _ := cmd.Flags().GetStringArray("endpoint")
+			env,_:=cmd.Flags().GetString("env")
 
-			RegisterEndpoint(name, endpoints, desc, client.WithBalance(strings.ToUpper(balance)), client.WithTags(tags))
+			RegisterEndpoint(env,name, endpoints, desc, client.WithBalance(strings.ToUpper(balance)), client.WithTags(tags))
 		},
 	}
 	cmd = newWriteEndpointCmd(cmd)
@@ -156,7 +158,8 @@ func NewEndpointUpdateCmd() *cobra.Command {
 				options = append(options, client.WithEndpoints(meta))
 				mask = append(mask, "endpoints")
 			}
-			UpdateEndpoint(id, mask, options...)
+			env,_:=cmd.Flags().GetString("env")
+			UpdateEndpoint(env,id, mask, options...)
 		},
 	}
 	cmd = newWriteEndpointCmd(cmd)
@@ -198,7 +201,7 @@ func main() {
 	rootCmd.AddCommand(cmd)
 	rootCmd.AddCommand(NewBegoniaInfoCmd())
 	rootCmd.AddCommand(addCommonCommand(NewInitCmd()))
-	rootCmd.AddCommand(NewEndpointCmd())
+	rootCmd.AddCommand(addCommonCommand(NewEndpointCmd()))
 	if err := cmd.Execute(); err != nil {
 		log.Fatalf("failed to start begonia: %v", err)
 	}

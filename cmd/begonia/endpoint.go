@@ -18,14 +18,15 @@ var accessKey string
 var secret string
 var addr string
 
-func readInitAPP() {
+func readInitAPP(env string) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		log.Fatalf(err.Error())
 		return
 	}
+
 	path := filepath.Join(homeDir, ".begonia")
-	path = filepath.Join(path, "admin-app.json")
+	path = filepath.Join(path, fmt.Sprintf("admin-app.%s.json", env))
 	file, err := os.Open(path)
 	if err != nil {
 		log.Fatalf(err.Error())
@@ -66,8 +67,8 @@ func readInitAPP() {
 	addr = gw.Addr
 
 }
-func RegisterEndpoint(name string, endpoints []string, pbFile string, opts ...client.EndpointOption) {
-	readInitAPP()
+func RegisterEndpoint(env,name string, endpoints []string, pbFile string, opts ...client.EndpointOption) {
+	readInitAPP(env)
 	pb, err := os.ReadFile(pbFile)
 	if err != nil {
 		panic(err)
@@ -102,8 +103,8 @@ func RegisterEndpoint(name string, endpoints []string, pbFile string, opts ...cl
 	log.Printf("#####################Add Endpoint Success#####################")
 	log.Printf("#####################ID:%s####################################", rsp.Id)
 }
-func UpdateEndpoint(id string, mask []string, opts ...client.EndpointOption) {
-	readInitAPP()
+func UpdateEndpoint(env,id string, mask []string, opts ...client.EndpointOption) {
+	readInitAPP(env)
 	apiClient := client.NewEndpointAPI(addr, accessKey, secret)
 	log.Printf("#####################Update Endpoint###########################")
 	patch := &endpoint.EndpointSrvUpdateRequest{}
@@ -119,8 +120,8 @@ func UpdateEndpoint(id string, mask []string, opts ...client.EndpointOption) {
 	log.Printf("#####################Update Endpoint %s Success#####################", id)
 
 }
-func DeleteEndpoint(id string) {
-	readInitAPP()
+func DeleteEndpoint(env,id string) {
+	readInitAPP(env)
 	apiClient := client.NewEndpointAPI(addr, accessKey, secret)
 	log.Printf("#####################Delete Endpoint:%s#####################", id)
 	_, err := apiClient.DeleteEndpointConfig(context.Background(), id)

@@ -3,7 +3,6 @@ package middleware
 import (
 	"context"
 	"fmt"
-	"log"
 	"strings"
 
 	"github.com/begonia-org/begonia/internal/pkg/routers"
@@ -58,7 +57,6 @@ func (s *HttpStream) SendMsg(m interface{}) error {
 		router := routersList.GetRouteByGrpcMethod(s.FullMethod)
 		// 对内置服务的http响应进行格式化
 		if routersList.IsLocalSrv(s.FullMethod) || router.UseJsonResponse {
-			log.Printf("转换fullMethod:%v", s.FullMethod)
 			rsp, _ := grpcToHttpResponse(m, nil)
 			return s.ServerStream.SendMsg(rsp)
 		}

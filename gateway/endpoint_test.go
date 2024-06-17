@@ -14,12 +14,7 @@ func TestRequest(t *testing.T) {
 	go example.Run(":12148")
 	time.Sleep(time.Second * 3)
 	c.Convey("test request", t, func() {
-		// request := GrpcRequestImpl{
-		// 	FullMethodName: "helloworld.Greeter/SayHello",
-		// 	In:             &v1.HelloRequest{Msg: "begonia"},
-		// 	Out:            &v1.HelloReply{},
-		// 	Ctx:            context.Background(),
-		// }
+
 		request := NewGrpcRequest(context.Background(), nil, nil, "helloworld.Greeter/SayHello", WithIn(&v1.HelloRequest{Msg: "begonia"}), WithOut(&v1.HelloReply{}))
 		pool := NewGrpcConnPool("127.0.0.1:12148")
 		endpoint := NewEndpoint(pool)

@@ -48,7 +48,10 @@ func (a *ApiKeyAuthImpl) UnaryInterceptor(ctx context.Context, req any, info *gr
 		if err != nil {
 			return nil, gosdk.NewError(fmt.Errorf("query uid base on apikey get error:%w", err), int32(api.UserSvrCode_USER_APIKEY_NOT_MATCH_ERR), codes.Unauthenticated, "authorization_check")
 		}
-		ctx = metadata.NewIncomingContext(ctx, metadata.Pairs(gosdk.HeaderXIdentity, identity))
+		md,_:=metadata.FromIncomingContext(ctx)
+
+		md = metadata.Join(md, metadata.Pairs(gosdk.HeaderXIdentity, identity))
+		ctx = metadata.NewIncomingContext(ctx, md)
 		return handler(ctx, req)
 	}
 	return nil, err
@@ -86,9 +89,11 @@ func (a *ApiKeyAuthImpl) ValidateStream(ctx context.Context, req interface{}, fu
 		if err != nil {
 			return ctx, gosdk.NewError(fmt.Errorf("query user id base on apikey err:%w", err), int32(api.UserSvrCode_USER_APIKEY_NOT_MATCH_ERR), codes.Unauthenticated, "authorization_check")
 		}
-		ctx = metadata.NewIncomingContext(ctx, metadata.Pairs(gosdk.HeaderXIdentity, identity))
+		md,_:=metadata.FromIncomingContext(ctx)
+
+		md = metadata.Join(md, metadata.Pairs(gosdk.HeaderXIdentity, identity))
 		headers.Set(strings.ToLower(gosdk.HeaderXIdentity), identity)
-		return ctx, err
+		return metadata.NewIncomingContext(ctx,md), err
 	}
 	return ctx, err
 }
