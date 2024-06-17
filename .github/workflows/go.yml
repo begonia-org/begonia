@@ -29,8 +29,8 @@ jobs:
       - name: Init MySQL
         run: |
           go mod tidy
-          go run ./cmd/begonia init -c ./config/settings.yml -e dev
-          cat ~/.begonia/admin-app.json
+          go run ./cmd/begonia init -c ./config/settings.yml -e test
+          cat ~/.begonia/admin-app.test.json
       - name: Init Minio
         run: |
           go install github.com/minio/mc@latest
