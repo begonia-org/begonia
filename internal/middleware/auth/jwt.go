@@ -163,6 +163,7 @@ func (a *JWTAuth) checkJWT(ctx context.Context, authorization string, rspHeader 
 	// 设置uid
 	reqHeader.Set("x-token", token)
 	reqHeader.Set("x-uid", payload.Uid)
+	reqHeader.Set(gosdk.HeaderXIdentity, payload.Uid)
 	return true, nil
 
 }

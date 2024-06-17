@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 
+	gosdk "github.com/begonia-org/go-sdk"
 	app "github.com/begonia-org/go-sdk/api/app/v1"
 	ep "github.com/begonia-org/go-sdk/api/endpoint/v1"
 	file "github.com/begonia-org/go-sdk/api/file/v1"
@@ -45,7 +46,7 @@ func GetIdentity(ctx context.Context) string {
 	if !ok {
 		return ""
 	}
-	identity := md.Get("x-identity")
+	identity := md.Get(gosdk.HeaderXIdentity)
 	if len(identity) > 0 {
 		return identity[0]
 	}

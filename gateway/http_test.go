@@ -194,6 +194,17 @@ func testRequestGet(t *testing.T) {
 		c.So(err, c.ShouldBeNil)
 		c.So(resp2.StatusCode, c.ShouldEqual, http.StatusNotImplemented)
 
+		// test appkey 
+		url = fmt.Sprintf("http://127.0.0.1:%d/api/v1/example/world?msg=hello", gwPort)
+		r, err = http.NewRequest(http.MethodGet, url, nil)
+		r.Header.Set(XApiKey, "12345678")
+		c.So(err, c.ShouldBeNil)
+
+		resp, err = http.DefaultClient.Do(r)
+
+		c.So(err, c.ShouldBeNil)
+		c.So(resp.StatusCode, c.ShouldEqual, http.StatusOK)
+
 	})
 }
 func testCors(t *testing.T) {

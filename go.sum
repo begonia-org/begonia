@@ -27,6 +27,8 @@ github.com/begonia-org/go-sdk v0.0.0-20240616174128-1fcd986dad12 h1:4mZUWCrcl9gI
 github.com/begonia-org/go-sdk v0.0.0-20240616174128-1fcd986dad12/go.mod h1:I70a3fiAADGrOoOC3lv408rFcTRhTwLt3pwr6cQwB4Y=
 github.com/begonia-org/go-sdk v0.0.0-20240617021643-1b9d4899ab38 h1:jY6dVk3lzs8gHQBqLfqdZvz8L5u/MwGx9baTJK8Fj7Y=
 github.com/begonia-org/go-sdk v0.0.0-20240617021643-1b9d4899ab38/go.mod h1:I70a3fiAADGrOoOC3lv408rFcTRhTwLt3pwr6cQwB4Y=
+github.com/begonia-org/go-sdk v0.0.0-20240617104023-3182694e4a5f h1:1roWosaPjA7vE5CnnF6irDWt05SLD57bsHLun4HYeLU=
+github.com/begonia-org/go-sdk v0.0.0-20240617104023-3182694e4a5f/go.mod h1:I70a3fiAADGrOoOC3lv408rFcTRhTwLt3pwr6cQwB4Y=
 github.com/bmatcuk/doublestar v1.1.1/go.mod h1:UD6OnuiIn0yFxxA2le/rnRU1G4RaI4UvFv1sNto9p6w=
 github.com/bsm/ginkgo/v2 v2.12.0 h1:Ny8MWAHyOepLGlLKYmXG4IEkioBysk6GpaRTLC8zwWs=
 github.com/bsm/gomega v1.27.10 h1:yeMWxP2pV2fG3FgAODIY8EiRE3dy0aeFYt4l7wh6yKA=

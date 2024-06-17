@@ -11,7 +11,7 @@ import (
 )
 
 func TestRequest(t *testing.T) {
-	go example.Run(":12138")
+	go example.Run(":12148")
 	time.Sleep(time.Second * 3)
 	c.Convey("test request", t, func() {
 		// request := GrpcRequestImpl{
@@ -21,7 +21,7 @@ func TestRequest(t *testing.T) {
 		// 	Ctx:            context.Background(),
 		// }
 		request := NewGrpcRequest(context.Background(), nil, nil, "helloworld.Greeter/SayHello", WithIn(&v1.HelloRequest{Msg: "begonia"}), WithOut(&v1.HelloReply{}))
-		pool := NewGrpcConnPool("127.0.0.1:12138")
+		pool := NewGrpcConnPool("127.0.0.1:12148")
 		endpoint := NewEndpoint(pool)
 		reply, metadata, err := endpoint.Request(request)
 		c.So(err, c.ShouldBeNil)

@@ -382,7 +382,7 @@ func (h *HttpEndpointImpl) RegisterHandlerClient(ctx context.Context, pd Protobu
 		item := item
 		// log.Printf("register endpoint %s: %s %v", strings.ToUpper(item.HttpMethod), item.HttpUri, item.Pattern)
 		mux.Handle(strings.ToUpper(item.HttpMethod), item.Pattern, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-			if req.Header.Get("accept") == "" {
+			if req.Header.Get("accept") == "" || req.Header.Get("accept") == "*/*" {
 				req.Header.Set("accept", "application/json")
 			}
 			ctx, cancel := context.WithCancel(req.Context())

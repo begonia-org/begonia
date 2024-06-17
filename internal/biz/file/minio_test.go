@@ -51,7 +51,8 @@ func testMinioMkBucket(t *testing.T) {
 	c.Convey("test make bucket success", t, func() {
 		rsp, err := fileBiz.MakeBucket(context.TODO(), &api.MakeBucketRequest{
 			Bucket: minioBucket,
-		})
+			EnableVersion: true,
+		},minioFileAuthor)
 		c.So(err, c.ShouldBeNil)
 		c.So(rsp, c.ShouldNotBeNil)
 	})
@@ -60,9 +61,21 @@ func testMinioMkBucket(t *testing.T) {
 		defer patch.Reset()
 		_, err := fileBiz.MakeBucket(context.TODO(), &api.MakeBucketRequest{
 			Bucket: "",
-		})
+		},minioFileAuthor)
+		patch.Reset()
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "mkdir error")
+
+		patch2 := gomonkey.ApplyFuncReturn((*minio.Client).EnableVersioning, fmt.Errorf("enable error"))
+		defer patch2.Reset()
+		_, err = fileBiz.MakeBucket(context.TODO(), &api.MakeBucketRequest{
+			Bucket: fmt.Sprintf("bucket-minio-biz-4-%s", time.Now().Format("20060102150405")),
+			EnableVersion: true,
+		},minioFileAuthor)
+		patch2.Reset()
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "enable error")
+
 	})
 }
 
@@ -74,7 +87,6 @@ func testMinioUpload(t *testing.T) {
 			Bucket:     minioBucket,
 			Key:        "test.txt",
 			Content:    []byte("hello"),
-			UseVersion: true,
 		}, minioFileAuthor)
 		c.So(err, c.ShouldBeNil)
 		c.So(rsp, c.ShouldNotBeNil)
@@ -274,8 +286,8 @@ func testMinioCompleteMultipartUploadFile(t *testing.T) {
 				UploadId:    uploadId,
 				Bucket:      minioBucket,
 				ContentType: "text/plain",
-				UseVersion:  true,
 				Sha256:      minioBigFileSha256,
+				Engine: 	api.FileEngine_FILE_ENGINE_MINIO.String(),
 			}, minioUploadId)
 			patchx.Reset()
 			c.So(err, c.ShouldNotBeNil)
@@ -287,8 +299,8 @@ func testMinioCompleteMultipartUploadFile(t *testing.T) {
 			UploadId:    uploadId,
 			Bucket:      "",
 			ContentType: "text/plain",
-			UseVersion:  true,
 			Sha256:      minioBigFileSha256,
+			Engine: 	api.FileEngine_FILE_ENGINE_MINIO.String(),
 		}, minioUploadId)
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrBucketNotFound.Error())
@@ -300,7 +312,6 @@ func testMinioCompleteMultipartUploadFile(t *testing.T) {
 			UploadId:    minioUploadId,
 			Bucket:      minioBucket,
 			ContentType: "text/plain",
-			UseVersion:  true,
 			Sha256:      minioBigFileSha256,
 			Engine: 	api.FileEngine_FILE_ENGINE_MINIO.String(),
 		}, minioUploadId)

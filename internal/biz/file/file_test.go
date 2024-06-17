@@ -63,6 +63,7 @@ type FileDownloadTestCase struct {
 
 var fileAuthor = ""
 var fileSha256 = ""
+var fileId = ""
 var uploadId = ""
 var bucket = ""
 var versions map[string]string = map[string]string{}
@@ -143,7 +144,8 @@ func testMkBucket(t *testing.T) {
 	c.Convey("test make bucket success", t, func() {
 		rsp, err := fileBiz.MakeBucket(context.TODO(), &api.MakeBucketRequest{
 			Bucket: bucket,
-		})
+			EnableVersion: true,
+		}, fileAuthor)
 		c.So(err, c.ShouldBeNil)
 		c.So(rsp, c.ShouldNotBeNil)
 	})
@@ -152,9 +154,21 @@ func testMkBucket(t *testing.T) {
 		defer patch.Reset()
 		_, err := fileBiz.MakeBucket(context.TODO(), &api.MakeBucketRequest{
 			Bucket: "",
-		})
+		},fileAuthor)
+		patch.Reset()
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "mkdir error")
+
+		patch1:=gomonkey.ApplyFuncReturn(git.PlainInit, nil, fmt.Errorf("init error"))
+		defer patch1.Reset()
+		_, err = fileBiz.MakeBucket(context.TODO(), &api.MakeBucketRequest{
+			Bucket: "test-2",
+			EnableVersion: true,
+		},fileAuthor)
+		patch1.Reset()
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "init error")
+
 	})
 }
 func testPutFile(t *testing.T) {
@@ -193,8 +207,8 @@ func testPutFile(t *testing.T) {
 			tmp:        tmp,
 			useVersion: false,
 			key:        "test/upload.test1",
-			expectPath: filepath.Join(cnf.GetUploadDir(), bucket, fileAuthor, "test", "upload.test1"),
-			expectUri:  fileAuthor + "/test/upload.test1",
+			expectPath: filepath.Join(cnf.GetUploadDir(), bucket, "test", "upload.test1"),
+			expectUri:  "test/upload.test1",
 			expectErr:  nil,
 			author:     fileAuthor,
 			bucket:     bucket,
@@ -204,8 +218,8 @@ func testPutFile(t *testing.T) {
 			tmp:        tmp,
 			useVersion: true,
 			key:        "test/upload.test2",
-			expectPath: filepath.Join(cnf.GetUploadDir(), bucket, fileAuthor, "test", "upload.test2"),
-			expectUri:  fileAuthor + "/test/upload.test2",
+			expectPath: filepath.Join(cnf.GetUploadDir(), bucket, "test", "upload.test2"),
+			expectUri:  "test/upload.test2",
 			expectErr:  nil,
 			author:     fileAuthor,
 			bucket:     bucket,
@@ -215,8 +229,8 @@ func testPutFile(t *testing.T) {
 			tmp:        tmp,
 			useVersion: true,
 			key:        "test/upload.test2",
-			expectPath: filepath.Join(cnf.GetUploadDir(), bucket, fileAuthor, "test", "upload.test2"),
-			expectUri:  fileAuthor + "/test/upload.test2",
+			expectPath: filepath.Join(cnf.GetUploadDir(), bucket, "test", "upload.test2"),
+			expectUri:  "test/upload.test2",
 			expectErr:  nil,
 			author:     fileAuthor,
 			bucket:     bucket,
@@ -226,8 +240,8 @@ func testPutFile(t *testing.T) {
 			tmp:        tmp3,
 			useVersion: true,
 			key:        "test/upload.test2",
-			expectPath: filepath.Join(cnf.GetUploadDir(), bucket, fileAuthor, "test", "upload.test2"),
-			expectUri:  fileAuthor + "/test/upload.test2",
+			expectPath: filepath.Join(cnf.GetUploadDir(), bucket, "test", "upload.test2"),
+			expectUri:  "test/upload.test2",
 			expectErr:  nil,
 			author:     fileAuthor,
 			bucket:     bucket,
@@ -237,8 +251,8 @@ func testPutFile(t *testing.T) {
 			tmp:        tmp,
 			useVersion: true,
 			key:        "test/upload.test2",
-			expectPath: filepath.Join(cnf.GetUploadDir(), bucket, fileAuthor, "test", "upload.test2"),
-			expectUri:  fileAuthor + "/test/upload.test2",
+			expectPath: filepath.Join(cnf.GetUploadDir(), bucket, "test", "upload.test2"),
+			expectUri:  "test/upload.test2",
 			expectErr:  nil,
 			author:     fileAuthor,
 			bucket:     bucket,
@@ -292,7 +306,6 @@ func testPutFile(t *testing.T) {
 				Key:         _case.key,
 				Content:     _case.tmp.content,
 				ContentType: _case.tmp.contentType,
-				UseVersion:  _case.useVersion,
 				Sha256:      _case.tmp.sha256,
 				Bucket:      _case.bucket,
 			}, _case.author)
@@ -307,6 +320,7 @@ func testPutFile(t *testing.T) {
 				c.So(err, c.ShouldBeNil)
 				c.So(_case.tmp.sha256, c.ShouldEqual, expectSum)
 				c.So(rsp.Uri, c.ShouldEqual, _case.expectUri)
+				fileId = rsp.Uid
 				if _case.useVersion {
 					// t.Logf("upload title:%s,version:%s,sha256:%s", _case.title, rsp.Version, _case.tmp.sha256)
 					c.So(rsp.Version, c.ShouldNotBeEmpty)
@@ -323,9 +337,9 @@ func testPutFile(t *testing.T) {
 		for v, sha := range versions {
 			t.Logf("version:%s,sha256:%s", v, sha)
 		}
-		fileAuthor2 := fmt.Sprintf("tester-2-%s", time.Now().Format("20060102150405"))
+		bucket2 := fmt.Sprintf("tester-2-%s", time.Now().Format("20060102150405"))
 
-		filePath := filepath.Join(cnf.GetUploadDir(), bucket, fileAuthor2)
+		filePath := filepath.Join(cnf.GetUploadDir(), bucket2)
 		file, err := os.Create(filePath)
 		if err != nil {
 			t.Error(err)
@@ -335,10 +349,9 @@ func testPutFile(t *testing.T) {
 			Key:         "test/upload.test5",
 			Content:     tmp.content,
 			ContentType: tmp.contentType,
-			UseVersion:  true,
 			Sha256:      tmp.sha256,
-			Bucket:      bucket,
-		}, fileAuthor2)
+			Bucket:      bucket2,
+		}, fileAuthor)
 
 		c.So(err, c.ShouldNotBeNil)
 		c.So(rsp, c.ShouldBeNil)
@@ -348,7 +361,6 @@ func testPutFile(t *testing.T) {
 			Key:         "test/.",
 			Content:     tmp.content,
 			ContentType: tmp.contentType,
-			UseVersion:  true,
 			Sha256:      tmp.sha256,
 			Bucket:      bucket,
 		}, fileAuthor)
@@ -363,7 +375,6 @@ func testPutFile(t *testing.T) {
 			Key:         "test/upload.test6",
 			Content:     nil,
 			ContentType: tmp.contentType,
-			UseVersion:  true,
 			Sha256:      tmp.sha256,
 			Bucket:      bucket,
 		}, fileAuthor3)
@@ -378,7 +389,6 @@ func testPutFile(t *testing.T) {
 			Key:         "test/upload.test6",
 			Content:     nil,
 			ContentType: tmp.contentType,
-			UseVersion:  true,
 			Sha256:      tmp.sha256,
 			Bucket:      bucket,
 		}, fileAuthor3)
@@ -399,7 +409,7 @@ func testDownload(t *testing.T) {
 		{
 			title:      "download success",
 			exceptErr:  nil,
-			key:        fileAuthor + "/test/upload.test1",
+			key:        "test/upload.test1",
 			useVersion: false,
 			version:    "",
 			author:     fileAuthor,
@@ -408,7 +418,7 @@ func testDownload(t *testing.T) {
 		{
 			title:      "download with version1",
 			exceptErr:  nil,
-			key:        fileAuthor + "/test/upload.test2",
+			key:        "test/upload.test2",
 			useVersion: true,
 			version:    versionsKeys[0],
 			author:     fileAuthor,
@@ -417,7 +427,7 @@ func testDownload(t *testing.T) {
 		{
 			title:      "download with version2",
 			exceptErr:  nil,
-			key:        fileAuthor + "/test/upload.test2",
+			key:        "test/upload.test2",
 			useVersion: true,
 			version:    versionsKeys[1],
 			author:     fileAuthor,
@@ -426,7 +436,7 @@ func testDownload(t *testing.T) {
 		{
 			title:      "download with version3",
 			exceptErr:  nil,
-			key:        fileAuthor + "/test/upload.test2",
+			key:        "test/upload.test2",
 			useVersion: true,
 			version:    versionsKeys[2],
 			author:     fileAuthor,
@@ -435,7 +445,7 @@ func testDownload(t *testing.T) {
 		{
 			title:      "download with latest version",
 			exceptErr:  nil,
-			key:        fileAuthor + "/test/upload.test2",
+			key:        "test/upload.test2",
 			useVersion: true,
 			version:    "",
 			author:     fileAuthor,
@@ -445,7 +455,7 @@ func testDownload(t *testing.T) {
 		{
 			title:      "download fail with invalidate key",
 			exceptErr:  fmt.Errorf("%s", "no such file or directory"),
-			key:        fileAuthor + "/test/upload_not_exist",
+			key:        "test/upload_not_exist",
 			useVersion: false,
 			version:    "",
 			author:     fileAuthor,
@@ -454,7 +464,7 @@ func testDownload(t *testing.T) {
 		{
 			title:      "download fail with version and invalidate key",
 			exceptErr:  fmt.Errorf("%s", "file not found"),
-			key:        fileAuthor + "/test/upload_not_exist",
+			key:        "test/upload_not_exist",
 			useVersion: true,
 			version:    "latest",
 			author:     fileAuthor,
@@ -468,6 +478,7 @@ func testDownload(t *testing.T) {
 				Key:     _case.key,
 				Bucket:  bucket,
 				Version: _case.version,
+				
 			}, _case.author)
 			if _case.exceptErr != nil {
 				c.So(err, c.ShouldNotBeNil)
@@ -485,7 +496,7 @@ func testDownload(t *testing.T) {
 	}
 	c.Convey("test download fail", t, func() {
 		_, err := fileBiz.Download(context.TODO(), &api.DownloadRequest{
-			Key:    "/" + fileAuthor + "/test/upload.test1",
+			Key:    "/test/upload.test1",
 			Bucket: bucket,
 		}, fileAuthor)
 		c.So(err, c.ShouldNotBeNil)
@@ -498,28 +509,28 @@ func testDownload(t *testing.T) {
 		}
 		config := config.ReadConfig(env)
 		cnf := cfg.NewConfig(config)
-		filePath := filepath.Join(cnf.GetUploadDir(), bucket, fileAuthor, "test", "upload.test2")
+		filePath := filepath.Join(cnf.GetUploadDir(), bucket, "test", "upload.test2")
 		t.Logf("filepath:%s", filePath)
 		reader, err := file.NewFileVersionReader(filePath, "latest")
 		c.So(err, c.ShouldBeNil)
 		patch := gomonkey.ApplyMethodReturn(reader, "Reader", nil, fmt.Errorf("reader error"))
 		defer patch.Reset()
 		_, err = fileBiz.Download(context.TODO(), &api.DownloadRequest{
-			Key:     fileAuthor + "/test/upload.test2",
+			Key:     "test/upload.test2",
 			Bucket:  bucket,
 			Version: "latest",
 		}, fileAuthor)
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "reader error")
 		patch.Reset()
-		file, err := file.NewFileVersionReader(filepath.Join(cnf.GetUploadDir(), bucket, fileAuthor, "test", "upload.test2"), "latest")
+		file, err := file.NewFileVersionReader(filepath.Join(cnf.GetUploadDir(), bucket, "test", "upload.test2"), "latest")
 		c.So(err, c.ShouldBeNil)
 		ioReader, err := file.Reader()
 		c.So(err, c.ShouldBeNil)
 		patch2 := gomonkey.ApplyMethodReturn(ioReader, "Read", 0, fmt.Errorf("error read file"))
 		defer patch2.Reset()
 		_, err = fileBiz.Download(context.TODO(), &api.DownloadRequest{
-			Key:     fileAuthor + "/test/upload.test2",
+			Key:     "test/upload.test2",
 			Version: "latest",
 			Bucket:  bucket,
 		}, fileAuthor)
@@ -768,7 +779,6 @@ func testCompleteMultipartUploadFile(t *testing.T) {
 		rsp, err := fileBiz.CompleteMultipartUploadFile(context.TODO(), &api.CompleteMultipartUploadRequest{
 			Key:        "test/upload.parts.test1",
 			UploadId:   uploadId,
-			UseVersion: true,
 			Sha256:     bigFileSha256,
 			Bucket:     bucket,
 			Engine: api.FileEngine_FILE_ENGINE_LOCAL.String(),
@@ -821,7 +831,6 @@ func testCompleteMultipartUploadFile(t *testing.T) {
 		_, err = fileBiz.CompleteMultipartUploadFile(context.TODO(), &api.CompleteMultipartUploadRequest{
 			Key:        "test/upload.parts.test2",
 			UploadId:   uploadId2,
-			UseVersion: true,
 			Bucket:     bucket,
 		}, fileAuthor)
 		c.So(err, c.ShouldNotBeNil)
@@ -880,11 +889,11 @@ func testCompleteMultipartUploadFile(t *testing.T) {
 			_, err = fileBiz.CompleteMultipartUploadFile(context.TODO(), &api.CompleteMultipartUploadRequest{
 				Key:        "test/upload.parts.test2",
 				UploadId:   uploadId3,
-				UseVersion: true,
 				Bucket:     bucket,
+				Engine: api.FileEngine_FILE_ENGINE_LOCAL.String(),
 			}, fileAuthor)
 			patch2.Reset()
-
+			t.Logf("error:%v", cases.err)
 			c.So(err, c.ShouldNotBeNil)
 			c.So(err.Error(), c.ShouldContainSubstring, cases.err.Error())
 
@@ -896,7 +905,7 @@ func testFileMeta(t *testing.T) {
 	fileBiz := newFileBiz()
 	c.Convey("test file metadata", t, func() {
 		meta, err := fileBiz.Metadata(context.Background(), &api.FileMetadataRequest{
-			Key:     fileAuthor + "/test/upload.parts.test1",
+			Key:     "test/upload.parts.test1",
 			Version: "",
 			Bucket:  bucket,
 			Engine: api.FileEngine_FILE_ENGINE_LOCAL.String(),
@@ -907,7 +916,7 @@ func testFileMeta(t *testing.T) {
 		c.So(meta.Sha256, c.ShouldEqual, bigFileSha256)
 
 		meta, err = fileBiz.Metadata(context.Background(), &api.FileMetadataRequest{
-			Key:     fileAuthor + "/test/upload.parts.test1",
+			Key:     "test/upload.parts.test1",
 			Version: "latest",
 			Bucket:  bucket,
 			Engine: api.FileEngine_FILE_ENGINE_LOCAL.String(),
@@ -931,13 +940,13 @@ func testFileMeta(t *testing.T) {
 		}
 		conf := config.ReadConfig(env)
 		cnf := cfg.NewConfig(conf)
-		filePath := filepath.Join(cnf.GetUploadDir(), bucket, filepath.Dir(fileAuthor+"/test/upload.parts.test1"))
-		filePath = filepath.Join(filePath, filepath.Base(fileAuthor+"/test/upload.parts.test1"))
+		filePath := filepath.Join(cnf.GetUploadDir(), bucket, filepath.Dir("test/upload.parts.test1"))
+		filePath = filepath.Join(filePath, filepath.Base("test/upload.parts.test1"))
 
 		patch := gomonkey.ApplyFuncReturn(file.NewFileVersionReader, nil, fmt.Errorf("file NewFileVersionReader error"))
 		defer patch.Reset()
 		_, err = fileBiz.Metadata(context.Background(), &api.FileMetadataRequest{
-			Key:     fileAuthor + "/test/upload.parts.test1",
+			Key:     "test/upload.parts.test1",
 			Version: "latest",
 			Bucket:  bucket,
 		}, fileAuthor)
@@ -950,7 +959,7 @@ func testFileMeta(t *testing.T) {
 		patch2 := gomonkey.ApplyMethodReturn(reader, "Reader", nil, fmt.Errorf("file Reader error"))
 		defer patch2.Reset()
 		_, err = fileBiz.Metadata(context.Background(), &api.FileMetadataRequest{
-			Key:     fileAuthor + "/test/upload.parts.test1",
+			Key:     "test/upload.parts.test1",
 			Version: "latest",
 			Bucket:  bucket,
 		}, fileAuthor)
@@ -960,7 +969,7 @@ func testFileMeta(t *testing.T) {
 
 		patch3 := gomonkey.ApplyFuncReturn(io.Copy, int64(0), fmt.Errorf("io.copy error"))
 		defer patch3.Reset()
-		_, err = fileBiz.Metadata(context.Background(), &api.FileMetadataRequest{Key: fileAuthor + "/test/upload.parts.test1",
+		_, err = fileBiz.Metadata(context.Background(), &api.FileMetadataRequest{Key: "test/upload.parts.test1",
 			Version: "latest", Bucket: bucket}, fileAuthor)
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "io.copy error")
@@ -969,7 +978,7 @@ func testFileMeta(t *testing.T) {
 		patch4:=gomonkey.ApplyFuncReturn(tiga.MySQLDao.First,fmt.Errorf("get error"))
 		defer patch4.Reset()
 		_, err = fileBiz.Metadata(context.Background(), &api.FileMetadataRequest{
-			Key:     fileAuthor + "/test/upload.parts.test1",
+			Key:     "test/upload.parts.test1",
 			Version: "latest",
 			Bucket:  bucket,
 		}, fileAuthor)
@@ -988,7 +997,7 @@ func testVersionReader(t *testing.T) {
 	cnf := cfg.NewConfig(config)
 	c.Convey("test version reader", t, func() {
 		root := cnf.GetUploadDir()
-		path := filepath.Join(root, bucket, fileAuthor, "test", "upload.parts.test1")
+		path := filepath.Join(root, bucket, "test", "upload.parts.test1")
 		reader, err := file.NewFileVersionReader(path, "")
 		c.So(err, c.ShouldBeNil)
 		c.So(reader, c.ShouldNotBeNil)
@@ -1007,13 +1016,13 @@ func testVersionReader(t *testing.T) {
 		c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrInvalidFileKey.Error())
 		patch := gomonkey.ApplyFuncReturn(file.NewFileVersionReader, nil, fmt.Errorf("file NewFileVersionReader error"))
 		defer patch.Reset()
-		_, err = fileBiz.Version(context.Background(), bucket, fileAuthor+"/test/upload.parts.test1", fileAuthor)
+		_, err = fileBiz.Version(context.Background(), bucket, "test/upload.parts.test1", fileAuthor)
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "file NewFileVersionReader error")
 		patch.Reset()
 		patch2 := gomonkey.ApplyFuncReturn(git.PlainOpen, nil, fmt.Errorf("git PlainOpen error"))
 		defer patch2.Reset()
-		_, err = file.NewFileVersionReader(fileAuthor+"/test/upload.parts.test1", "latest")
+		_, err = file.NewFileVersionReader("test/upload.parts.test1", "latest")
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "git PlainOpen error")
 		patch2.Reset()
@@ -1021,14 +1030,14 @@ func testVersionReader(t *testing.T) {
 		patch3 := gomonkey.ApplyFuncReturn((*git.Repository).Head, nil, fmt.Errorf("head error"))
 		defer patch3.Reset()
 		root := cnf.GetUploadDir()
-		path := filepath.Join(root, bucket, fileAuthor, "test", "upload.parts.test2")
+		path := filepath.Join(root, bucket, "test", "upload.parts.test2")
 		_, err = file.NewFileVersionReader(path, "latest")
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "head error")
 		patch3.Reset()
 
-		filePath := filepath.Join(cnf.GetUploadDir(), bucket, filepath.Dir(fileAuthor+"/test/upload.parts.test1"))
-		filePath = filepath.Join(filePath, filepath.Base(fileAuthor+"/test/upload.parts.test1"))
+		filePath := filepath.Join(cnf.GetUploadDir(), bucket, filepath.Dir("test/upload.parts.test1"))
+		filePath = filepath.Join(filePath, filepath.Base("test/upload.parts.test1"))
 		reader, err := file.NewFileVersionReader(filePath, "latest")
 		c.So(err, c.ShouldBeNil)
 		cases := []struct {
@@ -1091,7 +1100,7 @@ func testDownloadRange(t *testing.T) {
 				rangeEndAt = int64(fileSize) - 1
 			}
 			data, _, err := fileBiz.DownloadForRange(context.Background(), &api.DownloadRequest{
-				Key:     fileAuthor + "/test/upload.parts.test1",
+				Key:     "test/upload.parts.test1",
 				Version: "latest",
 				Bucket:  bucket,
 			}, rangeStartAt, rangeEndAt, fileAuthor)
@@ -1103,7 +1112,7 @@ func testDownloadRange(t *testing.T) {
 
 		shaer2 := sha256.New()
 		data, _, err := fileBiz.DownloadForRange(context.Background(), &api.DownloadRequest{
-			Key:     fileAuthor + "/test/upload.parts.test1",
+			Key:     "test/upload.parts.test1",
 			Version: "latest",
 			Bucket:  bucket,
 		}, 0, 0, fileAuthor)
@@ -1113,7 +1122,7 @@ func testDownloadRange(t *testing.T) {
 
 		shaer3 := sha256.New()
 		data, _, err = fileBiz.DownloadForRange(context.Background(), &api.DownloadRequest{
-			Key:     fileAuthor + "/test/upload.parts.test1",
+			Key:     "test/upload.parts.test1",
 			Version: "",
 			Bucket:  bucket,
 		}, 0, 0, fileAuthor)
@@ -1123,7 +1132,7 @@ func testDownloadRange(t *testing.T) {
 	})
 	c.Convey("test download range parts file fail", t, func() {
 		_, _, err := fileBiz.DownloadForRange(context.Background(), &api.DownloadRequest{
-			Key:     fileAuthor + "/test/upload.parts.test40",
+			Key:     "test/upload.parts.test40",
 			Version: "lasted",
 			Bucket:  bucket,
 		}, 0, 1024, fileAuthor)
@@ -1145,7 +1154,7 @@ func testDownloadRange(t *testing.T) {
 		c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrInvalidRange.Error())
 
 		_, _, err = fileBiz.DownloadForRange(context.Background(), &api.DownloadRequest{
-			Key:     fileAuthor + "/test/upload.parts.test1",
+			Key:     "test/upload.parts.test1",
 			Version: "latest",
 			Bucket:  bucket,
 		}, 1024, 0, fileAuthor)
@@ -1167,15 +1176,15 @@ func testDownloadRange(t *testing.T) {
 		}
 		conf := config.ReadConfig(env)
 		cnf := cfg.NewConfig(conf)
-		filePath := filepath.Join(cnf.GetUploadDir(), bucket, filepath.Dir(fileAuthor+"/test/upload.parts.test1"))
-		filePath = filepath.Join(filePath, filepath.Base(fileAuthor+"/test/upload.parts.test1"))
+		filePath := filepath.Join(cnf.GetUploadDir(), bucket, filepath.Dir("test/upload.parts.test1"))
+		filePath = filepath.Join(filePath, filepath.Base("test/upload.parts.test1"))
 		reader, err := file.NewFileVersionReader(filePath, "latest")
 		c.So(err, c.ShouldBeNil)
 		patch2 := gomonkey.ApplyMethodReturn(reader, "ReadAt", 0, fmt.Errorf("file readAt error"))
 		defer patch2.Reset()
 
 		_, _, err = fileBiz.DownloadForRange(context.Background(), &api.DownloadRequest{
-			Key:     fileAuthor + "/test/upload.parts.test1",
+			Key:     "test/upload.parts.test1",
 			Version: "latest",
 			Bucket:  bucket,
 		}, 0, 1024, fileAuthor)
@@ -1223,22 +1232,22 @@ func testDelete(t *testing.T) {
 	c.Convey("test delete file fail", t, func() {
 		patch := gomonkey.ApplyFuncReturn(file.NewFileReader, nil, fmt.Errorf("file not found"))
 		defer patch.Reset()
-		_, err := fileBiz.Delete(context.Background(), &api.DeleteRequest{Key: fileAuthor + "/test/upload.parts.deleted", Bucket: bucket}, fileAuthor)
+		_, err := fileBiz.Delete(context.Background(), &api.DeleteRequest{Key: "test/upload.parts.deleted", Bucket: bucket}, fileAuthor)
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "file not found")
 		patch.Reset()
 
-		_, err = fileBiz.Delete(context.Background(), &api.DeleteRequest{Key: fileAuthor + "/test/upload.parts.deleted2", Bucket: bucket}, fileAuthor)
+		_, err = fileBiz.Delete(context.Background(), &api.DeleteRequest{Key: "test/upload.parts.deleted2", Bucket: bucket}, fileAuthor)
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "not found")
 
-		_, err = fileBiz.Delete(context.Background(), &api.DeleteRequest{Key: "/" + fileAuthor + "/test/upload.parts.deleted2", Bucket: bucket}, fileAuthor)
+		_, err = fileBiz.Delete(context.Background(), &api.DeleteRequest{Key:"/test/upload.parts.deleted2", Bucket: bucket}, fileAuthor)
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrInvalidFileKey.Error())
 
 		patch2 := gomonkey.ApplyFuncReturn(os.RemoveAll, fmt.Errorf("remove all error"))
 		defer patch2.Reset()
-		_, err = fileBiz.Delete(context.Background(), &api.DeleteRequest{Key: fileAuthor + "/test/upload.parts.test1", Bucket: bucket}, fileAuthor)
+		_, err = fileBiz.Delete(context.Background(), &api.DeleteRequest{Key: "test/upload.parts.test1", Bucket: bucket}, fileAuthor)
 		patch2.Reset()
 
 		c.So(err, c.ShouldNotBeNil)
@@ -1246,12 +1255,12 @@ func testDelete(t *testing.T) {
 
 	})
 	c.Convey("test delete file success", t, func() {
-		rsp, err := fileBiz.Delete(context.Background(), &api.DeleteRequest{Key: fileAuthor + "/test/upload.parts.test1", Bucket: bucket}, fileAuthor)
+		rsp, err := fileBiz.Delete(context.Background(), &api.DeleteRequest{Key: "test/upload.parts.test1", Bucket: bucket}, fileAuthor)
 		c.So(err, c.ShouldBeNil)
 		c.So(rsp, c.ShouldNotBeNil)
-		_, err = os.Stat(filepath.Join(cnf.GetUploadDir(), fileAuthor, "test", "upload.parts.test1"))
+		_, err = os.Stat(filepath.Join(cnf.GetUploadDir(), "test", "upload.parts.test1"))
 		c.So(err, c.ShouldNotBeNil)
-		_, err = os.Stat(filepath.Join(cnf.GetUploadDir(), "parts", fileAuthor+"/test/upload.parts.test1"))
+		_, err = os.Stat(filepath.Join(cnf.GetUploadDir(), "parts", "test/upload.parts.test1"))
 		c.So(err, c.ShouldNotBeNil)
 
 	})
@@ -1266,6 +1275,7 @@ func testUploadVersionCommitErr(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
+		t.Logf("test upload version commit error start,%s", tmp2.path)
 		defer os.Remove(tmp2.path)
 		cases := []struct {
 			patch  interface{}
@@ -1306,7 +1316,6 @@ func testUploadVersionCommitErr(t *testing.T) {
 				Key:         "test/upload_version.test1",
 				Content:     tmp2.content,
 				ContentType: tmp2.contentType,
-				UseVersion:  true,
 				Sha256:      tmp2.sha256,
 				Bucket:      bucket,
 			}, fileAuthor2)
@@ -1317,13 +1326,12 @@ func testUploadVersionCommitErr(t *testing.T) {
 		}
 
 		patch := gomonkey.ApplyFuncReturn(git.PlainInit, nil, git.ErrRepositoryAlreadyExists)
-		patch = patch.ApplyFuncReturn(git.PlainOpen, nil, fmt.Errorf("open error"))
+		patch = patch.ApplyFuncSeq(git.PlainOpen, []gomonkey.OutputCell{{Values: []interface{}{&git.Repository{}, nil}}, {Values: []interface{}{nil, fmt.Errorf("open error")}}})
 		defer patch.Reset()
 		f := &api.UploadFileRequest{
 			Key:         "test/upload_version.test1",
 			Content:     tmp2.content,
 			ContentType: tmp2.contentType,
-			UseVersion:  true,
 			Sha256:      tmp2.sha256,
 			Bucket:      bucket,
 		}
@@ -1343,9 +1351,19 @@ func testUploadVersionCommitErr(t *testing.T) {
 
 	})
 }
+func testGetFileByID(t *testing.T){
+	fileBiz:=newFileBiz()
+	c.Convey("test get file by id",t,func(){
+		rsp,err:=fileBiz.GetFileByID(context.TODO(),fileId)
+		c.So(err,c.ShouldBeNil)
+		c.So(rsp,c.ShouldNotBeNil)
+	})
+
+}
 func TestFile(t *testing.T) {
 	t.Run("test make bucket", testMkBucket)
 	t.Run("test upload", testPutFile)
+	t.Run("test get file by id",testGetFileByID)
 	t.Run("test upload version commit error", testUploadVersionCommitErr)
 	t.Run("test download", testDownload)
 	t.Run("test initiate upload file", testInitiateUploadFile)

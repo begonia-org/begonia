@@ -61,7 +61,7 @@ func New(config2 *tiga.Configuration, log logger.Logger, endpoint2 string) Gatew
 	v := file.NewFileUsecase(configConfig, fileRepo)
 	fileServiceServer := service.NewFileService(v, configConfig)
 	usersAuth := crypto.NewUsersAuth(configConfig)
-	authzUsecase := biz.NewAuthzUsecase(authzRepo, userRepo, log, usersAuth, configConfig)
+	authzUsecase := biz.NewAuthzUsecase(authzRepo, userRepo, appRepo, log, usersAuth, configConfig)
 	authServiceServer := service.NewAuthzService(authzUsecase, log, usersAuth, configConfig)
 	endpointUsecase := endpoint.NewEndpointUsecase(endpointRepo, configConfig)
 	endpointServiceServer := service.NewEndpointsService(endpointUsecase, log, configConfig)
@@ -88,8 +88,9 @@ func NewAuthzSvr(config2 *tiga.Configuration, log logger.Logger) v1.AuthServiceS
 	dataData := data.NewData(mySQLDao, redisDao, etcdDao)
 	curd := data.NewCurdImpl(mySQLDao, configConfig)
 	userRepo := data.NewUserRepoImpl(dataData, layeredCache, curd, configConfig)
+	appRepo := data.NewAppRepoImpl(curd, layeredCache, configConfig)
 	usersAuth := crypto.NewUsersAuth(configConfig)
-	authzUsecase := biz.NewAuthzUsecase(authzRepo, userRepo, log, usersAuth, configConfig)
+	authzUsecase := biz.NewAuthzUsecase(authzRepo, userRepo, appRepo, log, usersAuth, configConfig)
 	authServiceServer := service.NewAuthzService(authzUsecase, log, usersAuth, configConfig)
 	return authServiceServer
 }
@@ -157,7 +158,7 @@ func NewWorker(config2 *tiga.Configuration, log logger.Logger, gw string) Gatewa
 	v := file.NewFileUsecase(configConfig, fileRepo)
 	fileServiceServer := service.NewFileService(v, configConfig)
 	usersAuth := crypto.NewUsersAuth(configConfig)
-	authzUsecase := biz.NewAuthzUsecase(authzRepo, userRepo, log, usersAuth, configConfig)
+	authzUsecase := biz.NewAuthzUsecase(authzRepo, userRepo, appRepo, log, usersAuth, configConfig)
 	authServiceServer := service.NewAuthzService(authzUsecase, log, usersAuth, configConfig)
 	endpointUsecase := endpoint.NewEndpointUsecase(endpointRepo, configConfig)
 	endpointServiceServer := service.NewEndpointsService(endpointUsecase, log, configConfig)

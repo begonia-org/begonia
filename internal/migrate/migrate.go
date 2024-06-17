@@ -35,7 +35,6 @@ func NewMySQLMigrate(mysql *tiga.MySQLDao, models ...TableModel) *MySQLMigrate {
 }
 
 func (m *MySQLMigrate) Do() error {
-
 	for _, model := range m.models {
 		err := m.mysql.AutoMigrate(model)
 		if err != nil {

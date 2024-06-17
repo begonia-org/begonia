@@ -50,7 +50,7 @@ type FileUsecase interface {
 	Version(ctx context.Context, bucket, key, authorId string) (string, error)
 	Download(ctx context.Context, in *api.DownloadRequest, authorId string) ([]byte, error)
 	Delete(ctx context.Context, in *api.DeleteRequest, authorId string) (*api.DeleteResponse, error)
-	MakeBucket(ctx context.Context, in *api.MakeBucketRequest) (*api.MakeBucketResponse, error)
+	MakeBucket(ctx context.Context, in *api.MakeBucketRequest,authorId string) (*api.MakeBucketResponse, error)
 	List(ctx context.Context, in *api.ListFilesRequest, authorId string) ([]*api.Files, error)
 	GetFileByID(ctx context.Context, fileId string) (*api.Files, error)
 }
@@ -131,14 +131,14 @@ func getSHA256(data []byte) string {
 func (f *FileUsecaseImpl) commitFile(dir string, filename string, authorId string, authorEmail string) (commitId string, err error) {
 	repo, err := git.PlainInit(dir, false)
 	if err != nil && err != git.ErrRepositoryAlreadyExists {
-		return "", err
+		return "", fmt.Errorf("version plain init err:%w",err)
 	}
 
 	// 如果仓库已存在，则打开它
 	if err == git.ErrRepositoryAlreadyExists {
 		repo, err = git.PlainOpen(dir)
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("version plain open err:%w",err)
 		}
 	}
 
@@ -152,7 +152,7 @@ func (f *FileUsecaseImpl) commitFile(dir string, filename string, authorId strin
 	// 工作树
 	w, err := repo.Worktree()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("version work tree err:%w",err)
 	}
 	defer func() {
 		if p := recover(); p != nil {
@@ -166,7 +166,7 @@ func (f *FileUsecaseImpl) commitFile(dir string, filename string, authorId strin
 	// 添加文件到暂存区
 	_, err = w.Add(filename)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("add file err:%w",err)
 	}
 
 	// 创建提交
@@ -174,7 +174,7 @@ func (f *FileUsecaseImpl) commitFile(dir string, filename string, authorId strin
 		Author: author,
 	})
 	if err != nil && !goErr.Is(err, git.ErrEmptyCommit) {
-		return "", err
+		return "", fmt.Errorf("commit file err:%w",err)
 	}
 	// 空提交处理
 	if goErr.Is(err, git.ErrEmptyCommit) {
@@ -189,7 +189,7 @@ func (f *FileUsecaseImpl) commitFile(dir string, filename string, authorId strin
 	obj, err := repo.CommitObject(commit)
 
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("get commit object err:%w",err)
 	}
 
 	return obj.ID().String(), nil
@@ -216,10 +216,18 @@ func (f *FileUsecaseImpl) checkIn(key string) (string, error) {
 	}
 	return key, nil
 }
-func (f *FileUsecaseImpl) MakeBucket(ctx context.Context, in *api.MakeBucketRequest) (*api.MakeBucketResponse, error) {
+func (f *FileUsecaseImpl) MakeBucket(ctx context.Context, in *api.MakeBucketRequest,authorId string) (*api.MakeBucketResponse, error) {
 	saveDir := filepath.Join(f.config.GetUploadDir(), in.Bucket)
 	if err := os.MkdirAll(saveDir, 0755); err != nil {
 		return nil, gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "make_bucket")
+	}
+	if in.EnableVersion{
+		_,_=os.Create(filepath.Join(saveDir, ".gitkeep"))
+		_,err:=f.commitFile(saveDir, ".gitkeep", authorId, "fs@begonia.com")
+		if err != nil {
+			return nil, gosdk.NewError(fmt.Errorf("init bucket version err:%w",err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "commit_file")
+		
+		}
 	}
 	return &api.MakeBucketResponse{}, nil
 }
@@ -227,7 +235,14 @@ func (f *FileUsecaseImpl) checkBucket(bucket string) bool {
 	saveDir := filepath.Join(f.config.GetUploadDir(), bucket)
 	return pathExists(saveDir)
 }
-
+func (f *FileUsecaseImpl)isEnableVersion(bucket string)bool{
+	path:=filepath.Join(f.config.GetUploadDir(), bucket)
+	repo, err := git.PlainOpen(path)
+	if err!=nil||repo==nil{
+		return false
+	}
+	return true
+}
 // Upload uploads a file.
 //
 // The file is saved in the directory specified by the key.
@@ -242,7 +257,8 @@ func (f *FileUsecaseImpl) Upload(ctx context.Context, in *api.UploadFileRequest,
 	if err != nil {
 		return nil, err
 	}
-	in.Key = filepath.Join(authorId, key)
+	// in.Key = filepath.Join(authorId, key)
+	in.Key = key
 	// log.Printf("key:%s", in.Key)
 	filename := filepath.Base(in.Key)
 	if ok := f.checkBucket(in.Bucket); in.Bucket == "" || !ok {
@@ -261,9 +277,9 @@ func (f *FileUsecaseImpl) Upload(ctx context.Context, in *api.UploadFileRequest,
 	}
 	defer file.Close()
 	defer func() {
-		if err != nil {
-			os.Remove(filePath)
-		}
+		// if err != nil {
+		// 	os.Remove(filePath)
+		// }
 	}()
 	_, err = file.Write(in.Content)
 	if err != nil {
@@ -281,7 +297,7 @@ func (f *FileUsecaseImpl) Upload(ctx context.Context, in *api.UploadFileRequest,
 
 	}
 	commitId := ""
-	if in.UseVersion {
+	if f.isEnableVersion(in.Bucket) {
 		commitId, err = f.commitFile(saveDir, filename, authorId, "fs@begonia.com")
 		if err != nil {
 			err = gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "commit_file")
@@ -303,6 +319,7 @@ func (f *FileUsecaseImpl) Upload(ctx context.Context, in *api.UploadFileRequest,
 	if err != nil {
 		return nil, err
 	}
+	log.Printf("上传文件:%s成功", filePath)
 	return &api.UploadFileResponse{
 		Uri:     uri,
 		Version: commitId,
@@ -448,11 +465,12 @@ func (f *FileUsecaseImpl) CompleteMultipartUploadFile(ctx context.Context, in *a
 	if err != nil {
 		return nil, err
 	}
-	if ok := f.checkBucket(in.Bucket); in.Bucket == "" || !ok {
+	if ok := f.checkBucket(in.Bucket); in.Bucket == "" || !ok && in.Engine==api.FileEngine_FILE_ENGINE_LOCAL.String() {
 		return nil, gosdk.NewError(pkg.ErrBucketNotFound, int32(api.FileSvrStatus_FILE_INVALIDATE_BUCKET_ERR), codes.NotFound, "bucket_not_found")
 
 	}
-	in.Key = filepath.Join(authorId, key)
+	// in.Key = filepath.Join(authorId, key)
+	in.Key = key
 	partsDir := f.getPartsDir(in.UploadId)
 	if !pathExists(partsDir) {
 		err := gosdk.NewError(fmt.Errorf("%s:%s", in.UploadId, pkg.ErrUploadIdNotFound.Error()), int32(api.FileSvrStatus_FILE_NOT_FOUND_UPLOADID_ERR), codes.NotFound, "upload_id_not_found")
@@ -489,8 +507,8 @@ func (f *FileUsecaseImpl) CompleteMultipartUploadFile(ctx context.Context, in *a
 
 	}
 	commit := ""
-	if in.UseVersion {
-		commit, err = f.commitFile(saveDir, filename, authorId, "begonia@begonia.com")
+	if f.isEnableVersion(in.Bucket)&& in.Engine==api.FileEngine_FILE_ENGINE_LOCAL.String() {
+		commit, err = f.commitFile(saveDir, filename, authorId, "fs@begonia.com")
 		if err != nil {
 			return nil, gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "commit_file")
 		}

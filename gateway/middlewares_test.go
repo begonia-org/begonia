@@ -8,6 +8,7 @@ import (
 	hello "github.com/begonia-org/go-sdk/api/example/v1"
 	c "github.com/smartystreets/goconvey/convey"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -23,6 +24,18 @@ func (r *responseWriter) Write([]byte) (int, error) {
 }
 func (r *responseWriter) WriteHeader(int) {
 
+}
+func TestClientMessageFromCode(t *testing.T){
+	c.Convey("TestClientMessageFromCode",t,func(){
+		msg:=clientMessageFromCode(codes.NotFound)
+		c.So(msg,c.ShouldContainSubstring,"not found")
+		msg = clientMessageFromCode(codes.ResourceExhausted)
+		c.So(msg,c.ShouldContainSubstring,"resource size exceeds")
+		msg = clientMessageFromCode(codes.AlreadyExists)
+		c.So(msg,c.ShouldContainSubstring,"already exists")
+		msg = clientMessageFromCode(codes.DataLoss)
+		c.So(msg,c.ShouldContainSubstring,"Unknown error")
+	})
 }
 func TestLoggerMiddlewares(t *testing.T) {
 	mid :=NewLoggerMiddleware(Log)

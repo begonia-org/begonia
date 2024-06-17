@@ -28,7 +28,8 @@ func TestMiddlewareUnaryInterceptorChains(t *testing.T) {
 		user := data.NewUserRepo(config, gateway.Log)
 		userAuth := crypto.NewUsersAuth(cnf)
 		authzRepo := data.NewAuthzRepo(config, gateway.Log)
-		authz := biz.NewAuthzUsecase(authzRepo, user, gateway.Log, userAuth, cnf)
+		appRepo:=data.NewAppRepo(config,gateway.Log)
+		authz := biz.NewAuthzUsecase(authzRepo, user,appRepo, gateway.Log, userAuth, cnf)
 		repo := data.NewAppRepo(config, gateway.Log)
 
 		akBiz := biz.NewAccessKeyAuth(repo, cnf, gateway.Log)

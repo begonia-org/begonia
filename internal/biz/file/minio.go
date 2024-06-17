@@ -28,11 +28,17 @@ type MinioUseCase struct {
 func NewMinioUseCase(minioClient *minio.Client, localFile *FileUsecaseImpl) FileUsecase {
 	return &MinioUseCase{minioClient: minioClient, localFile: localFile}
 }
-func (m *MinioUseCase) MakeBucket(ctx context.Context, in *api.MakeBucketRequest) (*api.MakeBucketResponse, error) {
+func (m *MinioUseCase) MakeBucket(ctx context.Context, in *api.MakeBucketRequest,_ string) (*api.MakeBucketResponse, error) {
 	err := m.minioClient.MakeBucket(ctx, in.Bucket, minio.MakeBucketOptions{Region: in.Region, ObjectLocking: in.ObjectLocking})
 	if err != nil {
-		return nil, gosdk.NewError(fmt.Errorf("failed to make bucket: %w", err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "make_bucket")
+		return nil, gosdk.NewError(fmt.Errorf("failed to make bucket: %w", err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "make_bucket",gosdk.WithClientMessage(err.Error()))
 	}
+	err = m.minioClient.EnableVersioning(ctx, in.Bucket)
+	if err!=nil{
+		return nil, gosdk.NewError(fmt.Errorf("failed to enable versioning: %w", err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "enable_versioning",gosdk.WithClientMessage(err.Error()))
+	
+	}
+
 	return &api.MakeBucketResponse{}, nil
 }
 func (m *MinioUseCase) Upload(ctx context.Context, in *api.UploadFileRequest, authorId string) (*api.UploadFileResponse, error) {
@@ -41,9 +47,9 @@ func (m *MinioUseCase) Upload(ctx context.Context, in *api.UploadFileRequest, au
 		return nil, gosdk.NewError(fmt.Errorf("failed to check bucket: %w or bucket %s not exist", err, in.Bucket), int32(common.Code_INTERNAL_ERROR), codes.Internal, "check_bucket")
 	}
 	contentLength := len(in.Content)
-	if in.UseVersion {
-		_ = m.minioClient.EnableVersioning(ctx, in.Bucket)
-	}
+	// if in.UseVersion {
+	// 	_ = m.minioClient.EnableVersioning(ctx, in.Bucket)
+	// }
 	hash := sha256.New()
 	hash.Write([]byte(in.Content))
 	checksum := hash.Sum(nil)
@@ -87,7 +93,7 @@ func (m *MinioUseCase) AbortMultipartUpload(ctx context.Context, in *api.AbortMu
 	return m.localFile.AbortMultipartUpload(ctx, in)
 }
 func (m *MinioUseCase) CompleteMultipartUploadFile(ctx context.Context, in *api.CompleteMultipartUploadRequest, authorId string) (*api.CompleteMultipartUploadResponse, error) {
-	_, _ = m.localFile.MakeBucket(ctx, &api.MakeBucketRequest{Bucket: in.Bucket})
+	// _, _ = m.localFile.MakeBucket(ctx, &api.MakeBucketRequest{Bucket: in.Bucket},authorId)
 	originKey := in.Key
 
 	rsp, err := m.localFile.CompleteMultipartUploadFile(ctx, in, authorId)
@@ -102,9 +108,9 @@ func (m *MinioUseCase) CompleteMultipartUploadFile(ctx context.Context, in *api.
 	}
 	defer file.Close()
 	stat, _ := os.Stat(filePath)
-	if in.UseVersion {
-		_ = m.minioClient.EnableVersioning(ctx, in.Bucket)
-	}
+	// if in.UseVersion {
+	// 	_ = m.minioClient.EnableVersioning(ctx, in.Bucket)
+	// }
 
 	userMetadata := map[string]string{
 		"x-amz-meta-sha256": in.Sha256,

@@ -30,6 +30,7 @@ import (
 var akskAccess = ""
 var akskSecret = ""
 var akskAppid = ""
+var akskOwner=""
 
 func newGatewayRequest() (*gosdk.GatewayRequest, error) {
 	signer := gosdk.NewAppAuthSigner(akskAccess, akskSecret)
@@ -75,6 +76,7 @@ func testGetSecret(t *testing.T) {
 	akskSecret, _ = utils.GenerateRandomString(62)
 	akskAppid = snk.GenerateIDString()
 	appName := fmt.Sprintf("app-AKSK-%s", time.Now().Format("20060102150405"))
+	akskOwner = akskAppid
 	err := repo.Add(context.TODO(), &api.Apps{
 		Appid:       akskAppid,
 		AccessKey:   akskAccess,
@@ -85,6 +87,8 @@ func testGetSecret(t *testing.T) {
 		Description: "test",
 		CreatedAt:   timestamppb.New(time.Now()),
 		UpdatedAt:   timestamppb.New(time.Now()),
+		Owner: 	 akskOwner,
+
 	})
 
 	if err != nil {
@@ -112,6 +116,20 @@ func testGetAPPID(t *testing.T) {
 
 	c.Convey("get appid fail", t, func() {
 		appid, err := aksk.GetAppid(context.TODO(), "dddddeeedwecccwcqdq")
+		c.So(err, c.ShouldNotBeNil)
+		c.So(appid, c.ShouldBeEmpty)
+	})
+}
+func testGetAppOwner(t *testing.T) {
+	aksk := newAKSK()
+	c.Convey("get app owner", t, func() {
+		appid, err := aksk.GetAppOwner(context.TODO(), akskAccess)
+		c.So(err, c.ShouldBeNil)
+		c.So(appid, c.ShouldEqual, akskOwner)
+	})
+
+	c.Convey("get app owner fail", t, func() {
+		appid, err := aksk.GetAppOwner(context.TODO(), "dddddeeedwecccwcqdq")
 		c.So(err, c.ShouldNotBeNil)
 		c.So(appid, c.ShouldBeEmpty)
 	})
@@ -230,6 +248,7 @@ func testValidator(t *testing.T) {
 func TestAKSK(t *testing.T) {
 	t.Run("get secret", testGetSecret)
 	t.Run("get appid", testGetAPPID)
+	t.Run("get app owner", testGetAppOwner)
 	t.Run("validator", testValidator)
 	t.Run("if need validate", testIfNeedValidate)
 }

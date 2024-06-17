@@ -63,13 +63,24 @@ func makeBucket(t *testing.T) {
 	c.Convey("test make bucket", t, func() {
 		fileBucket = fmt.Sprintf("test-service-bucket-%s", time.Now().Format("20060102150405"))
 		apiClient := client.NewFilesAPI(apiAddr, accessKey, secret, api.FileEngine_FILE_ENGINE_LOCAL)
-		rsp, err := apiClient.CreateBucket(context.Background(), fileBucket, "test", false)
+		rsp, err := apiClient.CreateBucket(context.Background(), fileBucket, "test", false,true)
 		c.So(err, c.ShouldBeNil)
 		c.So(rsp.StatusCode, c.ShouldEqual, common.Code_OK)
 		minioFile := client.NewFilesAPI(apiAddr, accessKey, secret, api.FileEngine_FILE_ENGINE_MINIO)
-		rsp, err = minioFile.CreateBucket(context.Background(), fileBucket, "test", false)
+		rsp, err = minioFile.CreateBucket(context.Background(), fileBucket, "test", false,true)
 		c.So(err, c.ShouldBeNil)
 		c.So(rsp.StatusCode, c.ShouldEqual, common.Code_OK)
+
+
+		// no idend
+		patch := gomonkey.ApplyFuncReturn(service.GetIdentity, "")
+		defer patch.Reset()
+
+		// apiClient := client.NewFilesAPI(apiAddr, accessKey, secret, api.FileEngine_FILE_ENGINE_LOCAL)
+		_, err = apiClient.CreateBucket(context.Background(), fileBucket, "test", false,true)
+		c.So(err, c.ShouldNotBeNil)
+		patch.Reset()
+
 
 	})
 }
@@ -206,7 +217,7 @@ func download(t *testing.T) {
 		c.So(err, c.ShouldBeNil)
 		defer tmp.Close()
 		defer os.Remove(tmp.Name())
-		sha256Str, err := apiClient.DownloadFile(context.Background(), sdkAPPID+"/test/helloworld.pb", tmp.Name(), "", fileBucket)
+		sha256Str, err := apiClient.DownloadFile(context.Background(), "test/helloworld.pb", tmp.Name(), "", fileBucket)
 		c.So(err, c.ShouldBeNil)
 		_, err = os.Stat(tmp.Name())
 		c.So(err, c.ShouldBeNil)
@@ -218,7 +229,7 @@ func download(t *testing.T) {
 
 		patch2 := gomonkey.ApplyFuncReturn((*service.FileService).Metadata, nil, fmt.Errorf("test metadata error"))
 		defer patch2.Reset()
-		_, err = apiClient.DownloadFile(context.Background(), sdkAPPID+"/test/helloworld.pb", tmp.Name(), "", fileBucket)
+		_, err = apiClient.DownloadFile(context.Background(), "test/helloworld.pb", tmp.Name(), "", fileBucket)
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "unknown error")
 		patch2.Reset()
@@ -243,7 +254,7 @@ func downloadParts(t *testing.T) {
 		c.So(err, c.ShouldBeNil)
 		defer tmp.Close()
 		defer os.Remove(tmp.Name())
-		rsp, err := apiClient.DownloadMultiParts(context.Background(), sdkAPPID+"/test/tmp.bin", tmp.Name(), "", fileBucket)
+		rsp, err := apiClient.DownloadMultiParts(context.Background(), "test/tmp.bin", tmp.Name(), "", fileBucket)
 		c.So(err, c.ShouldBeNil)
 		// c.So(rsp.StatusCode, c.ShouldEqual, common.Code_OK)
 		downloadedSha256, _ := sumFileSha256(tmp.Name())
@@ -259,7 +270,7 @@ func deleteFile(t *testing.T) {
 	}
 	c.Convey("test delete file", t, func() {
 		apiClient := client.NewFilesAPI(apiAddr, accessKey, secret, api.FileEngine_FILE_ENGINE_LOCAL)
-		rsp, err := apiClient.DeleteFile(context.Background(), sdkAPPID+"/test/helloworld.pb", fileBucket)
+		rsp, err := apiClient.DeleteFile(context.Background(), "test/helloworld.pb", fileBucket)
 		c.So(err, c.ShouldBeNil)
 		c.So(rsp.StatusCode, c.ShouldEqual, common.Code_OK)
 		conf := cfg.NewConfig(config.ReadConfig(env))
@@ -281,17 +292,17 @@ func testRangeDownload(t *testing.T) {
 		c.So(err, c.ShouldBeNil)
 		defer tmp.Close()
 		defer os.Remove(tmp.Name())
-		rsp, err := apiClient.RangeDownload(context.Background(), sdkAPPID+"/test/tmp.bin", "", -1, 128, fileBucket)
+		rsp, err := apiClient.RangeDownload(context.Background(), "test/tmp.bin", "", -1, 128, fileBucket)
 		c.So(err, c.ShouldBeNil)
 		c.So(len(rsp), c.ShouldEqual, 129)
 
-		rsp, err = apiClient.RangeDownload(context.Background(), sdkAPPID+"/test/tmp.bin", "", 128, -1, fileBucket)
+		rsp, err = apiClient.RangeDownload(context.Background(), "test/tmp.bin", "", 128, -1, fileBucket)
 		c.So(err, c.ShouldBeNil)
 		c.So(len(rsp), c.ShouldEqual, 1024*1024*2-128)
 
 		patch := gomonkey.ApplyFuncReturn(service.GetIdentity, "")
 		defer patch.Reset()
-		_, err = apiClient.RangeDownload(context.Background(), sdkAPPID+"/test/tmp.bin", "", 128, -1, fileBucket)
+		_, err = apiClient.RangeDownload(context.Background(), "test/tmp.bin", "", 128, -1, fileBucket)
 		c.So(err, c.ShouldNotBeNil)
 		patch.Reset()
 

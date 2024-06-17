@@ -38,7 +38,7 @@ func (a *Auth) UnaryInterceptor(ctx context.Context, req any, info *grpc.UnarySe
 	if !ok {
 		return nil, status.Errorf(codes.Unauthenticated, "metadata not exists in context")
 	}
-	xApiKey := md.Get("x-api-key")
+	xApiKey := md.Get(gosdk.HeaderXApiKey)
 	if len(xApiKey) != 0 {
 		return a.apikey.UnaryInterceptor(ctx, req, info, handler)
 	}
