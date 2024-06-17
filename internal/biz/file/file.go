@@ -35,7 +35,7 @@ type FileRepo interface {
 	DelFile(ctx context.Context, engine, bucket, key string) error
 	UpsertBucket(ctx context.Context, bucket *api.Buckets) error
 	DelBucket(ctx context.Context, bucketId string) error
-	GetFileById(ctx context.Context, fid string) (*api.Files, error) 
+	GetFileById(ctx context.Context, fid string) (*api.Files, error)
 	List(ctx context.Context, page, pageSize int32, bucket, engine, owner string) ([]*api.Files, error)
 	GetFile(ctx context.Context, engine, bucket, key string) (*api.Files, error)
 }
@@ -289,7 +289,7 @@ func (f *FileUsecaseImpl) Upload(ctx context.Context, in *api.UploadFileRequest,
 
 		}
 	}
-	fileObj:=&api.Files{
+	fileObj := &api.Files{
 		Uid:       f.snowflake.GenerateIDString(),
 		Engine:    api.FileEngine_name[int32(api.FileEngine_FILE_ENGINE_LOCAL)],
 		Bucket:    in.Bucket,
@@ -306,7 +306,7 @@ func (f *FileUsecaseImpl) Upload(ctx context.Context, in *api.UploadFileRequest,
 	return &api.UploadFileResponse{
 		Uri:     uri,
 		Version: commitId,
-		Uid: fileObj.Uid,
+		Uid:     fileObj.Uid,
 	}, err
 
 }
@@ -495,11 +495,11 @@ func (f *FileUsecaseImpl) CompleteMultipartUploadFile(ctx context.Context, in *a
 			return nil, gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "commit_file")
 		}
 	}
-	fileKey:=uri
-	if in.Engine!=api.FileEngine_FILE_ENGINE_LOCAL.String(){
+	fileKey := uri
+	if in.Engine != api.FileEngine_FILE_ENGINE_LOCAL.String() {
 		fileKey = originKey
 	}
-	fileObj:=&api.Files{
+	fileObj := &api.Files{
 		Uid:       f.snowflake.GenerateIDString(),
 		Engine:    in.Engine,
 		Bucket:    in.Bucket,
@@ -509,7 +509,7 @@ func (f *FileUsecaseImpl) CompleteMultipartUploadFile(ctx context.Context, in *a
 		CreatedAt: timestamppb.Now(),
 		UpdatedAt: timestamppb.Now(),
 	}
-	log.Printf("insert %s,%s,%s,%s",fileObj.Uid,fileObj.Bucket,fileObj.Key,fileObj.Engine)
+	log.Printf("insert %s,%s,%s,%s", fileObj.Uid, fileObj.Bucket, fileObj.Key, fileObj.Engine)
 	err = f.repo.UpsertFile(ctx, fileObj)
 	if err != nil {
 		return nil, gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "upsert_file")
@@ -519,7 +519,7 @@ func (f *FileUsecaseImpl) CompleteMultipartUploadFile(ctx context.Context, in *a
 	return &api.CompleteMultipartUploadResponse{
 		Uri:     uri,
 		Version: commit,
-		Uid: fileObj.Uid,
+		Uid:     fileObj.Uid,
 	}, err
 }
 
@@ -597,15 +597,17 @@ func (f *FileUsecaseImpl) Metadata(ctx context.Context, in *api.FileMetadataRequ
 		version, _ = f.Version(ctx, in.Bucket, originKey, authorId)
 
 	}
-	uid:=in.FileId
-	if uid==""{
-		fileObj,err:=f.repo.GetFile(ctx,in.Engine,in.Bucket,in.Key)
+	uid := in.FileId
+	bucket := in.Bucket
+	if uid == "" {
+		fileObj, err := f.repo.GetFile(ctx, in.Engine, in.Bucket, in.Key)
 		if err != nil {
 			return nil, gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_file")
 		}
-		uid=fileObj.Uid
+		bucket = fileObj.Bucket
+		uid = fileObj.Uid
 	}
-
+	// log.Printf("uid:%s,bucket:%s", uid, bucket)
 	return &api.FileMetadataResponse{
 		Size:        file.Size(),
 		ModifyTime:  file.ModifyTime(),
@@ -614,7 +616,8 @@ func (f *FileUsecaseImpl) Metadata(ctx context.Context, in *api.FileMetadataRequ
 		Name:        filepath.Base(in.Key),
 		Etag:        fmt.Sprintf("%d-%s", file.Size(), sha256),
 		Version:     version,
-		Uid: uid,
+		Uid:         uid,
+		Bucket:      bucket,
 	}, nil
 }
 
@@ -665,7 +668,7 @@ func (f *FileUsecaseImpl) checkStatusCode(err error) (int32, codes.Code) {
 		return int32(common.Code_INTERNAL_ERROR), codes.Internal
 	}
 }
-func (f *FileUsecaseImpl)GetFileByID(ctx context.Context, fileId string) (*api.Files, error) {
+func (f *FileUsecaseImpl) GetFileByID(ctx context.Context, fileId string) (*api.Files, error) {
 	return f.repo.GetFileById(ctx, fileId)
 }
 func (f *FileUsecaseImpl) Download(ctx context.Context, in *api.DownloadRequest, authorId string) ([]byte, error) {

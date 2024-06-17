@@ -2,10 +2,7 @@ package service
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -131,7 +128,6 @@ func (f *FileService) Download(ctx context.Context, in *api.DownloadRequest) (*h
 	if err != nil {
 		return nil, gosdk.NewError(err, int32(common.Code_UNKNOWN), codes.InvalidArgument, "url_unescape")
 	}
-	log.Printf("Download file id:%s", in.GetFileId())
 	in.Key = newKey
 	r, err := f.serviceDecorator(ctx, in, func(req request) (interface{}, error) {
 		return f.biz[in.Engine].Download(ctx, req.(*api.DownloadRequest), identity)
@@ -142,19 +138,22 @@ func (f *FileService) Download(ctx context.Context, in *api.DownloadRequest) (*h
 	// return r,err
 	buf, _ := r.([]byte)
 
-	shaer := sha256.New()
-	shaer.Write(buf)
-	meta, err := f.Metadata(ctx, &api.FileMetadataRequest{Bucket: in.Bucket, Engine: in.Engine, Key: in.Key, Version: in.Version})
+	// shaer := sha256.New()
+	// shaer.Write(buf)
+	_, err = f.Metadata(ctx, &api.FileMetadataRequest{Bucket: in.Bucket, Engine: in.Engine, Key: in.Key, Version: in.Version})
 	if err != nil {
 		return nil, err
 	}
-	rspMd := metadata.Pairs(
-		gosdk.GetMetadataKey("Content-Length"), fmt.Sprintf("%d", len(buf)),
-		gosdk.GetMetadataKey("X-File-Sha256"), hex.EncodeToString(shaer.Sum(nil)),
-		gosdk.GetMetadataKey("Content-Type"), meta.ContentType,
-		gosdk.GetMetadataKey("X-File-Version"), meta.Version,
-	)
-	_ = grpc.SendHeader(ctx, rspMd)
+	// log.Printf("bucket,%s", meta.Bucket)
+	// rspMd := metadata.Pairs(
+	// 	gosdk.GetMetadataKey("Content-Length"), fmt.Sprintf("%d", len(buf)),
+	// 	gosdk.GetMetadataKey("X-File-Sha256"), hex.EncodeToString(shaer.Sum(nil)),
+	// 	gosdk.GetMetadataKey("Content-Type"), meta.ContentType,
+	// 	gosdk.GetMetadataKey("X-File-Version"), meta.Version,
+	// 	gosdk.GetMetadataKey("X-File-Name"), meta.Key,
+	// 	gosdk.GetMetadataKey("X-File-Bucket"), meta.Bucket,
+	// )
+	// _ = grpc.SendHeader(ctx, rspMd)
 
 	rsp := &httpbody.HttpBody{
 		ContentType: http.DetectContentType(buf),
@@ -299,7 +298,8 @@ func (f *FileService) Metadata(ctx context.Context, in *api.FileMetadataRequest)
 		gosdk.GetMetadataKey("Content-Length"), fmt.Sprintf("%d", rsp.Size),
 		gosdk.GetMetadataKey("X-File-Sha256"), rsp.Sha256,
 		gosdk.GetMetadataKey("X-File-Version"), rsp.Version,
-		gosdk.GetMetadataKey("Access-Control-Expose-Headers"), "Content-Length, Content-Range, Accept-Ranges, Last-Modified, ETag, Content-Type, X-File-name, X-File-Sha256",
+		gosdk.GetMetadataKey("X-File-Bucket"), rsp.Bucket,
+		gosdk.GetMetadataKey("Access-Control-Expose-Headers"), "Content-Length, Content-Range, Accept-Ranges, Last-Modified, ETag, Content-Type, X-File-name, X-File-Sha256,X-File-Bucket,X-File-Version",
 	)
 	_ = grpc.SendHeader(ctx, rspMd)
 	// if err != nil {
