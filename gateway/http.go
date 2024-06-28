@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -385,6 +386,7 @@ func (h *HttpEndpointImpl) RegisterHandlerClient(ctx context.Context, pd Protobu
 			if req.Header.Get("accept") == "" || req.Header.Get("accept") == "*/*" {
 				req.Header.Set("accept", "application/json")
 			}
+			log.Printf("request content-type:%s", req.Header.Get("content-type"))
 			ctx, cancel := context.WithCancel(req.Context())
 			defer cancel()
 			inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)

@@ -3,6 +3,7 @@ package data
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/begonia-org/begonia/internal/biz"
 	"github.com/begonia-org/begonia/internal/biz/file"
@@ -21,7 +22,7 @@ func NewFileRepoImpl(data *Data, curd biz.CURD) file.FileRepo {
 	return &fileRepoImpl{data: data, curd: curd}
 }
 
-func (f *fileRepoImpl) UpsertFile(ctx context.Context, in *api.Files) error {
+func (f *fileRepoImpl) UpsertFile(ctx context.Context, in *api.Files) (bool, error) {
 	in.UpdatedAt = timestamppb.Now()
 	mask := make([]string, 0)
 	if in.UpdateMask != nil {
@@ -34,7 +35,7 @@ func (f *fileRepoImpl) DelFile(ctx context.Context, engine, bucket, key string) 
 	// return f.curd.Del(ctx, &api.Files{Uid: fid},false)
 	return f.data.db.UpdateSelectColumns(ctx, &api.Files{Engine: engine, Bucket: bucket, Key: key}, &api.Files{IsDeleted: true}, "is_deleted")
 }
-func (f *fileRepoImpl) UpsertBucket(ctx context.Context, bucket *api.Buckets) error {
+func (f *fileRepoImpl) UpsertBucket(ctx context.Context, bucket *api.Buckets) (bool, error) {
 	bucket.UpdatedAt = timestamppb.Now()
 	mask := make([]string, 0)
 	if bucket.UpdateMask != nil {
@@ -68,16 +69,20 @@ func (f *fileRepoImpl) List(ctx context.Context, page, pageSize int32, bucket, e
 		PageSize: pageSize,
 		Args:     make([]interface{}, 0),
 	}
-	pagination.Query = "owner = ?"
-	pagination.Args = append(pagination.Args, owner)
+	pagination.Query = ""
 	if bucket != "" {
-		pagination.Query = fmt.Sprintf("%s and bucket = ?", pagination.Query)
+		pagination.Query = "bucket = ?"
 		pagination.Args = append(pagination.Args, bucket)
 	}
 	if engine != "" {
-		pagination.Query = fmt.Sprintf("%s and fs_engine = ?", pagination.Query)
+		if pagination.Query != "" {
+			pagination.Query = fmt.Sprintf("%s and fs_engine = ?", pagination.Query)
+		} else {
+			pagination.Query = "fs_engine = ?"
+		}
 		pagination.Args = append(pagination.Args, engine)
 	}
+	log.Printf("query:%s,args:%s", pagination.Query, pagination.Args)
 	err := f.curd.List(ctx, &files, pagination)
 
 	if err != nil {

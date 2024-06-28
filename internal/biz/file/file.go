@@ -6,7 +6,6 @@ import (
 	goErr "errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -31,9 +30,9 @@ import (
 
 type FileRepo interface {
 	// mysql
-	UpsertFile(ctx context.Context, file *api.Files) error
+	UpsertFile(ctx context.Context, file *api.Files) (bool, error)
 	DelFile(ctx context.Context, engine, bucket, key string) error
-	UpsertBucket(ctx context.Context, bucket *api.Buckets) error
+	UpsertBucket(ctx context.Context, bucket *api.Buckets) (bool, error)
 	DelBucket(ctx context.Context, bucketId string) error
 	GetFileById(ctx context.Context, fid string) (*api.Files, error)
 	List(ctx context.Context, page, pageSize int32, bucket, engine, owner string) ([]*api.Files, error)
@@ -50,7 +49,7 @@ type FileUsecase interface {
 	Version(ctx context.Context, bucket, key, authorId string) (string, error)
 	Download(ctx context.Context, in *api.DownloadRequest, authorId string) ([]byte, error)
 	Delete(ctx context.Context, in *api.DeleteRequest, authorId string) (*api.DeleteResponse, error)
-	MakeBucket(ctx context.Context, in *api.MakeBucketRequest,authorId string) (*api.MakeBucketResponse, error)
+	MakeBucket(ctx context.Context, in *api.MakeBucketRequest, authorId string) (*api.MakeBucketResponse, error)
 	List(ctx context.Context, in *api.ListFilesRequest, authorId string) ([]*api.Files, error)
 	GetFileByID(ctx context.Context, fileId string) (*api.Files, error)
 }
@@ -131,14 +130,14 @@ func getSHA256(data []byte) string {
 func (f *FileUsecaseImpl) commitFile(dir string, filename string, authorId string, authorEmail string) (commitId string, err error) {
 	repo, err := git.PlainInit(dir, false)
 	if err != nil && err != git.ErrRepositoryAlreadyExists {
-		return "", fmt.Errorf("version plain init err:%w",err)
+		return "", fmt.Errorf("version plain init err:%w", err)
 	}
 
 	// 如果仓库已存在，则打开它
 	if err == git.ErrRepositoryAlreadyExists {
 		repo, err = git.PlainOpen(dir)
 		if err != nil {
-			return "", fmt.Errorf("version plain open err:%w",err)
+			return "", fmt.Errorf("version plain open err:%w", err)
 		}
 	}
 
@@ -152,7 +151,7 @@ func (f *FileUsecaseImpl) commitFile(dir string, filename string, authorId strin
 	// 工作树
 	w, err := repo.Worktree()
 	if err != nil {
-		return "", fmt.Errorf("version work tree err:%w",err)
+		return "", fmt.Errorf("version work tree err:%w", err)
 	}
 	defer func() {
 		if p := recover(); p != nil {
@@ -166,7 +165,7 @@ func (f *FileUsecaseImpl) commitFile(dir string, filename string, authorId strin
 	// 添加文件到暂存区
 	_, err = w.Add(filename)
 	if err != nil {
-		return "", fmt.Errorf("add file err:%w",err)
+		return "", fmt.Errorf("add file err:%w", err)
 	}
 
 	// 创建提交
@@ -174,7 +173,7 @@ func (f *FileUsecaseImpl) commitFile(dir string, filename string, authorId strin
 		Author: author,
 	})
 	if err != nil && !goErr.Is(err, git.ErrEmptyCommit) {
-		return "", fmt.Errorf("commit file err:%w",err)
+		return "", fmt.Errorf("commit file err:%w", err)
 	}
 	// 空提交处理
 	if goErr.Is(err, git.ErrEmptyCommit) {
@@ -189,7 +188,7 @@ func (f *FileUsecaseImpl) commitFile(dir string, filename string, authorId strin
 	obj, err := repo.CommitObject(commit)
 
 	if err != nil {
-		return "", fmt.Errorf("get commit object err:%w",err)
+		return "", fmt.Errorf("get commit object err:%w", err)
 	}
 
 	return obj.ID().String(), nil
@@ -216,33 +215,36 @@ func (f *FileUsecaseImpl) checkIn(key string) (string, error) {
 	}
 	return key, nil
 }
-func (f *FileUsecaseImpl) MakeBucket(ctx context.Context, in *api.MakeBucketRequest,authorId string) (*api.MakeBucketResponse, error) {
+func (f *FileUsecaseImpl) MakeBucket(ctx context.Context, in *api.MakeBucketRequest, authorId string) (*api.MakeBucketResponse, error) {
+
 	saveDir := filepath.Join(f.config.GetUploadDir(), in.Bucket)
 	if err := os.MkdirAll(saveDir, 0755); err != nil {
 		return nil, gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "make_bucket")
 	}
-	if in.EnableVersion{
-		_,_=os.Create(filepath.Join(saveDir, ".gitkeep"))
-		_,err:=f.commitFile(saveDir, ".gitkeep", authorId, "fs@begonia.com")
+	if in.EnableVersion {
+		_, _ = os.Create(filepath.Join(saveDir, ".gitkeep"))
+		_, err := f.commitFile(saveDir, ".gitkeep", authorId, "fs@begonia.com")
 		if err != nil {
-			return nil, gosdk.NewError(fmt.Errorf("init bucket version err:%w",err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "commit_file")
-		
+			return nil, gosdk.NewError(fmt.Errorf("init bucket version err:%w", err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "commit_file")
+
 		}
 	}
+
 	return &api.MakeBucketResponse{}, nil
 }
 func (f *FileUsecaseImpl) checkBucket(bucket string) bool {
 	saveDir := filepath.Join(f.config.GetUploadDir(), bucket)
 	return pathExists(saveDir)
 }
-func (f *FileUsecaseImpl)isEnableVersion(bucket string)bool{
-	path:=filepath.Join(f.config.GetUploadDir(), bucket)
+func (f *FileUsecaseImpl) isEnableVersion(bucket string) bool {
+	path := filepath.Join(f.config.GetUploadDir(), bucket)
 	repo, err := git.PlainOpen(path)
-	if err!=nil||repo==nil{
+	if err != nil || repo == nil {
 		return false
 	}
 	return true
 }
+
 // Upload uploads a file.
 //
 // The file is saved in the directory specified by the key.
@@ -315,15 +317,24 @@ func (f *FileUsecaseImpl) Upload(ctx context.Context, in *api.UploadFileRequest,
 		CreatedAt: timestamppb.Now(),
 		UpdatedAt: timestamppb.Now(),
 	}
-	err = f.repo.UpsertFile(ctx, fileObj)
+	updated, err := f.repo.UpsertFile(ctx, fileObj)
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("上传文件:%s成功", filePath)
+	uid := fileObj.Uid
+	if updated {
+		existsObj, err := f.repo.GetFile(ctx, fileObj.Engine, fileObj.Bucket, fileObj.Key)
+		if err != nil {
+			return nil, gosdk.NewError(fmt.Errorf("get updated file error:%w",err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_file")
+		}
+		if existsObj != nil {
+			uid = existsObj.Uid
+		}
+	}
 	return &api.UploadFileResponse{
 		Uri:     uri,
 		Version: commitId,
-		Uid:     fileObj.Uid,
+		Uid:     uid,
 	}, err
 
 }
@@ -465,7 +476,7 @@ func (f *FileUsecaseImpl) CompleteMultipartUploadFile(ctx context.Context, in *a
 	if err != nil {
 		return nil, err
 	}
-	if ok := f.checkBucket(in.Bucket); in.Bucket == "" || !ok && in.Engine==api.FileEngine_FILE_ENGINE_LOCAL.String() {
+	if ok := f.checkBucket(in.Bucket); in.Bucket == "" || !ok && in.Engine == api.FileEngine_FILE_ENGINE_LOCAL.String() {
 		return nil, gosdk.NewError(pkg.ErrBucketNotFound, int32(api.FileSvrStatus_FILE_INVALIDATE_BUCKET_ERR), codes.NotFound, "bucket_not_found")
 
 	}
@@ -507,7 +518,7 @@ func (f *FileUsecaseImpl) CompleteMultipartUploadFile(ctx context.Context, in *a
 
 	}
 	commit := ""
-	if f.isEnableVersion(in.Bucket)&& in.Engine==api.FileEngine_FILE_ENGINE_LOCAL.String() {
+	if f.isEnableVersion(in.Bucket) && in.Engine == api.FileEngine_FILE_ENGINE_LOCAL.String() {
 		commit, err = f.commitFile(saveDir, filename, authorId, "fs@begonia.com")
 		if err != nil {
 			return nil, gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "commit_file")
@@ -527,17 +538,27 @@ func (f *FileUsecaseImpl) CompleteMultipartUploadFile(ctx context.Context, in *a
 		CreatedAt: timestamppb.Now(),
 		UpdatedAt: timestamppb.Now(),
 	}
-	log.Printf("insert %s,%s,%s,%s", fileObj.Uid, fileObj.Bucket, fileObj.Key, fileObj.Engine)
-	err = f.repo.UpsertFile(ctx, fileObj)
+	// log.Printf("insert %s,%s,%s,%s", fileObj.Uid, fileObj.Bucket, fileObj.Key, fileObj.Engine)
+	updated, err := f.repo.UpsertFile(ctx, fileObj)
 	if err != nil {
-		return nil, gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "upsert_file")
+		return nil, gosdk.NewError(fmt.Errorf("insert or update file err:%w",err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "upsert_file")
+	}
+	uid := fileObj.Uid
+	if updated {
+		existsObj, err := f.repo.GetFile(ctx, fileObj.Engine, fileObj.Bucket, fileObj.Key)
+		if err != nil {
+			return nil, gosdk.NewError(fmt.Errorf("get updated file error:%w",err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_file")
+		}
+		if existsObj != nil {
+			uid = existsObj.Uid
+		}
 	}
 	os.RemoveAll(filepath.Join(f.config.GetUploadDir(), in.UploadId))
 
 	return &api.CompleteMultipartUploadResponse{
 		Uri:     uri,
 		Version: commit,
-		Uid:     fileObj.Uid,
+		Uid:     uid,
 	}, err
 }
 

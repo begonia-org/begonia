@@ -12,7 +12,7 @@ require (
 	github.com/smartystreets/goconvey v1.8.1
 	github.com/spark-lence/tiga v0.0.0-20240617161215-fd493c5e06ac
 	github.com/spf13/cobra v1.8.0
-	google.golang.org/genproto/googleapis/api v0.0.0-20240610135401-a8a62080eff3
+	google.golang.org/genproto/googleapis/api v0.0.0-20240624140628-dc46fd24d27d
 	google.golang.org/grpc v1.64.0
 	google.golang.org/protobuf v1.34.2
 )
@@ -80,7 +80,7 @@ require (
 require (
 	github.com/agiledragon/gomonkey/v2 v2.11.0
 	github.com/begonia-org/go-loadbalancer v0.0.0-20240519060752-71ca464f0f1a
-	github.com/begonia-org/go-sdk v0.0.0-20240617104023-3182694e4a5f
+	github.com/begonia-org/go-sdk v0.0.0-20240628071225-2864d45934ea
 	github.com/go-git/go-git/v5 v5.11.0
 	github.com/go-playground/validator/v10 v10.19.0
 	github.com/gorilla/websocket v1.5.0
@@ -139,7 +139,7 @@ require (
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/sys v0.21.0 // indirect
 	golang.org/x/text v0.16.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240610135401-a8a62080eff3 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240624140628-dc46fd24d27d // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 )
 

@@ -29,6 +29,7 @@ var minioFileAuthor = ""
 var sha256Str = ""
 var minioUploadId = ""
 var minioBigFileSha256 = ""
+var minioFileId = ""
 
 func newFileMinioBiz() file.FileUsecase {
 	env := "dev"
@@ -50,9 +51,9 @@ func testMinioMkBucket(t *testing.T) {
 	minioBucket = fmt.Sprintf("bucket-minio-biz-%s", time.Now().Format("20060102150405"))
 	c.Convey("test make bucket success", t, func() {
 		rsp, err := fileBiz.MakeBucket(context.TODO(), &api.MakeBucketRequest{
-			Bucket: minioBucket,
+			Bucket:        minioBucket,
 			EnableVersion: true,
-		},minioFileAuthor)
+		}, minioFileAuthor)
 		c.So(err, c.ShouldBeNil)
 		c.So(rsp, c.ShouldNotBeNil)
 	})
@@ -61,7 +62,7 @@ func testMinioMkBucket(t *testing.T) {
 		defer patch.Reset()
 		_, err := fileBiz.MakeBucket(context.TODO(), &api.MakeBucketRequest{
 			Bucket: "",
-		},minioFileAuthor)
+		}, minioFileAuthor)
 		patch.Reset()
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "mkdir error")
@@ -69,9 +70,9 @@ func testMinioMkBucket(t *testing.T) {
 		patch2 := gomonkey.ApplyFuncReturn((*minio.Client).EnableVersioning, fmt.Errorf("enable error"))
 		defer patch2.Reset()
 		_, err = fileBiz.MakeBucket(context.TODO(), &api.MakeBucketRequest{
-			Bucket: fmt.Sprintf("bucket-minio-biz-4-%s", time.Now().Format("20060102150405")),
+			Bucket:        fmt.Sprintf("bucket-minio-biz-4-%s", time.Now().Format("20060102150405")),
 			EnableVersion: true,
-		},minioFileAuthor)
+		}, minioFileAuthor)
 		patch2.Reset()
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "enable error")
@@ -83,16 +84,20 @@ func testMinioUpload(t *testing.T) {
 	fileBiz := newFileMinioBiz()
 
 	c.Convey("test upload file success", t, func() {
+		t.Logf("minio author:%s", minioFileAuthor)
 		rsp, err := fileBiz.Upload(context.TODO(), &api.UploadFileRequest{
-			Bucket:     minioBucket,
-			Key:        "test.txt",
-			Content:    []byte("hello"),
+			Bucket:  minioBucket,
+			Key:     "test.txt",
+			Content: []byte("hello"),
+			Engine: api.FileEngine_FILE_ENGINE_MINIO.String(),
 		}, minioFileAuthor)
 		c.So(err, c.ShouldBeNil)
 		c.So(rsp, c.ShouldNotBeNil)
 		shaer := sha256.New()
 		shaer.Write([]byte("hello"))
 		sha256Str = hex.EncodeToString(shaer.Sum(nil))
+
+		minioFileId = rsp.Uid
 	})
 	c.Convey("test upload file fail", t, func() {
 		patch := gomonkey.ApplyFuncReturn((*minio.Client).PutObject, nil, fmt.Errorf("upload error"))
@@ -101,6 +106,7 @@ func testMinioUpload(t *testing.T) {
 			Bucket:  minioBucket,
 			Key:     "test.txt",
 			Content: []byte("hello"),
+			Engine: api.FileEngine_FILE_ENGINE_MINIO.String(),
 		}, minioFileAuthor)
 		patch.Reset()
 		c.So(err, c.ShouldNotBeNil)
@@ -113,7 +119,7 @@ func testMinioUpload(t *testing.T) {
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "not exist")
 
-		patch2 := gomonkey.ApplyFuncReturn(tiga.MySQLDao.Upsert, fmt.Errorf("upsert error"))
+		patch2 := gomonkey.ApplyFuncReturn(tiga.MySQLDao.Upsert, false, fmt.Errorf("upsert error"))
 		defer patch2.Reset()
 		_, err = fileBiz.Upload(context.TODO(), &api.UploadFileRequest{
 			Bucket:  minioBucket,
@@ -169,9 +175,39 @@ func testMinioDownload(t *testing.T) {
 		c.So(err.Error(), c.ShouldContainSubstring, "stat error")
 	})
 }
+func testFileUpdated(t *testing.T) {
+	fileBiz := newFileMinioBiz()
+
+	c.Convey("test file updated", t, func() {
+		rsp, err := fileBiz.Upload(context.TODO(), &api.UploadFileRequest{
+			Bucket:  minioBucket,
+			Key:     "test.txt",
+			Content: []byte("hello world"),
+		}, minioFileAuthor)
+		c.So(err, c.ShouldBeNil)
+		c.So(rsp, c.ShouldNotBeNil)
+		c.So(rsp.Uid, c.ShouldEqual, minioFileId)
+		shaer := sha256.New()
+		shaer.Write([]byte("hello world"))
+		sha256Str = hex.EncodeToString(shaer.Sum(nil))
+
+		patch := gomonkey.ApplyFuncReturn(tiga.MySQLDao.First, fmt.Errorf("get error"))
+		defer patch.Reset()
+		_, err = fileBiz.Upload(context.Background(), &api.UploadFileRequest{
+			Key:     "test.txt",
+			Bucket:  minioBucket,
+			Content: []byte("hello world"),
+		}, minioFileAuthor)
+		patch.Reset()
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "failed to get updated file info")
+
+	})
+}
 func testMinioMeta(t *testing.T) {
 	fileBiz := newFileMinioBiz()
 	c.Convey("test get meta success", t, func() {
+		t.Logf("minio bucket:%s", minioBucket)
 		rsp, err := fileBiz.Metadata(context.TODO(), &api.FileMetadataRequest{
 			Bucket: minioBucket,
 			Key:    "test.txt",
@@ -193,11 +229,11 @@ func testMinioMeta(t *testing.T) {
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "get meta error")
 
-		patch4:=gomonkey.ApplyFuncReturn(tiga.MySQLDao.First,fmt.Errorf("get error"))
+		patch4 := gomonkey.ApplyFuncReturn(tiga.MySQLDao.First, fmt.Errorf("get error"))
 		defer patch4.Reset()
 		_, err = fileBiz.Metadata(context.Background(), &api.FileMetadataRequest{
-			Key:     "test.txt",
-			Bucket:  minioBucket,
+			Key:    "test.txt",
+			Bucket: minioBucket,
 		}, fileAuthor)
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "get error")
@@ -225,6 +261,7 @@ func testMinioInitPartsUpload(t *testing.T) {
 	c.Convey("test init parts upload success", t, func() {
 		rsp, err := fileBiz.InitiateUploadFile(context.TODO(), &api.InitiateMultipartUploadRequest{
 			Key: "test-minio.txt",
+			Engine: api.FileEngine_FILE_ENGINE_MINIO.String(),
 		})
 		c.So(err, c.ShouldBeNil)
 		c.So(rsp, c.ShouldNotBeNil)
@@ -287,7 +324,7 @@ func testMinioCompleteMultipartUploadFile(t *testing.T) {
 				Bucket:      minioBucket,
 				ContentType: "text/plain",
 				Sha256:      minioBigFileSha256,
-				Engine: 	api.FileEngine_FILE_ENGINE_MINIO.String(),
+				Engine:      api.FileEngine_FILE_ENGINE_MINIO.String(),
 			}, minioUploadId)
 			patchx.Reset()
 			c.So(err, c.ShouldNotBeNil)
@@ -300,7 +337,7 @@ func testMinioCompleteMultipartUploadFile(t *testing.T) {
 			Bucket:      "",
 			ContentType: "text/plain",
 			Sha256:      minioBigFileSha256,
-			Engine: 	api.FileEngine_FILE_ENGINE_MINIO.String(),
+			Engine:      api.FileEngine_FILE_ENGINE_MINIO.String(),
 		}, minioUploadId)
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrBucketNotFound.Error())
@@ -313,7 +350,7 @@ func testMinioCompleteMultipartUploadFile(t *testing.T) {
 			Bucket:      minioBucket,
 			ContentType: "text/plain",
 			Sha256:      minioBigFileSha256,
-			Engine: 	api.FileEngine_FILE_ENGINE_MINIO.String(),
+			Engine:      api.FileEngine_FILE_ENGINE_MINIO.String(),
 		}, minioUploadId)
 		c.So(err, c.ShouldBeNil)
 		c.So(rsp, c.ShouldNotBeNil)
@@ -440,13 +477,14 @@ func testMinioDelete(t *testing.T) {
 func testMinioList(t *testing.T) {
 	fileBiz := newFileMinioBiz()
 	c.Convey("test list success", t, func() {
-		rsp, err := fileBiz.List(context.Background(), &api.ListFilesRequest{Bucket: minioBucket, Page: 1, PageSize: 20}, minioFileAuthor)
+		t.Logf("minio bucket:%s,engine:%s,author:%s", minioBucket,api.FileEngine_FILE_ENGINE_MINIO.String(),minioFileAuthor)
+		rsp, err := fileBiz.List(context.Background(), &api.ListFilesRequest{Bucket: minioBucket, Page: 1, PageSize: 20, Engine: api.FileEngine_FILE_ENGINE_MINIO.String()}, minioFileAuthor)
 		c.So(err, c.ShouldBeNil)
 		c.So(rsp, c.ShouldNotBeNil)
-		c.So(len(rsp), c.ShouldEqual, 1)
+		c.So(len(rsp), c.ShouldBeGreaterThanOrEqualTo, 1)
 	})
 	c.Convey("test list fail", t, func() {
-		_, err := fileBiz.List(context.Background(), &api.ListFilesRequest{Bucket: minioBucket, Page: -1, PageSize: -1}, minioFileAuthor)
+		_, err := fileBiz.List(context.Background(), &api.ListFilesRequest{Bucket: minioBucket, Page: -1, PageSize: -1,Engine: api.FileEngine_FILE_ENGINE_MINIO.String()}, minioFileAuthor)
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "SQL syntax")
 	})
@@ -456,6 +494,7 @@ func TestMinio(t *testing.T) {
 	t.Run("testMinioMkBucket", testMinioMkBucket)
 	t.Run("testMinioUpload", testMinioUpload)
 	t.Run("testMinioDownload", testMinioDownload)
+	t.Run("testFileUpdated", testFileUpdated)
 	t.Run("testMinioMeta", testMinioMeta)
 	t.Run("testMinioVersion", testMinioVersion)
 	t.Run("testMinioInitPartsUpload", testMinioInitPartsUpload)

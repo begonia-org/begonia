@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -118,23 +119,23 @@ func IncomingHeadersToMetadata(ctx context.Context, req *http.Request) metadata.
 	accessKey := md.Get(XAccessKey)
 	apikey:=md.Get(XApiKey)
 	author := ""
-	idType := gosdk.UidType
+	// idType := gosdk.UidType
 	if len(xuid) > 0 {
 		author = xuid[0]
 	}
 	if author == "" && len(accessKey) > 0 {
 		author = accessKey[0]
-		idType = gosdk.AccessKeyType
+		// idType = gosdk.AccessKeyType
 	}
 	if author == ""&& len(apikey)>0{ 
 		author = apikey[0]
-		idType = gosdk.ApiKeyType
+		// idType = gosdk.ApiKeyType
 	}
 	if author == "" {
 		return md
 	}
-	md.Set(XIdentity, author)
-	md.Set(XIdentityType, idType)
+	// md.Set(XIdentity, author)
+	// md.Set(XIdentityType, idType)
 
 	return md
 }
@@ -247,6 +248,7 @@ func HandleErrorWithLogger(logger logger.Logger) runtime.ErrorHandlerFunc {
 			"status": statusCode,
 		},
 		)
+		fmt.Printf("error type:%T, error:%v", err, err)
 		if _, ok := metadata.FromIncomingContext(ctx); !ok {
 			md := IncomingHeadersToMetadata(ctx, req)
 			ctx = metadata.NewIncomingContext(ctx, md)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/agiledragon/gomonkey/v2"
 	"github.com/begonia-org/begonia"
@@ -17,7 +18,8 @@ import (
 )
 
 var fileBucketId = ""
-var fileFileId=""
+var fileFileId = ""
+
 func testUpsertFile(t *testing.T) {
 	c.Convey("Test UpsertFile", t, func() {
 		env := "dev"
@@ -28,10 +30,12 @@ func testUpsertFile(t *testing.T) {
 		f := NewFileRepo(conf, gateway.Log)
 		snk, _ := tiga.NewSnowflake(1)
 		fileFileId = snk.GenerateIDString()
+		fk := fmt.Sprintf("test-%s", fileFileId)
+		// log.Printf("fileFileId:%s,file id %s",fileFileId,fk)
 		file := &api.Files{
-			Engine:     "test",
+			Engine:     fk,
 			Bucket:     "test",
-			Key:        "test",
+			Key:        fk,
 			Uid:        fileFileId,
 			Owner:      "test",
 			CreatedAt:  timestamppb.Now(),
@@ -39,39 +43,42 @@ func testUpsertFile(t *testing.T) {
 			UpdateMask: &fieldmaskpb.FieldMask{},
 		}
 		// t.Logf("fileFileId:%s,file id %s",fileFileId,file.Uid)
-		err := f.UpsertFile(context.Background(), file)
+		updated, err := f.UpsertFile(context.Background(), file)
 		c.So(err, c.ShouldBeNil)
-
+		c.So(updated, c.ShouldBeFalse)
+		time.Sleep(3 * time.Second)
+		file.UpdatedAt = timestamppb.Now()
 		file.UpdateMask.Paths = append(file.UpdateMask.Paths, "updated_at")
-		err = f.UpsertFile(context.Background(), file)
+		updated, err = f.UpsertFile(context.Background(), file)
 
 		c.So(err, c.ShouldBeNil)
+		c.So(updated, c.ShouldBeTrue)
 	})
 }
 func testGetFileById(t *testing.T) {
-	c.Convey("Test GetFileById", t, func(){
+	c.Convey("Test GetFileById", t, func() {
 		env := "dev"
 		if begonia.Env != "" {
 			env = begonia.Env
 		}
 		conf := cfg.ReadConfig(env)
 		f := NewFileRepo(conf, gateway.Log)
-		file,err := f.GetFileById(context.Background(),fileFileId)
-		c.So(err,c.ShouldBeNil)
-		c.So(file,c.ShouldNotBeNil)
-
-		file,err=f.GetFile(context.Background(),"test","test","test")
-		c.So(err,c.ShouldBeNil)
-		c.So(file,c.ShouldNotBeNil)
-		patch:=gomonkey.ApplyFuncReturn(tiga.MySQLDao.First,fmt.Errorf("get error"))
+		file, err := f.GetFileById(context.Background(), fileFileId)
+		c.So(err, c.ShouldBeNil)
+		c.So(file, c.ShouldNotBeNil)
+		fk:=fmt.Sprintf("test-%s",fileFileId)
+		file, err = f.GetFile(context.Background(), fk, "test", fk)
+		c.So(err, c.ShouldBeNil)
+		c.So(file, c.ShouldNotBeNil)
+		patch := gomonkey.ApplyFuncReturn(tiga.MySQLDao.First, fmt.Errorf("get error"))
 		defer patch.Reset()
-		_,err = f.GetFileById(context.Background(),"")
+		_, err = f.GetFileById(context.Background(), "")
 
-		c.So(err,c.ShouldNotBeNil)
-		c.So(err.Error(),c.ShouldContainSubstring,"get error")
-		_,err=f.GetFile(context.Background(),"test","test","test")
-		c.So(err,c.ShouldNotBeNil)
-		c.So(err.Error(),c.ShouldContainSubstring,"get error")
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "get error")
+		_, err = f.GetFile(context.Background(), "test", "test", "test")
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "get error")
 
 	})
 }
@@ -84,9 +91,11 @@ func testUpsertBucket(t *testing.T) {
 		conf := cfg.ReadConfig(env)
 		f := NewFileRepo(conf, gateway.Log)
 		snk, _ := tiga.NewSnowflake(1)
+		bk:=fmt.Sprintf("test-%s",snk.GenerateIDString())
+
 		bucket := &api.Buckets{
 			Engine:     "test",
-			Bucket:     "test",
+			Bucket:     bk,
 			Uid:        snk.GenerateIDString(),
 			Owner:      "test",
 			CreatedAt:  timestamppb.Now(),
@@ -94,11 +103,15 @@ func testUpsertBucket(t *testing.T) {
 			UpdateMask: &fieldmaskpb.FieldMask{},
 		}
 		fileBucketId = bucket.Uid
-		err := f.UpsertBucket(context.Background(), bucket)
+		updated, err := f.UpsertBucket(context.Background(), bucket)
 		c.So(err, c.ShouldBeNil)
+		c.So(updated, c.ShouldBeFalse)
+		time.Sleep(3 * time.Second)
+		bucket.UpdatedAt = timestamppb.Now()
 		bucket.UpdateMask.Paths = append(bucket.UpdateMask.Paths, "updated_at")
-		err = f.UpsertBucket(context.Background(), bucket)
+		updated, err = f.UpsertBucket(context.Background(), bucket)
 		c.So(err, c.ShouldBeNil)
+		c.So(updated, c.ShouldBeTrue)
 	})
 }
 func testFileList(t *testing.T) {
@@ -110,6 +123,10 @@ func testFileList(t *testing.T) {
 		conf := cfg.ReadConfig(env)
 		f := NewFileRepo(conf, gateway.Log)
 		files, err := f.List(context.Background(), 1, 10, "test", "test", "test")
+		c.So(err, c.ShouldBeNil)
+		c.So(files, c.ShouldNotBeNil)
+
+		files, err = f.List(context.Background(), 1, 10, "", "test", "test")
 		c.So(err, c.ShouldBeNil)
 		c.So(files, c.ShouldNotBeNil)
 	})

@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 
@@ -28,15 +29,15 @@ type MinioUseCase struct {
 func NewMinioUseCase(minioClient *minio.Client, localFile *FileUsecaseImpl) FileUsecase {
 	return &MinioUseCase{minioClient: minioClient, localFile: localFile}
 }
-func (m *MinioUseCase) MakeBucket(ctx context.Context, in *api.MakeBucketRequest,_ string) (*api.MakeBucketResponse, error) {
+func (m *MinioUseCase) MakeBucket(ctx context.Context, in *api.MakeBucketRequest, _ string) (*api.MakeBucketResponse, error) {
 	err := m.minioClient.MakeBucket(ctx, in.Bucket, minio.MakeBucketOptions{Region: in.Region, ObjectLocking: in.ObjectLocking})
 	if err != nil {
-		return nil, gosdk.NewError(fmt.Errorf("failed to make bucket: %w", err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "make_bucket",gosdk.WithClientMessage(err.Error()))
+		return nil, gosdk.NewError(fmt.Errorf("failed to make bucket: %w", err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "make_bucket", gosdk.WithClientMessage(err.Error()))
 	}
 	err = m.minioClient.EnableVersioning(ctx, in.Bucket)
-	if err!=nil{
-		return nil, gosdk.NewError(fmt.Errorf("failed to enable versioning: %w", err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "enable_versioning",gosdk.WithClientMessage(err.Error()))
-	
+	if err != nil {
+		return nil, gosdk.NewError(fmt.Errorf("failed to enable versioning: %w", err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "enable_versioning", gosdk.WithClientMessage(err.Error()))
+
 	}
 
 	return &api.MakeBucketResponse{}, nil
@@ -47,19 +48,18 @@ func (m *MinioUseCase) Upload(ctx context.Context, in *api.UploadFileRequest, au
 		return nil, gosdk.NewError(fmt.Errorf("failed to check bucket: %w or bucket %s not exist", err, in.Bucket), int32(common.Code_INTERNAL_ERROR), codes.Internal, "check_bucket")
 	}
 	contentLength := len(in.Content)
-	// if in.UseVersion {
-	// 	_ = m.minioClient.EnableVersioning(ctx, in.Bucket)
-	// }
+
+	in.Engine = api.FileEngine_FILE_ENGINE_MINIO.String()
 	hash := sha256.New()
 	hash.Write([]byte(in.Content))
 	checksum := hash.Sum(nil)
-	// checksumHex := hex.EncodeToString(checksum)
 
 	// 设置对象元数据，包括 SHA-256 校验和
 	userMetadata := map[string]string{
 		"x-amz-checksum-algorithm": "SHA256",
 		"x-amz-checksum-sha256":    base64.StdEncoding.EncodeToString(checksum),
 	}
+	log.Printf("Put object %s to %s,and its size is %d", in.Key, in.Bucket, contentLength)
 	info, err := m.minioClient.PutObject(ctx, in.Bucket, in.Key, bytes.NewReader(in.Content), int64(contentLength), minio.PutObjectOptions{ContentType: in.ContentType, DisableContentSha256: false, UserMetadata: userMetadata})
 	if err != nil {
 		return nil, gosdk.NewError(fmt.Errorf("failed to upload object: %w", err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "upload_object")
@@ -67,7 +67,7 @@ func (m *MinioUseCase) Upload(ctx context.Context, in *api.UploadFileRequest, au
 	}
 	f := &api.Files{
 		Uid:       m.localFile.snowflake.GenerateIDString(),
-		Engine:    api.FileEngine_name[int32(*api.FileEngine_FILE_ENGINE_MINIO.Enum())],
+		Engine:    in.Engine,
 		Bucket:    in.Bucket,
 		Key:       in.Key,
 		IsDeleted: false,
@@ -75,27 +75,41 @@ func (m *MinioUseCase) Upload(ctx context.Context, in *api.UploadFileRequest, au
 		CreatedAt: timestamppb.Now(),
 		UpdatedAt: timestamppb.Now(),
 	}
-	err = m.localFile.repo.UpsertFile(ctx, f)
+	updated, err := m.localFile.repo.UpsertFile(ctx, f)
 	if err != nil {
 		return nil, gosdk.NewError(fmt.Errorf("failed to upsert file: %w", err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "upsert_file")
 
 	}
+
+	uid := f.Uid
+	if updated {
+		existsObj, err := m.localFile.repo.GetFile(ctx, f.Engine, f.Bucket, f.Key)
+		if err != nil {
+			return nil, gosdk.NewError(fmt.Errorf("failed to get updated file info:%w", err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_file")
+		}
+		if existsObj != nil {
+			uid = existsObj.Uid
+		}
+	}
 	// log.Printf("upload object:%s,%s", info.Key, info.ChecksumSHA256)
-	return &api.UploadFileResponse{Uri: info.Key, Version: info.VersionID, Uid: f.Uid}, err
+	return &api.UploadFileResponse{Uri: info.Key, Version: info.VersionID, Uid: uid}, err
 }
 func (m *MinioUseCase) InitiateUploadFile(ctx context.Context, in *api.InitiateMultipartUploadRequest) (*api.InitiateMultipartUploadResponse, error) {
+	in.Engine = api.FileEngine_FILE_ENGINE_MINIO.String()
 	return m.localFile.InitiateUploadFile(ctx, in)
 }
 func (m *MinioUseCase) UploadMultipartFileFile(ctx context.Context, in *api.UploadMultipartFileRequest) (*api.UploadMultipartFileResponse, error) {
+	in.Engine = api.FileEngine_FILE_ENGINE_MINIO.String()
 	return m.localFile.UploadMultipartFileFile(ctx, in)
 }
 func (m *MinioUseCase) AbortMultipartUpload(ctx context.Context, in *api.AbortMultipartUploadRequest) (*api.AbortMultipartUploadResponse, error) {
+	in.Engine = api.FileEngine_FILE_ENGINE_MINIO.String()
 	return m.localFile.AbortMultipartUpload(ctx, in)
 }
 func (m *MinioUseCase) CompleteMultipartUploadFile(ctx context.Context, in *api.CompleteMultipartUploadRequest, authorId string) (*api.CompleteMultipartUploadResponse, error) {
 	// _, _ = m.localFile.MakeBucket(ctx, &api.MakeBucketRequest{Bucket: in.Bucket},authorId)
 	originKey := in.Key
-
+	in.Engine = api.FileEngine_FILE_ENGINE_MINIO.String()
 	rsp, err := m.localFile.CompleteMultipartUploadFile(ctx, in, authorId)
 	if err != nil {
 		return nil, err
@@ -173,6 +187,7 @@ func (m *MinioUseCase) Metadata(ctx context.Context, in *api.FileMetadataRequest
 	bucket := in.Bucket
 
 	if fileId == "" {
+		// log.Printf("fileId is empty,try to get file info from local file,%s,%s,%s", in.Engine, in.Bucket, in.Key)
 		file, err := m.localFile.repo.GetFile(ctx, in.Engine, in.Bucket, in.Key)
 		if err != nil {
 			return nil, gosdk.NewError(fmt.Errorf("failed to get file: %w", err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_file")
@@ -200,7 +215,7 @@ func (m *MinioUseCase) Version(ctx context.Context, bucket, key, authorId string
 	return info.VersionID, nil
 }
 func (m *MinioUseCase) Download(ctx context.Context, in *api.DownloadRequest, authorId string) ([]byte, error) {
-	object, err := m.minioClient.GetObject(ctx, in.Bucket, in.Key, minio.GetObjectOptions{VersionID: in.Version})
+	object, err := m.minioClient.GetObject(ctx, in.Bucket, in.Key, minio.GetObjectOptions{})
 	if err != nil {
 		return nil, gosdk.NewError(fmt.Errorf("failed to get object: %w", err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_object")
 	}
@@ -215,6 +230,7 @@ func (m *MinioUseCase) Download(ctx context.Context, in *api.DownloadRequest, au
 		return nil, gosdk.NewError(fmt.Errorf("failed to read object: %w", err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "read_object")
 
 	}
+	// log.Printf("download object:%s,size:%d,%v", in.Key,len(buf),stat.Size)
 	return buf, nil
 }
 func (m *MinioUseCase) Delete(ctx context.Context, in *api.DeleteRequest, authorId string) (*api.DeleteResponse, error) {
@@ -225,6 +241,7 @@ func (m *MinioUseCase) Delete(ctx context.Context, in *api.DeleteRequest, author
 	return &api.DeleteResponse{}, nil
 }
 func (m *MinioUseCase) List(ctx context.Context, in *api.ListFilesRequest, authorId string) ([]*api.Files, error) {
+	in.Engine = api.FileEngine_FILE_ENGINE_MINIO.String()
 	return m.localFile.List(ctx, in, authorId)
 }
 func (m *MinioUseCase) GetFileByID(ctx context.Context, fileId string) (*api.Files, error) {

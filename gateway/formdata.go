@@ -35,6 +35,7 @@ type FormDataDecoder struct {
 }
 
 func (f *FormDataMarshaler) NewDecoder(r io.Reader) runtime.Decoder {
+	// log.Printf("new form data decoder")
 	return &FormDataDecoder{r: r}
 }
 
@@ -45,14 +46,14 @@ func (f *FormDataDecoder) Decode(v interface{}) error {
 		}
 
 	}
-
+	// log.Printf("decode form-data")
 	// 使用multipart.Reader来解析formData
 	reader := multipart.NewReader(f.r, f.boundary)
 	formData, err := reader.ReadForm(32 << 20) // 32MB是formData的最大内存使用
 	if err != nil && err != io.EOF {
 		return err
 	}
-
+	// log.Printf("form data file:%v", len(formData.File))
 	for key, files := range formData.File {
 		file := files[0]
 		fd, err := file.Open()
@@ -68,6 +69,7 @@ func (f *FormDataDecoder) Decode(v interface{}) error {
 		if _, ok := formData.Value[key]; !ok {
 			formData.Value[key] = make([]string, 0)
 		}
+		// log.Printf("recv file %s, size %d", file.Filename, len(fileBytes))
 		formData.Value[key] = append(formData.Value[key], string(fileBytes))
 
 	}

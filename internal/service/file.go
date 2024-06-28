@@ -125,7 +125,7 @@ func (f *FileService) Download(ctx context.Context, in *api.DownloadRequest) (*h
 	if identity = GetIdentity(ctx); identity == "" {
 		return nil, gosdk.NewError(pkg.ErrIdentityMissing, int32(user.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
 	}
-	log.Printf("download file author:%v", identity)
+	// log.Printf("download file author:%v", identity)
 	newKey, err := url.PathUnescape(in.Key)
 	if err != nil {
 		return nil, gosdk.NewError(err, int32(common.Code_UNKNOWN), codes.InvalidArgument, "url_unescape")

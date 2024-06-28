@@ -143,7 +143,7 @@ func testMkBucket(t *testing.T) {
 	bucket = fmt.Sprintf("bucket-biz-%s", time.Now().Format("20060102150405"))
 	c.Convey("test make bucket success", t, func() {
 		rsp, err := fileBiz.MakeBucket(context.TODO(), &api.MakeBucketRequest{
-			Bucket: bucket,
+			Bucket:        bucket,
 			EnableVersion: true,
 		}, fileAuthor)
 		c.So(err, c.ShouldBeNil)
@@ -154,17 +154,17 @@ func testMkBucket(t *testing.T) {
 		defer patch.Reset()
 		_, err := fileBiz.MakeBucket(context.TODO(), &api.MakeBucketRequest{
 			Bucket: "",
-		},fileAuthor)
+		}, fileAuthor)
 		patch.Reset()
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "mkdir error")
 
-		patch1:=gomonkey.ApplyFuncReturn(git.PlainInit, nil, fmt.Errorf("init error"))
+		patch1 := gomonkey.ApplyFuncReturn(git.PlainInit, nil, fmt.Errorf("init error"))
 		defer patch1.Reset()
 		_, err = fileBiz.MakeBucket(context.TODO(), &api.MakeBucketRequest{
-			Bucket: "test-2",
+			Bucket:        "test-2",
 			EnableVersion: true,
-		},fileAuthor)
+		}, fileAuthor)
 		patch1.Reset()
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "init error")
@@ -200,7 +200,6 @@ func testPutFile(t *testing.T) {
 	cnf := cfg.NewConfig(config)
 	fileSha256 = tmp.sha256
 	// bucket = fmt.Sprintf("bucket-biz-%s", time.Now().Format("20060102150405"))
-
 	cases := []fileUploadTestCase{
 		{
 			title:      "test upload without version",
@@ -478,7 +477,6 @@ func testDownload(t *testing.T) {
 				Key:     _case.key,
 				Bucket:  bucket,
 				Version: _case.version,
-				
 			}, _case.author)
 			if _case.exceptErr != nil {
 				c.So(err, c.ShouldNotBeNil)
@@ -775,13 +773,14 @@ func testCompleteMultipartUploadFile(t *testing.T) {
 	}
 	config := config.ReadConfig(env)
 	cnf := cfg.NewConfig(config)
+	fid := ""
 	c.Convey("test complete parts file success", t, func() {
 		rsp, err := fileBiz.CompleteMultipartUploadFile(context.TODO(), &api.CompleteMultipartUploadRequest{
-			Key:        "test/upload.parts.test1",
-			UploadId:   uploadId,
-			Sha256:     bigFileSha256,
-			Bucket:     bucket,
-			Engine: api.FileEngine_FILE_ENGINE_LOCAL.String(),
+			Key:      "test/upload.parts.test1",
+			UploadId: uploadId,
+			Sha256:   bigFileSha256,
+			Bucket:   bucket,
+			Engine:   api.FileEngine_FILE_ENGINE_LOCAL.String(),
 		}, fileAuthor)
 		c.So(err, c.ShouldBeNil)
 		c.So(rsp, c.ShouldNotBeNil)
@@ -795,7 +794,53 @@ func testCompleteMultipartUploadFile(t *testing.T) {
 			t.Error(err)
 		}
 		c.So(sha, c.ShouldEqual, bigFileSha256)
+		fid = rsp.Uid
 
+	})
+	c.Convey("test complete parts file update", t, func() {
+		bigTmpFile2, _ := generateRandomFile(1024 * 1024 * 12)
+		defer os.Remove(bigTmpFile2.path)
+		rsp, err := fileBiz.InitiateUploadFile(context.TODO(), &api.InitiateMultipartUploadRequest{
+			Key:    "test/upload.parts.test1",
+			Engine: api.FileEngine_FILE_ENGINE_LOCAL.String(),
+		})
+		c.So(err, c.ShouldBeNil)
+
+		_=uploadParts(bigTmpFile2.path, rsp.UploadId, "test/upload.parts.test1", t)
+		rsp2, err := fileBiz.CompleteMultipartUploadFile(context.TODO(), &api.CompleteMultipartUploadRequest{
+			Key:      "test/upload.parts.test1",
+			UploadId: rsp.UploadId,
+			Sha256:   bigTmpFile2.sha256,
+			Bucket:   bucket,
+			Engine:   api.FileEngine_FILE_ENGINE_LOCAL.String(),
+		}, fileAuthor)
+		
+		c.So(err, c.ShouldBeNil)
+		c.So(rsp2.Uid, c.ShouldEqual,fid)
+	})
+	c.Convey("test complete parts file update fail", t, func() {
+		bigTmpFile2, _ := generateRandomFile(1024 * 1024 * 12)
+		defer os.Remove(bigTmpFile2.path)
+		rsp, err := fileBiz.InitiateUploadFile(context.TODO(), &api.InitiateMultipartUploadRequest{
+			Key:    "test/upload.parts.test1",
+			Engine: api.FileEngine_FILE_ENGINE_LOCAL.String(),
+		})
+		c.So(err, c.ShouldBeNil)
+
+		_=uploadParts(bigTmpFile2.path, rsp.UploadId, "test/upload.parts.test1", t)
+		patch:=gomonkey.ApplyFuncReturn(tiga.MySQLDao.First,fmt.Errorf("remove error"))
+		defer patch.Reset()
+		_, err = fileBiz.CompleteMultipartUploadFile(context.TODO(), &api.CompleteMultipartUploadRequest{
+			Key:      "test/upload.parts.test1",
+			UploadId: rsp.UploadId,
+			Sha256:   bigTmpFile2.sha256,
+			Bucket:   bucket,
+			Engine:   api.FileEngine_FILE_ENGINE_LOCAL.String(),
+		}, fileAuthor)
+		patch.Reset()
+		bigFileSha256 = bigTmpFile2.sha256
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "get updated file error")
 	})
 	c.Convey("test complete parts file fail", t, func() {
 
@@ -829,9 +874,9 @@ func testCompleteMultipartUploadFile(t *testing.T) {
 		})
 		uploadId2 := rsp.UploadId
 		_, err = fileBiz.CompleteMultipartUploadFile(context.TODO(), &api.CompleteMultipartUploadRequest{
-			Key:        "test/upload.parts.test2",
-			UploadId:   uploadId2,
-			Bucket:     bucket,
+			Key:      "test/upload.parts.test2",
+			UploadId: uploadId2,
+			Bucket:   bucket,
 		}, fileAuthor)
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "lstat error")
@@ -887,10 +932,10 @@ func testCompleteMultipartUploadFile(t *testing.T) {
 			patch2 := gomonkey.ApplyFuncReturn(cases.patch, cases.output...)
 			defer patch2.Reset()
 			_, err = fileBiz.CompleteMultipartUploadFile(context.TODO(), &api.CompleteMultipartUploadRequest{
-				Key:        "test/upload.parts.test2",
-				UploadId:   uploadId3,
-				Bucket:     bucket,
-				Engine: api.FileEngine_FILE_ENGINE_LOCAL.String(),
+				Key:      "test/upload.parts.test2",
+				UploadId: uploadId3,
+				Bucket:   bucket,
+				Engine:   api.FileEngine_FILE_ENGINE_LOCAL.String(),
 			}, fileAuthor)
 			patch2.Reset()
 			t.Logf("error:%v", cases.err)
@@ -908,7 +953,7 @@ func testFileMeta(t *testing.T) {
 			Key:     "test/upload.parts.test1",
 			Version: "",
 			Bucket:  bucket,
-			Engine: api.FileEngine_FILE_ENGINE_LOCAL.String(),
+			Engine:  api.FileEngine_FILE_ENGINE_LOCAL.String(),
 		}, fileAuthor)
 		c.So(err, c.ShouldBeNil)
 		c.So(meta, c.ShouldNotBeNil)
@@ -919,7 +964,7 @@ func testFileMeta(t *testing.T) {
 			Key:     "test/upload.parts.test1",
 			Version: "latest",
 			Bucket:  bucket,
-			Engine: api.FileEngine_FILE_ENGINE_LOCAL.String(),
+			Engine:  api.FileEngine_FILE_ENGINE_LOCAL.String(),
 		}, fileAuthor)
 		c.So(err, c.ShouldBeNil)
 		c.So(meta, c.ShouldNotBeNil)
@@ -975,7 +1020,7 @@ func testFileMeta(t *testing.T) {
 		c.So(err.Error(), c.ShouldContainSubstring, "io.copy error")
 		patch3.Reset()
 
-		patch4:=gomonkey.ApplyFuncReturn(tiga.MySQLDao.First,fmt.Errorf("get error"))
+		patch4 := gomonkey.ApplyFuncReturn(tiga.MySQLDao.First, fmt.Errorf("get error"))
 		defer patch4.Reset()
 		_, err = fileBiz.Metadata(context.Background(), &api.FileMetadataRequest{
 			Key:     "test/upload.parts.test1",
@@ -1241,7 +1286,7 @@ func testDelete(t *testing.T) {
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "not found")
 
-		_, err = fileBiz.Delete(context.Background(), &api.DeleteRequest{Key:"/test/upload.parts.deleted2", Bucket: bucket}, fileAuthor)
+		_, err = fileBiz.Delete(context.Background(), &api.DeleteRequest{Key: "/test/upload.parts.deleted2", Bucket: bucket}, fileAuthor)
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrInvalidFileKey.Error())
 
@@ -1351,21 +1396,57 @@ func testUploadVersionCommitErr(t *testing.T) {
 
 	})
 }
-func testGetFileByID(t *testing.T){
-	fileBiz:=newFileBiz()
-	c.Convey("test get file by id",t,func(){
-		rsp,err:=fileBiz.GetFileByID(context.TODO(),fileId)
-		c.So(err,c.ShouldBeNil)
-		c.So(rsp,c.ShouldNotBeNil)
+func testGetFileByID(t *testing.T) {
+	fileBiz := newFileBiz()
+	rsp, err := fileBiz.GetFileByID(context.TODO(), fileId)
+
+	c.Convey("test get file by id", t, func() {
+		c.So(err, c.ShouldBeNil)
+		c.So(rsp, c.ShouldNotBeNil)
+	})
+	c.Convey("test file update", t, func() {
+		tmp5, _ := generateRandomFile(1024 * 1024 * 1)
+		defer os.Remove(tmp5.path)
+		rsp2, err := fileBiz.Upload(context.Background(), &api.UploadFileRequest{
+			Key:         rsp.Key,
+			Engine:      rsp.Engine,
+			Bucket:      rsp.Bucket,
+			Content:     tmp5.content,
+			ContentType: tmp5.contentType,
+			Sha256:      tmp5.sha256,
+		}, fileAuthor)
+		c.So(err, c.ShouldBeNil)
+		c.So(rsp2, c.ShouldNotBeNil)
+		c.So(rsp2.Uid, c.ShouldEqual, rsp.Uid)
+
+	})
+
+	c.Convey("test file update fail", t, func() {
+		tmp5, _ := generateRandomFile(1024 * 1024 * 1)
+		defer os.Remove(tmp5.path)
+		patch := gomonkey.ApplyFuncReturn(tiga.MySQLDao.First, fmt.Errorf("get error"))
+		defer patch.Reset()
+		_, err := fileBiz.Upload(context.Background(), &api.UploadFileRequest{
+			Key:         rsp.Key,
+			Engine:      rsp.Engine,
+			Bucket:      rsp.Bucket,
+			Content:     tmp5.content,
+			ContentType: tmp5.contentType,
+			Sha256:      tmp5.sha256,
+		}, fileAuthor)
+		patch.Reset()
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "get updated file error")
+
 	})
 
 }
 func TestFile(t *testing.T) {
 	t.Run("test make bucket", testMkBucket)
 	t.Run("test upload", testPutFile)
-	t.Run("test get file by id",testGetFileByID)
-	t.Run("test upload version commit error", testUploadVersionCommitErr)
 	t.Run("test download", testDownload)
+	t.Run("test get file by id", testGetFileByID)
+	t.Run("test upload version commit error", testUploadVersionCommitErr)
 	t.Run("test initiate upload file", testInitiateUploadFile)
 	t.Run("test upload parts file", testUploadMultipartFileFile)
 	t.Run("test complete parts file", testCompleteMultipartUploadFile)
