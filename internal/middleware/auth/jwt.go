@@ -163,12 +163,12 @@ func (a *JWTAuth) checkJWT(ctx context.Context, authorization string, rspHeader 
 	// 设置uid
 	reqHeader.Set("x-token", token)
 	reqHeader.Set("x-uid", payload.Uid)
+	reqHeader.Set(gosdk.HeaderXIdentity, payload.Uid)
 	return true, nil
 
 }
 func (a *JWTAuth) jwtValidator(ctx context.Context, headers Header) (context.Context, error) {
-	// 获取请求的方法名
-	// 获取路由
+	
 
 	md, _ := metadata.FromIncomingContext(ctx)
 

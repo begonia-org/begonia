@@ -73,6 +73,7 @@ func (c *curdImpl) Get(ctx context.Context, model interface{}, needDecrypt bool,
 		query = fmt.Sprintf("(%s) and is_deleted=0", query)
 
 	}
+	// log.Printf("query:%s,args:%v", query,args)
 	if err := c.db.First(ctx, model, query, args...); err != nil {
 		return fmt.Errorf("get model failed: %w", err)
 	}

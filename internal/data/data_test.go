@@ -9,15 +9,17 @@ import (
 	"github.com/begonia-org/begonia"
 	cfg "github.com/begonia-org/begonia/config"
 	"github.com/spark-lence/tiga"
+	user "github.com/begonia-org/go-sdk/api/user/v1"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 // func TestCreateInBatches(t *testing.T) {
 func TestMain(m *testing.M) {
 	log.Printf("Start testing")
-	setup()
+	// setup()
 	code := m.Run()
 	log.Printf("All tests passed with code %d", code)
+	// setup()
 }
 
 func setup() {
@@ -61,4 +63,11 @@ func setup() {
 	if err != nil {
 		log.Fatalf("Failed to delete keys with prefix %s: %v", prefix, err)
 	}
+	mysql := tiga.NewMySQLDao(conf)
+	mysql.RegisterTimeSerializer()
+	err=mysql.GetModel(&user.Users{}).Where("`group` = ?", "test-user-01").Delete(&user.Users{}).Error
+	if err != nil {
+		log.Fatalf("Failed to delete keys with prefix %s: %v", prefix, err)
+	}
+	log.Printf("Cleaned up test data")
 }

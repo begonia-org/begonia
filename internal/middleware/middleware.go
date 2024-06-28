@@ -31,7 +31,7 @@ func New(config *config.Config,
 ) *PluginsApply {
 	jwt := auth.NewJWTAuth(config, rdb, user, log)
 	ak := auth.NewAccessKeyAuth(authz, config, log)
-	apiKey := auth.NewApiKeyAuth(config)
+	apiKey := auth.NewApiKeyAuth(config,user)
 	plugins := map[string]gosdk.LocalPlugin{
 		"onlyJWT":           jwt,
 		"onlyAK":            ak,

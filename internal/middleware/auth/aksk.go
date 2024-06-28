@@ -54,7 +54,7 @@ func (a *AccessKeyAuthMiddleware) RequestBefore(ctx context.Context, info *grpc.
 
 	}
 
-	appid, err := a.app.GetAppid(ctx, accessKey)
+	owner, err := a.app.GetAppOwner(ctx, accessKey)
 	if err != nil {
 		return ctx, err
 
@@ -63,14 +63,28 @@ func (a *AccessKeyAuthMiddleware) RequestBefore(ctx context.Context, info *grpc.
 	if !ok {
 		md = metadata.MD{}
 	}
-	md.Set("x-identity", appid)
+	// md.Set(gosdk.HeaderXIdentity, owner)
+	md = metadata.Join(md, metadata.Pairs(gosdk.HeaderXIdentity, owner))
+
 	ctx = metadata.NewIncomingContext(ctx, md)
+	// md2, _ := metadata.FromIncomingContext(ctx)
+
+
 	return ctx, nil
 
 }
 
 func (a *AccessKeyAuthMiddleware) ValidateStream(ctx context.Context, req interface{}, fullName string, headers Header) (context.Context, error) {
-	return a.RequestBefore(ctx, &grpc.UnaryServerInfo{FullMethod: fullName}, req)
+	ctx,err:= a.RequestBefore(ctx, &grpc.UnaryServerInfo{FullMethod: fullName}, req)
+	if err!=nil{
+		return ctx,err
+	}
+	md, _ := metadata.FromIncomingContext(ctx)
+	if identity := md.Get(gosdk.HeaderXIdentity);len(identity)>0{
+		headers.Set(strings.ToLower(gosdk.HeaderXIdentity), identity[0])
+	}
+	return ctx,nil
+	
 }
 func (a *AccessKeyAuthMiddleware) StreamRequestBefore(ctx context.Context, ss grpc.ServerStream, info *grpc.StreamServerInfo, req interface{}) (grpc.ServerStream, error) {
 	grpcStream := NewGrpcStream(ss, info.FullMethod, ss.Context(), a)

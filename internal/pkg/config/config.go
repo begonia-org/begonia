@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	goloadbalancer "github.com/begonia-org/go-loadbalancer"
+	file "github.com/begonia-org/go-sdk/api/file/v1"
 	"github.com/spark-lence/tiga"
 )
 
@@ -202,7 +203,7 @@ func (c *Config) GetRPCPlugins() ([]*goloadbalancer.Server, error) {
 	return plugins, nil
 }
 func (c *Config) GetEndpointsPrefix() string {
-	return fmt.Sprintf("%s%s", c.GetEnv(), c.getWithEnv("common.etcd.endpoint.prefix"))
+	return fmt.Sprintf("/%s%s", c.GetEnv(), c.getWithEnv("common.etcd.endpoint.prefix"))
 }
 
 func (c *Config) GetGatewayDescriptionOut() string {
@@ -225,9 +226,13 @@ func (c *Config) GetServiceTagsPrefix() string {
 	prefix := c.GetEndpointsPrefix()
 	return fmt.Sprintf("%s/tags", prefix)
 }
-func (c *Config) GetServiceKey(id string) string {
-	prefix := c.GetServicePrefix()
-	return filepath.Join(prefix, id)
+func (c *Config) GetServiceKey(key string) string {
+	if tiga.IsSnowflakeID(key){
+		prefix := c.GetServicePrefix()
+		return filepath.Join(prefix, key)
+	}
+	return c.GetServiceNameKey(key)
+
 }
 func (c *Config) GetServiceNameKey(name string) string {
 	prefix := c.GetServiceNamePrefix()
@@ -278,4 +283,16 @@ func (c *Config) GetRSAPriKey() string {
 func (c *Config) GetRSAPubKey() string {
 
 	return c.getWithEnv("auth.rsa.public_key")
+}
+func (c *Config) GetFileEngines() ([]*file.FileSystemEngine, error) {
+	engines := make([]*file.FileSystemEngine, 0)
+	if err := c.UnmarshalKey(fmt.Sprintf("%s.file.engines", c.GetEnv()), &engines); err == nil && len(engines) > 0 {
+		return engines, nil
+	}
+	err := c.UnmarshalKey("file.engines", &engines)
+	if err != nil {
+		return nil, fmt.Errorf("get file engines failed:%w", err)
+	}
+	return engines, nil
+
 }

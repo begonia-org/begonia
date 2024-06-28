@@ -24,10 +24,12 @@ import (
 	"github.com/begonia-org/begonia/internal/data"
 	"github.com/begonia-org/begonia/internal/pkg"
 	cfg "github.com/begonia-org/begonia/internal/pkg/config"
+	gosdk "github.com/begonia-org/go-sdk"
 
 	"github.com/begonia-org/begonia/internal/pkg/crypto"
 	"github.com/begonia-org/begonia/internal/pkg/utils"
 	v1 "github.com/begonia-org/go-sdk/api/user/v1"
+	app "github.com/begonia-org/go-sdk/api/app/v1"
 	"github.com/spark-lence/tiga"
 	"google.golang.org/grpc/metadata"
 
@@ -48,8 +50,9 @@ func newAuthzBiz() *biz.AuthzUsecase {
 	user := data.NewUserRepo(config, gateway.Log)
 	cnf := cfg.NewConfig(config)
 	crypto := crypto.NewUsersAuth(cnf)
+	app := data.NewAppRepo(config, gateway.Log)
 
-	return biz.NewAuthzUsecase(repo, user, gateway.Log, crypto, cnf)
+	return biz.NewAuthzUsecase(repo, user,app, gateway.Log, crypto, cnf)
 }
 
 func testAuthSeed(t *testing.T) {
@@ -307,6 +310,51 @@ func testDelToken(t *testing.T) {
 		c.So(err, c.ShouldBeNil)
 	})
 }
+func testGetIdentity(t *testing.T){
+	authzBiz := newAuthzBiz()
+	c.Convey("test get identity", t, func() {
+		env := "dev"
+		if begonia.Env != "" {
+			env = begonia.Env
+		}
+		config := config.ReadConfig(env)
+		appRepo := data.NewAppRepo(config, gateway.Log)
+		patch:=gomonkey.ApplyMethodReturn(appRepo,"Get",&app.Apps{Owner: "12345567"},nil)
+		defer patch.Reset()
+		identity, err := authzBiz.GetIdentity(context.Background(), gosdk.AccessKeyType,"123456")
+		patch.Reset()
+		c.So(err, c.ShouldBeNil)
+		c.So(identity, c.ShouldEqual, "12345567")
+		identity, err = authzBiz.GetIdentity(context.Background(), gosdk.UidType,"123456")
+
+		c.So(err, c.ShouldBeNil)
+		c.So(identity, c.ShouldEqual, "123456")
+		cnf:=cfg.NewConfig(config)
+		apikey:=cnf.GetAdminAPIKey()
+		identity, err = authzBiz.GetIdentity(context.Background(), gosdk.UidType,"123456")
+		c.So(err, c.ShouldBeNil)
+		c.So(identity, c.ShouldEqual, "123456")
+
+
+		identity, err = authzBiz.GetIdentity(context.Background(), gosdk.ApiKeyType,apikey)
+		c.So(err, c.ShouldBeNil)
+		c.So(identity, c.ShouldNotBeEmpty)
+		_, err = authzBiz.GetIdentity(context.Background(), gosdk.ApiKeyType,"123")
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(),c.ShouldContainSubstring,pkg.ErrAPIKeyNotMatch.Error())
+		patch2:=gomonkey.ApplyFuncReturn(tiga.MySQLDao.First,fmt.Errorf("error"))
+		defer patch2.Reset()
+		_, err = authzBiz.GetIdentity(context.Background(), gosdk.ApiKeyType,apikey)
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(),c.ShouldContainSubstring,"error")
+		patch2.Reset()
+
+		_, err = authzBiz.GetIdentity(context.Background(), "gosdk.ApiKeyType",apikey)
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(),c.ShouldContainSubstring,pkg.ErrIdentityMissing.Error())
+	})
+
+}
 func testPutBlackList(t *testing.T) {
 	authzBiz := newAuthzBiz()
 	c.Convey("test put black list", t, func() {
@@ -321,6 +369,7 @@ func testPutBlackList(t *testing.T) {
 func TestAuthz(t *testing.T) {
 	t.Run("test auth seed", testAuthSeed)
 	t.Run("test login", testLogin)
+	t.Run("test get identity",testGetIdentity)
 	t.Run("test logout", testLogout)
 	t.Run("test del token", testDelToken)
 	t.Run("test put black list", testPutBlackList)

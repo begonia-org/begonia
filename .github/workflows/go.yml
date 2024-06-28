@@ -3,10 +3,14 @@ name: Go
 on:
   push:
     paths:
-      - '**.go'
+      - "**.go"
+      - "**.yml"
+      - "**.mod"
   pull_request:
     paths:
-      - '**.go'
+      - "**.go"
+      - "**.yml"
+      - "**.mod"
 
 jobs:
   test:
@@ -17,16 +21,44 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.20.7
+          go-version: 1.22.4
 
       - name: Start Docker Composer
         run: docker-compose up -d
 
       - name: Init MySQL
         run: |
-          go run ./cmd/begonia init -e dev
-          cat ~/.begonia/admin-app.json
-
+          go mod tidy
+          go run ./cmd/begonia init -c ./config/settings.yml -e test
+          cat ~/.begonia/admin-app.test.json
+      - name: Init Minio
+        run: |
+          go install github.com/minio/mc@latest
+          cat << EOF > /tmp/policy.json
+          {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Action": [
+                  "s3:*"
+                ],
+                "Resource": [
+                  "arn:aws:s3:::*"
+                ]
+              }
+            ]
+          }
+          EOF
+      - name: Configure Minio
+        run: |
+          mc alias set myminio http://127.0.0.1:9000 begonia begoniabegonia
+          mc admin user add myminio begonia-2 begoniabegonia
+          mc admin user svcacct add \
+            --access-key "begonia" \
+            --secret-key "begoniabegonia" \
+            --policy "/tmp/policy.json" \
+            myminio begonia-2
       - name: Type a temporary tag
         run: git tag test-$(date '+%Y%m%d%H%M%S')
 
@@ -45,7 +77,7 @@ jobs:
           cd grpc-gateway
           go install ./protoc-gen-grpc-gateway
       - name: Test
-        run: go test -v -gcflags=-l -coverprofile=coverage.txt -covermode=atomic -ldflags -X=github.com/begonia-org/begonia.Version=$(git describe --tags --abbrev=0)\ -X=github.com/begonia-org/begonia.BuildTime=$(date '+%Y%m%d%H%M%S')\ -X=github.com/begonia-org/begonia.Commit=$(git rev-parse --short HEAD)\ -X=github.com/begonia-org/begonia.Env=test ./...
+        run: go test -p 1 -v -gcflags=-l -coverprofile=coverage.txt -covermode=atomic -ldflags -X=github.com/begonia-org/begonia.Version=$(git describe --tags --abbrev=0)\ -X=github.com/begonia-org/begonia.BuildTime=$(date '+%Y%m%d%H%M%S')\ -X=github.com/begonia-org/begonia.Commit=$(git rev-parse --short HEAD)\ -X=github.com/begonia-org/begonia.Env=test ./...
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4.0.1

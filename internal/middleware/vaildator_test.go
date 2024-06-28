@@ -83,7 +83,32 @@ func TestValidatorUnaryInterceptor(t *testing.T) {
 		c.So(err, c.ShouldBeNil)
 	})
 }
+func TestRequireIf(t *testing.T) {
+	c.Convey("test require if", t, func() {
+		v := []struct {
+			Field  string `validate:"required_if=Field2"`
+			Field2 string
+			Field3 string `validate:"required_if=Field2"`
+		}{{
+			Field:  "",
+			Field2: "test",
+			Field3: "",
+		},
+		{
+			Field: "",
+			Field2: "",
+			Field3: "",
+		},
+	}
+		validator := middleware.NewParamsValidator()
 
+		err:=validator.ValidateParams(v[0])
+		c.So(err, c.ShouldBeNil)
+		err=validator.ValidateParams(v[1])
+		c.So(err,c.ShouldNotBeNil)
+	})
+
+}
 func TestValidatorStreamInterceptor(t *testing.T) {
 	c.Convey("test stream interceptor", t, func() {
 		validator := middleware.NewParamsValidator()

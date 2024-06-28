@@ -9,6 +9,7 @@ import (
 	conf "github.com/begonia-org/begonia/config"
 	cfg "github.com/begonia-org/begonia/internal/pkg/config"
 	c "github.com/smartystreets/goconvey/convey"
+	"github.com/spark-lence/tiga"
 	"github.com/spf13/viper"
 )
 
@@ -65,6 +66,8 @@ func TestConfig(t *testing.T) {
 		c.So(config.GetPlugins(), c.ShouldNotBeEmpty)
 		_, err := config.GetRPCPlugins()
 		c.So(err, c.ShouldBeNil)
+		_, err = config.GetFileEngines()
+		c.So(err, c.ShouldBeNil)
 		// c.So(len(ss), c.ShouldBeGreaterThan, 0)
 		c.So(config.GetEndpointsPrefix(), c.ShouldNotBeEmpty)
 		c.So(config.GetGatewayDescriptionOut(), c.ShouldNotBeEmpty)
@@ -72,8 +75,10 @@ func TestConfig(t *testing.T) {
 		c.So(config.GetServicePrefix(), c.ShouldEndWith, "/service")
 		c.So(config.GetServiceNamePrefix(), c.ShouldEndWith, "/service_name")
 		c.So(config.GetServiceTagsPrefix(), c.ShouldEndWith, "/tags")
-		t.Logf("service prefix: %s", config.GetServicePrefix())
-		c.So(config.GetServiceKey("test"), c.ShouldStartWith, config.GetServicePrefix())
+		snk,_:=tiga.NewSnowflake(1)		
+		c.So(config.GetServiceKey("test"), c.ShouldStartWith, config.GetServiceNamePrefix())
+		c.So(config.GetServiceKey(snk.GenerateIDString()), c.ShouldStartWith, config.GetServicePrefix())
+
 		c.So(config.GetServiceNameKey("test"), c.ShouldStartWith, config.GetServiceNamePrefix())
 		c.So(config.GetAppKeyPrefix(), c.ShouldNotBeEmpty)
 		c.So(config.GetAPPKey("test"), c.ShouldStartWith, config.GetAppKeyPrefix())
@@ -90,12 +95,23 @@ func TestConfig(t *testing.T) {
 		ss, err := config.GetRPCPlugins()
 		c.So(err, c.ShouldNotBeNil)
 		c.So(ss, c.ShouldBeNil)
+		eng, err := config.GetFileEngines()
+		c.So(err, c.ShouldNotBeNil)
+		c.So(eng, c.ShouldBeNil)
+		patch.Reset()
 		cnf = conf.ReadConfig("dev")
 		config2 := cfg.NewConfig(cnf)
 		c.So(config2.GetEndpointsPrefix(), c.ShouldNotBeEmpty)
 		c.So(config2.GetAppKeyPrefix(), c.ShouldNotBeEmpty)
 		c.So(config2.GetRSAPriKey(), c.ShouldNotBeEmpty)
 		c.So(config2.GetRSAPubKey(), c.ShouldNotBeEmpty)
+
+		cnf2 := conf.ReadConfig("test")
+		config3 := cfg.NewConfig(cnf2)
+		eng, err = config3.GetFileEngines()
+		c.So(err, c.ShouldBeNil)
+		c.So(eng, c.ShouldNotBeNil)
+		c.So(len(eng), c.ShouldBeGreaterThan, 0)
 
 	})
 }

@@ -3,6 +3,7 @@ package migrate
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -22,63 +23,57 @@ type APPOperator struct {
 func NewAPPOperator(mysql *tiga.MySQLDao) *APPOperator {
 	return &APPOperator{mysql: mysql}
 }
-func dumpInitApp(app *api.Apps) {
+func dumpInitApp(app *api.Apps,env string) error {
 	log.Print("########################################admin-app###############################")
 	log.Printf("Init appid:%s", app.Appid)
 	log.Printf("Init accessKey:%s", app.AccessKey)
 	log.Printf("Init secret:%s", app.Secret)
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		log.Fatalf(err.Error())
-		return
+		return err
 	}
 	path := filepath.Join(homeDir, ".begonia")
 	if err := os.MkdirAll(path, os.ModePerm); err != nil {
-		log.Fatalf(err.Error())
-		return
+		return err
 	}
-	file, err := os.Create(filepath.Join(path, "admin-app.json"))
+	file, err := os.Create(filepath.Join(path, fmt.Sprintf("admin-app.%s.json",env)))
 	if err != nil {
-		log.Fatalf(err.Error())
-		return
+		return err
 	}
 	defer file.Close()
 	encoder := json.NewEncoder(file)
 	if err := encoder.Encode(app); err != nil {
-		log.Fatalf(err.Error())
-		return
+		return err
 	}
 	log.Printf("Init admin-app config file at :%s", file.Name())
 	log.Print("#################################################################################")
-
+	return nil
 }
-func (m *APPOperator) InitAdminAPP(owner string) error {
+func (m *APPOperator) InitAdminAPP(owner,env string) (err error) {
 	app := &api.Apps{}
 	defer func() {
 		if app.Appid != "" {
-			dumpInitApp(app)
+			if errInit := dumpInitApp(app,env); errInit != nil {
+				err = errInit
+			}
 		}
 	}()
-	err := m.mysql.First(context.TODO(), app, "name = ?", "admin-app")
+	err = m.mysql.First(context.TODO(), app, "name = ?", "admin-app")
 	if err != nil && err != gorm.ErrRecordNotFound {
-		log.Fatalf("InitAdminAPP error:%v", err)
 		return err
 	}
 	if app.Appid == "" {
-		snk, err := tiga.NewSnowflake(1)
-		if err != nil {
+		snk, errSnk := tiga.NewSnowflake(1)
+		if errSnk != nil {
+			err = errSnk
 			return err
 		}
-		// 初始化数据
-		// uid := snk.GenerateID()
-		accessKey, err := biz.GenerateAppAccessKey()
-		if err != nil {
-			return err
-		}
+		accessKey, errAccess := biz.GenerateAppAccessKey()
 
-		secret, err := biz.GenerateAppSecret()
+		secret, errSecret := biz.GenerateAppSecret()
 
-		if err != nil {
+		if errAccess != nil || errSecret != nil {
+			err = fmt.Errorf("failed to generate accessKey or secret: %v,%v", errAccess, errSecret)
 			return err
 		}
 

@@ -9,6 +9,7 @@ package data
 import (
 	"github.com/begonia-org/begonia/internal/biz"
 	"github.com/begonia-org/begonia/internal/biz/endpoint"
+	"github.com/begonia-org/begonia/internal/biz/file"
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/go-sdk/logger"
 	"github.com/spark-lence/tiga"
@@ -92,4 +93,15 @@ func NewLocker(cfg *tiga.Configuration, log logger.Logger, key string, ttl time.
 	client := GetRDBClient(redisDao)
 	bizDataLock := NewDataLock(client, key, ttl, retry)
 	return bizDataLock
+}
+
+func NewFileRepo(cfg *tiga.Configuration, log logger.Logger) file.FileRepo {
+	mySQLDao := NewMySQL(cfg)
+	redisDao := NewRDB(cfg)
+	etcdDao := NewEtcd(cfg)
+	data := NewData(mySQLDao, redisDao, etcdDao)
+	configConfig := config.NewConfig(cfg)
+	curd := NewCurdImpl(mySQLDao, configConfig)
+	fileRepo := NewFileRepoImpl(data, curd)
+	return fileRepo
 }

@@ -37,7 +37,7 @@ func (e *Exception) UnaryInterceptor(ctx context.Context, req interface{}, info 
 	return nil, err
 }
 func (e *Exception) handlePanic(p interface{}) error {
-	const maxFrames = 5
+	const maxFrames = 10
 	var pcs [maxFrames]uintptr
 	n := runtime.Callers(2, pcs[:]) // skip first 3 frames
 

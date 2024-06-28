@@ -21,34 +21,83 @@ import (
 	common "github.com/begonia-org/go-sdk/common/api/v1"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/spark-lence/tiga"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type FileRepo interface {
 	// mysql
-	UploadFile(ctx context.Context, files []*common.Files) error
-	DeleteFile(ctx context.Context, files []*common.Files) error
-	UpdateFile(ctx context.Context, files []*common.Files) error
-	GetFile(ctx context.Context, uri string) (*common.Files, error)
-	ListFile(ctx context.Context, name []string) ([]*common.Files, error)
+	UpsertFile(ctx context.Context, file *api.Files) (bool, error)
+	DelFile(ctx context.Context, engine, bucket, key string) error
+	UpsertBucket(ctx context.Context, bucket *api.Buckets) (bool, error)
+	DelBucket(ctx context.Context, bucketId string) error
+	GetFileById(ctx context.Context, fid string) (*api.Files, error)
+	List(ctx context.Context, page, pageSize int32, bucket, engine, owner string) ([]*api.Files, error)
+	GetFile(ctx context.Context, engine, bucket, key string) (*api.Files, error)
 }
-
-type FileUsecase struct {
-	// repo      FileRepo
+type FileUsecase interface {
+	Upload(ctx context.Context, in *api.UploadFileRequest, authorId string) (*api.UploadFileResponse, error)
+	InitiateUploadFile(ctx context.Context, in *api.InitiateMultipartUploadRequest) (*api.InitiateMultipartUploadResponse, error)
+	UploadMultipartFileFile(ctx context.Context, in *api.UploadMultipartFileRequest) (*api.UploadMultipartFileResponse, error)
+	AbortMultipartUpload(ctx context.Context, in *api.AbortMultipartUploadRequest) (*api.AbortMultipartUploadResponse, error)
+	CompleteMultipartUploadFile(ctx context.Context, in *api.CompleteMultipartUploadRequest, authorId string) (*api.CompleteMultipartUploadResponse, error)
+	DownloadForRange(ctx context.Context, in *api.DownloadRequest, start int64, end int64, authorId string) ([]byte, int64, error)
+	Metadata(ctx context.Context, in *api.FileMetadataRequest, authorId string) (*api.FileMetadataResponse, error)
+	Version(ctx context.Context, bucket, key, authorId string) (string, error)
+	Download(ctx context.Context, in *api.DownloadRequest, authorId string) ([]byte, error)
+	Delete(ctx context.Context, in *api.DeleteRequest, authorId string) (*api.DeleteResponse, error)
+	MakeBucket(ctx context.Context, in *api.MakeBucketRequest, authorId string) (*api.MakeBucketResponse, error)
+	List(ctx context.Context, in *api.ListFilesRequest, authorId string) ([]*api.Files, error)
+	GetFileByID(ctx context.Context, fileId string) (*api.Files, error)
+}
+type FileUsecaseImpl struct {
+	repo      FileRepo
 	config    *config.Config
 	snowflake *tiga.Snowflake
-	// iam       *service.ABACService
 }
 
-func NewFileUsecase(config *config.Config) *FileUsecase {
-	snk, _ := tiga.NewSnowflake(1)
-	return &FileUsecase{config: config, snowflake: snk}
+func newMinioClient(cfg *config.Config) *minio.Client {
+	engines, err := cfg.GetFileEngines()
+	if err != nil {
+		panic(err)
+
+	}
+	for _, engine := range engines {
+		if engine.Name == api.FileEngine_FILE_ENGINE_MINIO.String() {
+			endpoint := engine.Endpoint
+			creds := credentials.NewStaticV4(engine.GetAccessKey(), engine.SecretKey, "")
+			minioClient, err := minio.New(endpoint, &minio.Options{
+				Creds:  creds,
+				Secure: false,
+			})
+			if err != nil {
+				panic(err)
+			}
+			return minioClient
+		}
+	}
+	return nil
+
 }
-func (f *FileUsecase) getPartsDir(key string) string {
+func NewFileUsecase(cfg *config.Config, repo FileRepo) map[string]FileUsecase {
+	engines := make(map[string]FileUsecase)
+	if minioClient := newMinioClient(cfg); minioClient != nil {
+		engines[api.FileEngine_FILE_ENGINE_MINIO.String()] = NewMinioUseCase(minioClient, NewLocalFileUsecase(cfg, repo))
+	}
+	engines[api.FileEngine_FILE_ENGINE_LOCAL.String()] = NewLocalFileUsecase(cfg, repo)
+	return engines
+}
+func NewLocalFileUsecase(config *config.Config, repo FileRepo) *FileUsecaseImpl {
+	snk, _ := tiga.NewSnowflake(1)
+	return &FileUsecaseImpl{config: config, snowflake: snk, repo: repo}
+}
+func (f *FileUsecaseImpl) getPartsDir(key string) string {
 	return filepath.Join(f.config.GetUploadDir(), key, "parts")
 }
-func (f *FileUsecase) InitiateUploadFile(ctx context.Context, in *api.InitiateMultipartUploadRequest) (*api.InitiateMultipartUploadResponse, error) {
+func (f *FileUsecaseImpl) InitiateUploadFile(ctx context.Context, in *api.InitiateMultipartUploadRequest) (*api.InitiateMultipartUploadResponse, error) {
 	if in.Key == "" || strings.HasPrefix(in.Key, "/") {
 		return nil, gosdk.NewError(pkg.ErrInvalidFileKey, int32(api.FileSvrStatus_FILE_INVALIDATE_KEY_ERR), codes.InvalidArgument, "invalid_key")
 	}
@@ -78,17 +127,17 @@ func getSHA256(data []byte) string {
 }
 
 // newVersionFile 检查指定目录的仓库状态，适当时初始化仓库，并提交文件
-func (f *FileUsecase) commitFile(dir string, filename string, authorId string, authorEmail string) (commitId string, err error) {
+func (f *FileUsecaseImpl) commitFile(dir string, filename string, authorId string, authorEmail string) (commitId string, err error) {
 	repo, err := git.PlainInit(dir, false)
 	if err != nil && err != git.ErrRepositoryAlreadyExists {
-		return "", err
+		return "", fmt.Errorf("version plain init err:%w", err)
 	}
 
 	// 如果仓库已存在，则打开它
 	if err == git.ErrRepositoryAlreadyExists {
 		repo, err = git.PlainOpen(dir)
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("version plain open err:%w", err)
 		}
 	}
 
@@ -102,7 +151,7 @@ func (f *FileUsecase) commitFile(dir string, filename string, authorId string, a
 	// 工作树
 	w, err := repo.Worktree()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("version work tree err:%w", err)
 	}
 	defer func() {
 		if p := recover(); p != nil {
@@ -116,29 +165,30 @@ func (f *FileUsecase) commitFile(dir string, filename string, authorId string, a
 	// 添加文件到暂存区
 	_, err = w.Add(filename)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("add file err:%w", err)
 	}
 
 	// 创建提交
 	commit, err := w.Commit(fmt.Sprintf("Add %s", filename), &git.CommitOptions{
 		Author: author,
 	})
-	if err != nil {
-		return "", err
-	}
-
-	// 打印新提交的ID
-	obj, err := repo.CommitObject(commit)
 	if err != nil && !goErr.Is(err, git.ErrEmptyCommit) {
-		return "", err
+		return "", fmt.Errorf("commit file err:%w", err)
 	}
 	// 空提交处理
 	if goErr.Is(err, git.ErrEmptyCommit) {
+
 		headRef, err := repo.Head()
 		if err != nil || headRef.Hash().IsZero() {
 			return "", fmt.Errorf("get head ref error:%w or head ref is nil", err)
 		}
 		return headRef.Hash().String(), nil
+	}
+	// 打印新提交的ID
+	obj, err := repo.CommitObject(commit)
+
+	if err != nil {
+		return "", fmt.Errorf("get commit object err:%w", err)
 	}
 
 	return obj.ID().String(), nil
@@ -147,9 +197,9 @@ func (f *FileUsecase) commitFile(dir string, filename string, authorId string, a
 // getSaveDir Get the save directory of the file
 //
 // The save directory is the directory where the file is saved.
-func (f *FileUsecase) getSaveDir(key string) string {
+func (f *FileUsecaseImpl) getSaveDir(bucket, key string) string {
 
-	saveDir := filepath.Join(f.config.GetUploadDir(), filepath.Dir(key))
+	saveDir := filepath.Join(f.config.GetUploadDir(), bucket, filepath.Dir(key))
 
 	return saveDir
 
@@ -159,11 +209,40 @@ func (f *FileUsecase) getSaveDir(key string) string {
 //
 // If the key is empty or starts with '/', it returns an error.
 // The key is not allow start with '/'.
-func (f *FileUsecase) checkIn(key string) (string, error) {
+func (f *FileUsecaseImpl) checkIn(key string) (string, error) {
 	if key == "" || strings.HasPrefix(key, "/") {
 		return "", gosdk.NewError(pkg.ErrInvalidFileKey, int32(api.FileSvrStatus_FILE_INVALIDATE_KEY_ERR), codes.InvalidArgument, "invalid_key")
 	}
 	return key, nil
+}
+func (f *FileUsecaseImpl) MakeBucket(ctx context.Context, in *api.MakeBucketRequest, authorId string) (*api.MakeBucketResponse, error) {
+
+	saveDir := filepath.Join(f.config.GetUploadDir(), in.Bucket)
+	if err := os.MkdirAll(saveDir, 0755); err != nil {
+		return nil, gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "make_bucket")
+	}
+	if in.EnableVersion {
+		_, _ = os.Create(filepath.Join(saveDir, ".gitkeep"))
+		_, err := f.commitFile(saveDir, ".gitkeep", authorId, "fs@begonia.com")
+		if err != nil {
+			return nil, gosdk.NewError(fmt.Errorf("init bucket version err:%w", err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "commit_file")
+
+		}
+	}
+
+	return &api.MakeBucketResponse{}, nil
+}
+func (f *FileUsecaseImpl) checkBucket(bucket string) bool {
+	saveDir := filepath.Join(f.config.GetUploadDir(), bucket)
+	return pathExists(saveDir)
+}
+func (f *FileUsecaseImpl) isEnableVersion(bucket string) bool {
+	path := filepath.Join(f.config.GetUploadDir(), bucket)
+	repo, err := git.PlainOpen(path)
+	if err != nil || repo == nil {
+		return false
+	}
+	return true
 }
 
 // Upload uploads a file.
@@ -171,7 +250,7 @@ func (f *FileUsecase) checkIn(key string) (string, error) {
 // The file is saved in the directory specified by the key.
 //
 // The authorId is used to determine the directory which is as user's home dir where the file is saved.
-func (f *FileUsecase) Upload(ctx context.Context, in *api.UploadFileRequest, authorId string) (*api.UploadFileResponse, error) {
+func (f *FileUsecaseImpl) Upload(ctx context.Context, in *api.UploadFileRequest, authorId string) (*api.UploadFileResponse, error) {
 	if authorId == "" {
 		return nil, gosdk.NewError(pkg.ErrIdentityMissing, int32(user.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
 	}
@@ -180,11 +259,15 @@ func (f *FileUsecase) Upload(ctx context.Context, in *api.UploadFileRequest, aut
 	if err != nil {
 		return nil, err
 	}
-	in.Key = filepath.Join(authorId, key)
+	// in.Key = filepath.Join(authorId, key)
+	in.Key = key
 	// log.Printf("key:%s", in.Key)
 	filename := filepath.Base(in.Key)
-	// in.Key = key
-	saveDir := f.getSaveDir(in.Key)
+	if ok := f.checkBucket(in.Bucket); in.Bucket == "" || !ok {
+		return nil, gosdk.NewError(pkg.ErrBucketNotFound, int32(api.FileSvrStatus_FILE_INVALIDATE_BUCKET_ERR), codes.NotFound, "bucket_not_found")
+
+	}
+	saveDir := f.getSaveDir(in.Bucket, in.Key)
 
 	if err := os.MkdirAll(saveDir, 0755); err != nil {
 		return nil, gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "create_upload_dir")
@@ -196,15 +279,15 @@ func (f *FileUsecase) Upload(ctx context.Context, in *api.UploadFileRequest, aut
 	}
 	defer file.Close()
 	defer func() {
-		if err != nil {
-			os.Remove(filePath)
-		}
+		// if err != nil {
+		// 	os.Remove(filePath)
+		// }
 	}()
 	_, err = file.Write(in.Content)
 	if err != nil {
 		return nil, gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "write_file")
 	}
-	uri, err := f.getUri(filePath)
+	uri, err := f.getUri(in.Bucket, filePath)
 	if err != nil {
 		return nil, err
 	}
@@ -216,7 +299,7 @@ func (f *FileUsecase) Upload(ctx context.Context, in *api.UploadFileRequest, aut
 
 	}
 	commitId := ""
-	if in.UseVersion {
+	if f.isEnableVersion(in.Bucket) {
 		commitId, err = f.commitFile(saveDir, filename, authorId, "fs@begonia.com")
 		if err != nil {
 			err = gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "commit_file")
@@ -224,14 +307,38 @@ func (f *FileUsecase) Upload(ctx context.Context, in *api.UploadFileRequest, aut
 
 		}
 	}
-
+	fileObj := &api.Files{
+		Uid:       f.snowflake.GenerateIDString(),
+		Engine:    api.FileEngine_name[int32(api.FileEngine_FILE_ENGINE_LOCAL)],
+		Bucket:    in.Bucket,
+		Key:       uri,
+		IsDeleted: false,
+		Owner:     authorId,
+		CreatedAt: timestamppb.Now(),
+		UpdatedAt: timestamppb.Now(),
+	}
+	updated, err := f.repo.UpsertFile(ctx, fileObj)
+	if err != nil {
+		return nil, err
+	}
+	uid := fileObj.Uid
+	if updated {
+		existsObj, err := f.repo.GetFile(ctx, fileObj.Engine, fileObj.Bucket, fileObj.Key)
+		if err != nil {
+			return nil, gosdk.NewError(fmt.Errorf("get updated file error:%w",err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_file")
+		}
+		if existsObj != nil {
+			uid = existsObj.Uid
+		}
+	}
 	return &api.UploadFileResponse{
 		Uri:     uri,
 		Version: commitId,
+		Uid:     uid,
 	}, err
 
 }
-func (f *FileUsecase) UploadMultipartFileFile(ctx context.Context, in *api.UploadMultipartFileRequest) (*api.UploadMultipartFileResponse, error) {
+func (f *FileUsecaseImpl) UploadMultipartFileFile(ctx context.Context, in *api.UploadMultipartFileRequest) (*api.UploadMultipartFileResponse, error) {
 
 	if in.UploadId == "" {
 		return nil, gosdk.NewError(pkg.ErrUploadIdMissing, int32(api.FileSvrStatus_FILE_UPLOADID_MISSING_ERR), codes.InvalidArgument, "upload_id_not_found")
@@ -268,15 +375,15 @@ func (f *FileUsecase) UploadMultipartFileFile(ctx context.Context, in *api.Uploa
 		return nil, err
 
 	}
-	uri, err := f.getUri(filePath)
-	if err != nil {
-		return nil, err
-	}
+	// uri, err := f.getUri(in.,filePath)
+	// if err != nil {
+	// 	return nil, err
+	// }
 	return &api.UploadMultipartFileResponse{
-		Uri: uri,
+		// Uri: uri,
 	}, nil
 }
-func (f *FileUsecase) getSortedFiles(dirPath string) ([]string, error) {
+func (f *FileUsecaseImpl) getSortedFiles(dirPath string) ([]string, error) {
 	var files []string
 
 	err := filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
@@ -291,13 +398,10 @@ func (f *FileUsecase) getSortedFiles(dirPath string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	// 按文件名排序
 	sort.Strings(files)
-
 	return files, nil
 }
-func (f FileUsecase) mergeFiles(files []string, outputFile string) error {
+func (f *FileUsecaseImpl) mergeFiles(files []string, outputFile string) error {
 	baseDir := filepath.Dir(outputFile)
 	if err := os.MkdirAll(baseDir, 0755); err != nil {
 		return err
@@ -322,7 +426,7 @@ func (f FileUsecase) mergeFiles(files []string, outputFile string) error {
 
 	return nil
 }
-func (f *FileUsecase) mvDir(src, dst string) error {
+func (f *FileUsecaseImpl) mvDir(src, dst string) error {
 	newPath := filepath.Join(dst, filepath.Base(src))
 	if _, err := os.Stat(newPath); err == nil {
 		// 目标路径存在，尝试删除
@@ -333,24 +437,24 @@ func (f *FileUsecase) mvDir(src, dst string) error {
 
 	return os.Rename(src, newPath)
 }
-func (f *FileUsecase) getPersistenceKeyParts(key string) string {
+func (f *FileUsecaseImpl) getPersistenceKeyParts(key string) string {
 	if strings.Contains(key, ".") {
 		key = key[:strings.LastIndex(key, ".")]
 
 	}
 	return filepath.Join(f.config.GetUploadDir(), "parts", key)
 }
-func (f *FileUsecase) getUri(filePath string) (string, error) {
+func (f *FileUsecaseImpl) getUri(bucket, filePath string) (string, error) {
 	uploadRootDir := f.config.GetUploadDir()
 	// log.Printf("uploadRootDir:%s,filePath:%s", uploadRootDir, filePath)
-	uri, err := filepath.Rel(uploadRootDir, filePath)
+	uri, err := filepath.Rel(filepath.Join(uploadRootDir, bucket), filePath)
 	if err != nil {
 		return "", gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_file_uri")
 	}
 	return uri, nil
 
 }
-func (f *FileUsecase) AbortMultipartUpload(ctx context.Context, in *api.AbortMultipartUploadRequest) (*api.AbortMultipartUploadResponse, error) {
+func (f *FileUsecaseImpl) AbortMultipartUpload(ctx context.Context, in *api.AbortMultipartUploadRequest) (*api.AbortMultipartUploadResponse, error) {
 	partsDir := f.getPartsDir(in.UploadId)
 	if !pathExists(partsDir) {
 		err := gosdk.NewError(pkg.ErrUploadIdNotFound, int32(api.FileSvrStatus_FILE_NOT_FOUND_UPLOADID_ERR), codes.NotFound, "upload_id_not_found")
@@ -363,15 +467,21 @@ func (f *FileUsecase) AbortMultipartUpload(ctx context.Context, in *api.AbortMul
 	}
 	return &api.AbortMultipartUploadResponse{}, nil
 }
-func (f *FileUsecase) CompleteMultipartUploadFile(ctx context.Context, in *api.CompleteMultipartUploadRequest, authorId string) (*api.CompleteMultipartUploadResponse, error) {
+func (f *FileUsecaseImpl) CompleteMultipartUploadFile(ctx context.Context, in *api.CompleteMultipartUploadRequest, authorId string) (*api.CompleteMultipartUploadResponse, error) {
 	if authorId == "" {
 		return nil, gosdk.NewError(pkg.ErrIdentityMissing, int32(user.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
 	}
+	originKey := in.Key
 	key, err := f.checkIn(in.Key)
 	if err != nil {
 		return nil, err
 	}
-	in.Key = filepath.Join(authorId, key)
+	if ok := f.checkBucket(in.Bucket); in.Bucket == "" || !ok && in.Engine == api.FileEngine_FILE_ENGINE_LOCAL.String() {
+		return nil, gosdk.NewError(pkg.ErrBucketNotFound, int32(api.FileSvrStatus_FILE_INVALIDATE_BUCKET_ERR), codes.NotFound, "bucket_not_found")
+
+	}
+	// in.Key = filepath.Join(authorId, key)
+	in.Key = key
 	partsDir := f.getPartsDir(in.UploadId)
 	if !pathExists(partsDir) {
 		err := gosdk.NewError(fmt.Errorf("%s:%s", in.UploadId, pkg.ErrUploadIdNotFound.Error()), int32(api.FileSvrStatus_FILE_NOT_FOUND_UPLOADID_ERR), codes.NotFound, "upload_id_not_found")
@@ -380,14 +490,14 @@ func (f *FileUsecase) CompleteMultipartUploadFile(ctx context.Context, in *api.C
 	}
 	files, err := f.getSortedFiles(partsDir)
 	if err != nil {
+
 		return nil, gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_sorted_files")
 
 	}
 
-	saveDir := f.getSaveDir(in.Key)
+	saveDir := f.getSaveDir(in.Bucket, in.Key)
 	filename := filepath.Base(in.Key)
 	filePath := filepath.Join(saveDir, filename)
-	// merge files to uploadDir/key
 	err = f.mergeFiles(files, filePath)
 	if err != nil {
 		return nil, gosdk.NewError(fmt.Errorf("merge file error:%w", err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "merge_files")
@@ -402,16 +512,45 @@ func (f *FileUsecase) CompleteMultipartUploadFile(ctx context.Context, in *api.C
 		return nil, gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "mv_dir")
 
 	}
-	uri, err := f.getUri(filePath)
+	uri, err := f.getUri(in.Bucket, filePath)
 	if err != nil {
 		return nil, err
 
 	}
 	commit := ""
-	if in.UseVersion {
-		commit, err = f.commitFile(saveDir, filename, authorId, "begonia@begonia.com")
+	if f.isEnableVersion(in.Bucket) && in.Engine == api.FileEngine_FILE_ENGINE_LOCAL.String() {
+		commit, err = f.commitFile(saveDir, filename, authorId, "fs@begonia.com")
 		if err != nil {
 			return nil, gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "commit_file")
+		}
+	}
+	fileKey := uri
+	if in.Engine != api.FileEngine_FILE_ENGINE_LOCAL.String() {
+		fileKey = originKey
+	}
+	fileObj := &api.Files{
+		Uid:       f.snowflake.GenerateIDString(),
+		Engine:    in.Engine,
+		Bucket:    in.Bucket,
+		Key:       fileKey,
+		IsDeleted: false,
+		Owner:     authorId,
+		CreatedAt: timestamppb.Now(),
+		UpdatedAt: timestamppb.Now(),
+	}
+	// log.Printf("insert %s,%s,%s,%s", fileObj.Uid, fileObj.Bucket, fileObj.Key, fileObj.Engine)
+	updated, err := f.repo.UpsertFile(ctx, fileObj)
+	if err != nil {
+		return nil, gosdk.NewError(fmt.Errorf("insert or update file err:%w",err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "upsert_file")
+	}
+	uid := fileObj.Uid
+	if updated {
+		existsObj, err := f.repo.GetFile(ctx, fileObj.Engine, fileObj.Bucket, fileObj.Key)
+		if err != nil {
+			return nil, gosdk.NewError(fmt.Errorf("get updated file error:%w",err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_file")
+		}
+		if existsObj != nil {
+			uid = existsObj.Uid
 		}
 	}
 	os.RemoveAll(filepath.Join(f.config.GetUploadDir(), in.UploadId))
@@ -419,10 +558,11 @@ func (f *FileUsecase) CompleteMultipartUploadFile(ctx context.Context, in *api.C
 	return &api.CompleteMultipartUploadResponse{
 		Uri:     uri,
 		Version: commit,
+		Uid:     uid,
 	}, err
 }
 
-func (f *FileUsecase) DownloadForRange(ctx context.Context, in *api.DownloadRequest, start int64, end int64, authorId string) ([]byte, int64, error) {
+func (f *FileUsecaseImpl) DownloadForRange(ctx context.Context, in *api.DownloadRequest, start int64, end int64, authorId string) ([]byte, int64, error) {
 	key, err := f.checkIn(in.Key)
 	if err != nil {
 		return nil, 0, err
@@ -434,7 +574,7 @@ func (f *FileUsecase) DownloadForRange(ctx context.Context, in *api.DownloadRequ
 
 	}
 
-	file, err := f.getReader(in.Key, in.Version)
+	file, err := f.getReader(in.Bucket, in.Key, in.Version)
 	if err != nil {
 		code, grcpCode := f.checkStatusCode(err)
 		return nil, 0, gosdk.NewError(err, code, grcpCode, "open_file")
@@ -455,14 +595,14 @@ func (f *FileUsecase) DownloadForRange(ctx context.Context, in *api.DownloadRequ
 	return buf, file.Size(), nil
 
 }
-func (f *FileUsecase) Metadata(ctx context.Context, in *api.FileMetadataRequest, authorId string) (*api.FileMetadataResponse, error) {
+func (f *FileUsecaseImpl) Metadata(ctx context.Context, in *api.FileMetadataRequest, authorId string) (*api.FileMetadataResponse, error) {
 	key, err := f.checkIn(in.Key)
 	originKey := in.Key
 	if err != nil {
 		return nil, err
 	}
 	in.Key = key
-	file, err := f.getReader(in.Key, in.Version)
+	file, err := f.getReader(in.Bucket, in.Key, in.Version)
 	if err != nil {
 		code, grpcCode := f.checkStatusCode(err)
 		return nil, gosdk.NewError(err, code, grpcCode, "open_file")
@@ -493,9 +633,20 @@ func (f *FileUsecase) Metadata(ctx context.Context, in *api.FileMetadataRequest,
 	if versionReader, ok := file.(FileVersionReader); ok {
 		version = versionReader.Version()
 	} else {
-		version, _ = f.Version(ctx, originKey, authorId)
+		version, _ = f.Version(ctx, in.Bucket, originKey, authorId)
 
 	}
+	uid := in.FileId
+	bucket := in.Bucket
+	if uid == "" {
+		fileObj, err := f.repo.GetFile(ctx, in.Engine, in.Bucket, in.Key)
+		if err != nil {
+			return nil, gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_file")
+		}
+		bucket = fileObj.Bucket
+		uid = fileObj.Uid
+	}
+	// log.Printf("uid:%s,bucket:%s", uid, bucket)
 	return &api.FileMetadataResponse{
 		Size:        file.Size(),
 		ModifyTime:  file.ModifyTime(),
@@ -504,15 +655,17 @@ func (f *FileUsecase) Metadata(ctx context.Context, in *api.FileMetadataRequest,
 		Name:        filepath.Base(in.Key),
 		Etag:        fmt.Sprintf("%d-%s", file.Size(), sha256),
 		Version:     version,
+		Uid:         uid,
+		Bucket:      bucket,
 	}, nil
 }
 
 // getReader obtains a file reader.
 //
 // If the version is not empty, the file reader will be a version file reader.
-func (f *FileUsecase) getReader(key string, version string) (FileReader, error) {
+func (f *FileUsecaseImpl) getReader(bucket, key string, version string) (FileReader, error) {
 
-	dir := f.getSaveDir(key)
+	dir := f.getSaveDir(bucket, key)
 
 	filePath := filepath.Join(dir, filepath.Base(key))
 	var fileReader FileReader
@@ -532,12 +685,12 @@ func (f *FileUsecase) getReader(key string, version string) (FileReader, error) 
 	return fileReader, nil
 
 }
-func (f *FileUsecase) Version(ctx context.Context, key, authorId string) (string, error) {
+func (f *FileUsecaseImpl) Version(ctx context.Context, bucket, key, authorId string) (string, error) {
 	key, err := f.checkIn(key)
 	if err != nil {
 		return "", err
 	}
-	file, err := f.getReader(key, "latest")
+	file, err := f.getReader(bucket, key, "latest")
 	if err != nil {
 		code, grpcCode := f.checkStatusCode(err)
 		return "", gosdk.NewError(err, code, grpcCode, "open_file")
@@ -545,7 +698,7 @@ func (f *FileUsecase) Version(ctx context.Context, key, authorId string) (string
 	defer file.Close()
 	return file.(FileVersionReader).Version(), nil
 }
-func (f *FileUsecase) checkStatusCode(err error) (int32, codes.Code) {
+func (f *FileUsecaseImpl) checkStatusCode(err error) (int32, codes.Code) {
 
 	switch err {
 	case git.ErrRepositoryNotExists, os.ErrNotExist:
@@ -554,14 +707,17 @@ func (f *FileUsecase) checkStatusCode(err error) (int32, codes.Code) {
 		return int32(common.Code_INTERNAL_ERROR), codes.Internal
 	}
 }
-func (f *FileUsecase) Download(ctx context.Context, in *api.DownloadRequest, authorId string) ([]byte, error) {
+func (f *FileUsecaseImpl) GetFileByID(ctx context.Context, fileId string) (*api.Files, error) {
+	return f.repo.GetFileById(ctx, fileId)
+}
+func (f *FileUsecaseImpl) Download(ctx context.Context, in *api.DownloadRequest, authorId string) ([]byte, error) {
 
 	key, err := f.checkIn(in.Key)
 	if err != nil {
 		return nil, err
 	}
 	in.Key = key
-	file, err := f.getReader(in.Key, in.Version)
+	file, err := f.getReader(in.Bucket, in.Key, in.Version)
 	if err != nil {
 		code, httpCode := f.checkStatusCode(err)
 		return nil, gosdk.NewError(err, code, httpCode, "open_file")
@@ -580,14 +736,13 @@ func (f *FileUsecase) Download(ctx context.Context, in *api.DownloadRequest, aut
 	return buf, nil
 
 }
-
-func (f *FileUsecase) Delete(ctx context.Context, in *api.DeleteRequest, authorId string) (*api.DeleteResponse, error) {
+func (f *FileUsecaseImpl) Delete(ctx context.Context, in *api.DeleteRequest, authorId string) (*api.DeleteResponse, error) {
 	key, err := f.checkIn(in.Key)
 	if err != nil {
 		return nil, err
 	}
 	in.Key = key
-	file, err := f.getReader(in.Key, "")
+	file, err := f.getReader(in.Bucket, in.Key, "")
 	if err != nil && !os.IsNotExist(err) {
 		// log.Printf("err:%v", err)
 		return nil, gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "remove_file")
@@ -597,7 +752,7 @@ func (f *FileUsecase) Delete(ctx context.Context, in *api.DeleteRequest, authorI
 		defer file.Close()
 		os.Remove(file.Name())
 	}
-	versionFile, err := f.getReader(in.Key, "latest")
+	versionFile, err := f.getReader(in.Bucket, in.Key, "latest")
 	if err != nil {
 		// log.Printf("version err:%v", err)
 		code, rpcCode := f.checkStatusCode(err)
@@ -611,5 +766,18 @@ func (f *FileUsecase) Delete(ctx context.Context, in *api.DeleteRequest, authorI
 	if err != nil {
 		return nil, gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "remove_parts_dir")
 	}
-	return &api.DeleteResponse{}, nil
+	err = f.repo.DelFile(ctx, in.Bucket, in.Key, in.Key)
+	if err != nil {
+		return nil, gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "remove_file")
+
+	}
+	return &api.DeleteResponse{}, err
+}
+
+func (f *FileUsecaseImpl) List(ctx context.Context, in *api.ListFilesRequest, authorId string) ([]*api.Files, error) {
+	files, err := f.repo.List(ctx, in.Page, int32(in.PageSize), in.Bucket, in.Engine, authorId)
+	if err != nil {
+		return nil, err
+	}
+	return files, nil
 }

@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -35,6 +36,8 @@ const (
 	XProtocol   = "x-http-protocol"
 	XHttpURI    = "x-http-uri"
 	XIdentity   = "x-identity"
+	XApiKey	  = "x-api-key"
+	XIdentityType = "x-identity-type"
 )
 
 func preflightHandler(w http.ResponseWriter, _ *http.Request) {
@@ -114,17 +117,25 @@ func IncomingHeadersToMetadata(ctx context.Context, req *http.Request) metadata.
 	md.Set(gosdk.GetMetadataKey(XRequestID), reqID)
 	xuid := md.Get(XUID)
 	accessKey := md.Get(XAccessKey)
+	apikey:=md.Get(XApiKey)
 	author := ""
+	// idType := gosdk.UidType
 	if len(xuid) > 0 {
 		author = xuid[0]
 	}
 	if author == "" && len(accessKey) > 0 {
 		author = accessKey[0]
+		// idType = gosdk.AccessKeyType
+	}
+	if author == ""&& len(apikey)>0{ 
+		author = apikey[0]
+		// idType = gosdk.ApiKeyType
 	}
 	if author == "" {
 		return md
 	}
-	md.Set(XIdentity, author)
+	// md.Set(XIdentity, author)
+	// md.Set(XIdentityType, idType)
 
 	return md
 }
@@ -216,6 +227,10 @@ func clientMessageFromCode(code codes.Code) string {
 	switch code {
 	case codes.ResourceExhausted:
 		return "The requested resource size exceeds the server limit."
+	case codes.NotFound:
+		return "The requested resource is not found."
+	case codes.AlreadyExists:
+		return "The requested resource already exists."
 	default:
 		return "Unknown error"
 
@@ -233,6 +248,7 @@ func HandleErrorWithLogger(logger logger.Logger) runtime.ErrorHandlerFunc {
 			"status": statusCode,
 		},
 		)
+		fmt.Printf("error type:%T, error:%v", err, err)
 		if _, ok := metadata.FromIncomingContext(ctx); !ok {
 			md := IncomingHeadersToMetadata(ctx, req)
 			ctx = metadata.NewIncomingContext(ctx, md)

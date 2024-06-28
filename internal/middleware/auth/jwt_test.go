@@ -71,7 +71,8 @@ func TestJWTUnaryInterceptor(t *testing.T) {
 		user := data.NewUserRepo(config, gateway.Log)
 		userAuth := crypto.NewUsersAuth(cnf)
 		authzRepo := data.NewAuthzRepo(config, gateway.Log)
-		authz := biz.NewAuthzUsecase(authzRepo, user, gateway.Log, userAuth, cnf)
+		appRepo:=data.NewAppRepo(config,gateway.Log)
+		authz := biz.NewAuthzUsecase(authzRepo, user,appRepo, gateway.Log, userAuth, cnf)
 		jwt := auth.NewJWTAuth(cnf, tiga.NewRedisDao(config), authz, gateway.Log)
 		jwt.SetPriority(1)
 		c.So(jwt.Priority(), c.ShouldEqual, 1)
@@ -297,7 +298,8 @@ func TestJWTStreamInterceptor(t *testing.T) {
 		user := data.NewUserRepo(config, gateway.Log)
 		userAuth := crypto.NewUsersAuth(cnf)
 		authzRepo := data.NewAuthzRepo(config, gateway.Log)
-		authz := biz.NewAuthzUsecase(authzRepo, user, gateway.Log, userAuth, cnf)
+		appRepo:=data.NewAppRepo(config,gateway.Log)
+		authz := biz.NewAuthzUsecase(authzRepo, user,appRepo, gateway.Log, userAuth, cnf)
 		jwt := auth.NewJWTAuth(cnf, tiga.NewRedisDao(config), authz, gateway.Log)
 		err := jwt.StreamInterceptor(&hello.HelloRequest{}, &greeterSayHelloWebsocketServer{ServerStream: &testStream{
 			ctx: metadata.NewIncomingContext(context.Background(), metadata.Pairs("x-api-key", cnf.GetAdminAPIKey())),

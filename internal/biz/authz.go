@@ -33,10 +33,11 @@ type AuthzUsecase struct {
 	authCrypto *crypto.UsersAuth
 	config     *config.Config
 	user       UserRepo
+	app        AppRepo
 }
 
-func NewAuthzUsecase(repo AuthzRepo, user UserRepo, log logger.Logger, crypto *crypto.UsersAuth, config *config.Config) *AuthzUsecase {
-	return &AuthzUsecase{repo: repo, log: log, authCrypto: crypto, config: config, user: user}
+func NewAuthzUsecase(repo AuthzRepo, user UserRepo, app AppRepo, log logger.Logger, crypto *crypto.UsersAuth, config *config.Config) *AuthzUsecase {
+	return &AuthzUsecase{repo: repo, log: log, authCrypto: crypto, config: config, user: user, app: app}
 }
 
 func (u *AuthzUsecase) DelToken(ctx context.Context, key string) error {
@@ -166,5 +167,33 @@ func (u *AuthzUsecase) Logout(ctx context.Context, req *api.LogoutAPIRequest) er
 		return gosdk.NewError(err, int32(common.Code_AUTH_ERROR), codes.Internal, "add_black_list")
 	}
 	return nil
+}
+func (u *AuthzUsecase) GetIdentity(ctx context.Context, idType string, identity string) (string, error) {
+	switch idType {
+	case gosdk.UidType:
+		return identity, nil
+	case gosdk.AccessKeyType:
+		app, err := u.app.Get(ctx, identity)
+		if err != nil {
+			return "", gosdk.NewError(err, int32(common.Code_AUTH_ERROR), codes.Internal, "app_query")
+		}
+		return app.Owner, nil
+	case gosdk.ApiKeyType:
+		apikey := u.config.GetAdminAPIKey()
+		if apikey != identity {
+			return "", gosdk.NewError(pkg.ErrAPIKeyNotMatch, int32(common.Code_AUTH_ERROR), codes.Unauthenticated, "api_key")
+		}
+		// 登陆验证
+		key, iv := u.config.GetAesConfig()
+		adminName := u.config.GetDefaultAdminName()
+		account, _ := tiga.EncryptAES([]byte(key), adminName, iv)
+		user, err := u.user.Get(ctx, account)
+		if err != nil {
+			return "", gosdk.NewError(err, int32(common.Code_AUTH_ERROR), codes.Internal, "user_query")
+		}
+		return user.Uid, nil
+	default:
+		return "", gosdk.NewError(pkg.ErrIdentityMissing, int32(common.Code_AUTH_ERROR), codes.InvalidArgument, "identity_type")
 
+	}
 }

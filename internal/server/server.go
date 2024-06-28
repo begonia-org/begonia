@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"os"
@@ -33,6 +34,7 @@ func NewGatewayConfig(gw string) *gateway.GatewayConfig {
 }
 func readDesc(conf *config.Config) (gateway.ProtobufDescription, error) {
 	desc := conf.GetLocalAPIDesc()
+	log.Printf("read desc file:%s", desc)
 	bin, err := os.ReadFile(desc)
 	if err != nil {
 		return nil, fmt.Errorf("read desc file error:%w", err)
@@ -72,17 +74,16 @@ func NewGateway(cfg *gateway.GatewayConfig, conf *config.Config, services []serv
 	// 中间件配置
 	opts.Options = append(opts.Options, grpc.ChainUnaryInterceptor(pluginApply.UnaryInterceptorChains()...))
 	opts.Options = append(opts.Options, grpc.ChainStreamInterceptor(pluginApply.StreamInterceptorChains()...))
-
+	pd, err := readDesc(conf)
+	if err != nil {
+		panic(err)
+	}
 	cors := &gateway.CorsHandler{
 		Cors: conf.GetCorsConfig(),
 	}
 	opts.HttpHandlers = append(opts.HttpHandlers, cors.Handle)
 	gw := gateway.New(cfg, opts)
 
-	pd, err := readDesc(conf)
-	if err != nil {
-		panic(err)
-	}
 	routersList := routers.Get()
 	for _, srv := range services {
 		err := gw.RegisterLocalService(context.Background(), pd, srv.Desc(), srv)

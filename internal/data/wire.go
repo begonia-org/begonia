@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/begonia-org/begonia/internal/biz"
+	"github.com/begonia-org/begonia/internal/biz/file"
+
 	"github.com/begonia-org/begonia/internal/biz/endpoint"
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/go-sdk/logger"
@@ -41,4 +43,7 @@ func NewDataRepo(cfg *tiga.Configuration, log logger.Logger) *Data {
 }
 func NewLocker(cfg *tiga.Configuration, log logger.Logger, key string, ttl time.Duration, retry int) biz.DataLock {
 	panic(wire.Build(ProviderSet))
+}
+func NewFileRepo(cfg *tiga.Configuration, log logger.Logger) file.FileRepo {
+	panic(wire.Build(ProviderSet, config.NewConfig))
 }

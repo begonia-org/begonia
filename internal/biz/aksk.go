@@ -117,3 +117,11 @@ func (a *AccessKeyAuth) GetAppid(ctx context.Context, accessKey string) (string,
 	}
 	return appid, nil
 }
+
+func (a *AccessKeyAuth) GetAppOwner(ctx context.Context, accessKey string) (string, error) {
+	app, err := a.app.Get(ctx, accessKey)
+	if err != nil {
+		return "", gosdk.NewError(err, int32(api.APPSvrCode_APP_UNKNOWN), codes.Unauthenticated, "app_owner")
+	}
+	return app.Owner, nil
+}

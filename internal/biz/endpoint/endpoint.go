@@ -7,7 +7,6 @@ import (
 	"math"
 	"time"
 
-	"github.com/begonia-org/begonia/internal/biz/file"
 	"github.com/begonia-org/begonia/internal/pkg"
 	"github.com/begonia-org/begonia/internal/pkg/config"
 	loadbalance "github.com/begonia-org/go-loadbalancer"
@@ -27,6 +26,7 @@ type EndpointRepo interface {
 	List(ctx context.Context, keys []string) ([]*api.Endpoints, error)
 	Put(ctx context.Context, endpoint *api.Endpoints) error
 	Patch(ctx context.Context, id string, patch map[string]interface{}) error
+	ServiceNameExists(ctx context.Context, serviceName, exceptId string) error
 	PutTags(ctx context.Context, id string, tags []string) error
 	GetKeysByTags(ctx context.Context, tags []string) ([]string, error)
 }
@@ -34,14 +34,13 @@ type EndpointRepo interface {
 type EndpointUsecase struct {
 	repo    EndpointRepo
 	config  *config.Config
-	file    *file.FileUsecase
 	snk     *tiga.Snowflake
 	watcher *EndpointWatcher
 }
 
-func NewEndpointUsecase(repo EndpointRepo, file *file.FileUsecase, config *config.Config) *EndpointUsecase {
+func NewEndpointUsecase(repo EndpointRepo, config *config.Config) *EndpointUsecase {
 	snk, _ := tiga.NewSnowflake(1)
-	return &EndpointUsecase{repo: repo, file: file, config: config, snk: snk, watcher: NewWatcher(config, repo)}
+	return &EndpointUsecase{repo: repo, config: config, snk: snk, watcher: NewWatcher(config, repo)}
 }
 
 func (e *EndpointUsecase) AddConfig(ctx context.Context, srvConfig *api.EndpointSrvConfig) (string, error) {
@@ -133,6 +132,10 @@ func (u *EndpointUsecase) Delete(ctx context.Context, uniqueKey string) error {
 
 func (u *EndpointUsecase) Get(ctx context.Context, uniqueKey string) (*api.Endpoints, error) {
 	detailsKey := u.config.GetServiceKey(uniqueKey)
+	if !tiga.IsSnowflakeID(uniqueKey) {
+		detailsKey = u.config.GetServiceNameKey(uniqueKey)
+	}
+	// detailsKey := u.config.GetServiceKey(uniqueKey)
 	value, err := u.repo.Get(ctx, detailsKey)
 	if err != nil {
 		return nil, gosdk.NewError(fmt.Errorf("%s:%w", pkg.ErrEndpointNotExists.Error(), err), int32(common.Code_NOT_FOUND), codes.NotFound, "get_endpoint")

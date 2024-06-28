@@ -10,6 +10,7 @@ import (
 	"github.com/begonia-org/begonia/config"
 	"github.com/begonia-org/begonia/gateway"
 	"github.com/begonia-org/begonia/internal"
+	api "github.com/begonia-org/go-sdk/api/endpoint/v1"
 	"github.com/begonia-org/go-sdk/client"
 	"github.com/spf13/cobra"
 )
@@ -17,6 +18,7 @@ import (
 // var ProviderSet = wire.NewSet(NewMasterCmd)
 func addCommonCommand(cmd *cobra.Command) *cobra.Command {
 	cmd.Flags().StringP("env", "e", "dev", "Runtime Environment")
+	cmd.Flags().StringP("config", "c", "./config/settings.yml", "Config file path")
 	return cmd
 }
 func NewInitCmd() *cobra.Command {
@@ -25,10 +27,14 @@ func NewInitCmd() *cobra.Command {
 		Short: "Init Database",
 		Run: func(cmd *cobra.Command, args []string) {
 			env, _ := cmd.Flags().GetString("env")
-			config := config.ReadConfig(env)
+			cnf, err := cmd.Flags().GetString("config")
+			if err != nil {
+				log.Fatalf("failed to get config: %v", err)
+			}
+			config := config.ReadConfigWithDir(env, cnf)
 			operator := internal.InitOperatorApp(config)
 			log.Printf("init database")
-			err := operator.Init()
+			err = operator.Init()
 			if err != nil {
 				log.Fatalf("failed to init database: %v", err)
 			}
@@ -45,7 +51,11 @@ func NewGatewayCmd() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			endpoint, _ := cmd.Flags().GetString("endpoint")
 			env, _ := cmd.Flags().GetString("env")
-			config := config.ReadConfig(env)
+			cnf, err := cmd.Flags().GetString("config")
+			if err != nil {
+				log.Fatalf("failed to get config: %v", err)
+			}
+			config := config.ReadConfigWithDir(env, cnf)
 			worker := internal.New(config, gateway.Log, endpoint)
 			hd, _ := os.UserHomeDir()
 			_ = os.WriteFile(hd+"/.begonia/gateway.json", []byte(fmt.Sprintf(`{"addr":"http://%s"}`, endpoint)), 0666)
@@ -65,8 +75,9 @@ func NewEndpointDelCmd() *cobra.Command {
 
 		Run: func(cmd *cobra.Command, args []string) {
 			id, _ := cmd.Flags().GetString("id")
+			env, _ := cmd.Flags().GetString("env")
 
-			DeleteEndpoint(id)
+			DeleteEndpoint(env,id)
 		},
 	}
 	cmd.Flags().StringP("id", "i", "", "ID Of Your Service")
@@ -85,18 +96,75 @@ func NewEndpointAddCmd() *cobra.Command {
 			tags, _ := cmd.Flags().GetStringArray("tags")
 			balance, _ := cmd.Flags().GetString("balance")
 			endpoints, _ := cmd.Flags().GetStringArray("endpoint")
+			env,_:=cmd.Flags().GetString("env")
 
-			RegisterEndpoint(name, endpoints, desc, client.WithBalance(strings.ToUpper(balance)), client.WithTags(tags))
+			RegisterEndpoint(env,name, endpoints, desc, client.WithBalance(strings.ToUpper(balance)), client.WithTags(tags))
 		},
 	}
+	cmd = newWriteEndpointCmd(cmd)
+	_ = cmd.MarkFlagRequired("name")
+	_ = cmd.MarkFlagRequired("endpoint")
+	_ = cmd.MarkFlagRequired("desc")
+	return cmd
+}
+func newWriteEndpointCmd(cmd *cobra.Command) *cobra.Command {
 	cmd.Flags().StringArrayP("endpoint", "p", []string{}, "Endpoint Of Your Service (example:127.0.0.1:1949)")
 	cmd.Flags().StringP("name", "n", "", "Service Name")
 	cmd.Flags().StringP("desc", "d", "", "Descriptions Set Of Your Service (example:./example/example.pb)")
 	cmd.Flags().StringArrayP("tags", "t", []string{}, "Tags Of Your Service")
 	cmd.Flags().StringP("balance", "b", "RR", "Balance Type Of Your Service (options: RR WRR LC WLC CH SED NQ)")
-	_ = cmd.MarkFlagRequired("name")
-	_ = cmd.MarkFlagRequired("endpoint")
-	_ = cmd.MarkFlagRequired("desc")
+
+	return cmd
+}
+func NewEndpointUpdateCmd() *cobra.Command {
+	var cmd = &cobra.Command{
+		Use:   "update",
+		Short: "Update Service To Gateway",
+
+		Run: func(cmd *cobra.Command, args []string) {
+			id, _ := cmd.Flags().GetString("id")
+			name, _ := cmd.Flags().GetString("name")
+			desc, _ := cmd.Flags().GetString("desc")
+			tags, _ := cmd.Flags().GetStringArray("tags")
+			balance, _ := cmd.Flags().GetString("balance")
+			endpoints, _ := cmd.Flags().GetStringArray("endpoint")
+			mask := make([]string, 0)
+			options := make([]client.EndpointOption, 0)
+			if cmd.Flags().Changed("name") {
+				options = append(options, client.WithName(name))
+				mask = append(mask, "name")
+			}
+		
+			if cmd.Flags().Changed("desc") {
+				options = append(options, client.WithDescription(desc))
+				mask = append(mask, "description")
+			}
+			if cmd.Flags().Changed("tags") {
+				options = append(options, client.WithTags(tags))
+				mask = append(mask, "tags")
+			}
+			if cmd.Flags().Changed("balance") {
+				options = append(options, client.WithBalance(strings.ToUpper(balance)))
+				mask = append(mask, "balance")
+			}
+			if cmd.Flags().Changed("endpoints") {
+				meta := make([]*api.EndpointMeta, 0)
+				for i, v := range endpoints {
+					meta = append(meta, &api.EndpointMeta{
+						Addr:   v,
+						Weight: int32(i),
+					})
+				}
+				options = append(options, client.WithEndpoints(meta))
+				mask = append(mask, "endpoints")
+			}
+			env,_:=cmd.Flags().GetString("env")
+			UpdateEndpoint(env,id, mask, options...)
+		},
+	}
+	cmd = newWriteEndpointCmd(cmd)
+	cmd.Flags().StringP("id", "i", "", "ID Of Your Service")
+	_ = cmd.MarkFlagRequired("id")
 	return cmd
 }
 func NewEndpointCmd() *cobra.Command {
@@ -109,6 +177,7 @@ func NewEndpointCmd() *cobra.Command {
 
 	cmd.AddCommand(NewEndpointAddCmd())
 	cmd.AddCommand(NewEndpointDelCmd())
+	cmd.AddCommand(NewEndpointUpdateCmd())
 	return cmd
 }
 func NewBegoniaInfoCmd() *cobra.Command {
@@ -132,8 +201,8 @@ func main() {
 	rootCmd.AddCommand(cmd)
 	rootCmd.AddCommand(NewBegoniaInfoCmd())
 	rootCmd.AddCommand(addCommonCommand(NewInitCmd()))
-	rootCmd.AddCommand(NewEndpointCmd())
+	rootCmd.AddCommand(addCommonCommand(NewEndpointCmd()))
 	if err := cmd.Execute(); err != nil {
-		log.Fatalf("failed to start master: %v", err)
+		log.Fatalf("failed to start begonia: %v", err)
 	}
 }

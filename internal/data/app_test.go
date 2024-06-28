@@ -252,7 +252,7 @@ func testListApp(t *testing.T) {
 		env = begonia.Env
 	}
 	repo := NewAppRepo(cfg.ReadConfig(env), gateway.Log)
-	snk, _ := tiga.NewSnowflake(1)
+	snk, _ := tiga.NewSnowflake(5)
 	rand := rand.New(rand.NewSource(time.Now().UnixNano()))
 	status := []api.APPStatus{api.APPStatus_APP_ENABLED, api.APPStatus_APP_DISABLED}
 	tags := [3]string{"tags-1", "tags-3", "tags-2"}

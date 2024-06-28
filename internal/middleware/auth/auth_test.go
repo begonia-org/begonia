@@ -90,8 +90,12 @@ func readInitAPP() (string, string, string) {
 		log.Fatalf(err.Error())
 		return "", "", ""
 	}
+	env := "dev"
+	if begonia.Env != "" {
+		env = begonia.Env
+	}
 	path := filepath.Join(homeDir, ".begonia")
-	path = filepath.Join(path, "admin-app.json")
+	path = filepath.Join(path, fmt.Sprintf("admin-app.%s.json", env))
 	file, err := os.Open(path)
 	if err != nil {
 		log.Fatalf(err.Error())
@@ -120,7 +124,8 @@ func getJWT() string {
 	user := data.NewUserRepo(config, gateway.Log)
 	userAuth := crypto.NewUsersAuth(cnf)
 	authzRepo := data.NewAuthzRepo(config, gateway.Log)
-	authz := biz.NewAuthzUsecase(authzRepo, user, gateway.Log, userAuth, cnf)
+	appRepo:=data.NewAppRepo(config,gateway.Log)
+	authz := biz.NewAuthzUsecase(authzRepo, user,appRepo, gateway.Log, userAuth, cnf)
 	adminUser := cnf.GetDefaultAdminName()
 	adminPasswd := cnf.GetDefaultAdminPasswd()
 	_, filename, _, _ := runtime.Caller(0)
@@ -212,10 +217,12 @@ func getMid() gosdk.LocalPlugin {
 	user := data.NewUserRepo(config, gateway.Log)
 	userAuth := crypto.NewUsersAuth(cnf)
 	authzRepo := data.NewAuthzRepo(config, gateway.Log)
-	authz := biz.NewAuthzUsecase(authzRepo, user, gateway.Log, userAuth, cnf)
+	appRepo:=data.NewAppRepo(config,gateway.Log)
+	authz := biz.NewAuthzUsecase(authzRepo, user,appRepo, gateway.Log, userAuth, cnf)
 	jwt := auth.NewJWTAuth(cnf, tiga.NewRedisDao(config), authz, gateway.Log)
 	ak := auth.NewAccessKeyAuth(akBiz, cnf, gateway.Log)
-	apiKey := auth.NewApiKeyAuth(cnf)
+
+	apiKey := auth.NewApiKeyAuth(cnf,authz)
 	mid := auth.NewAuth(ak, jwt, apiKey)
 	return mid
 
@@ -231,6 +238,19 @@ func TestUnaryInterceptor(t *testing.T) {
 	mid := getMid()
 	ctx := context.Background()
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		md,ok:=metadata.FromIncomingContext(ctx)
+		if !ok{
+			return nil,fmt.Errorf("no metadata")
+		}
+		if identify:=md.Get(gosdk.HeaderXIdentity);len(identify)==0||identify[0]==""{
+			return nil,fmt.Errorf("no app identity")
+		}
+		XAccessKey:=md.Get(gosdk.HeaderXAccessKey)
+		XApiKey:=md.Get(gosdk.HeaderXApiKey)
+		XAuthz:=md.Get("authorization")
+		if len(XAccessKey)==0 && len(XApiKey)==0 && len(XAuthz)==0{
+			return nil,fmt.Errorf("no app auth key")
+		}
 		return nil, nil
 	}
 	R := routers.Get()
@@ -241,11 +261,11 @@ func TestUnaryInterceptor(t *testing.T) {
 	R.LoadAllRouters(pd)
 	c.Convey("TestUnaryInterceptor api-key", t, func() {
 
-		ctx = metadata.NewIncomingContext(ctx, metadata.Pairs("x-api-key", cnf.GetAdminAPIKey()))
+		ctx = metadata.NewIncomingContext(ctx, metadata.Pairs(gosdk.HeaderXApiKey, cnf.GetAdminAPIKey()))
 		_, err := mid.UnaryInterceptor(ctx, nil, &grpc.UnaryServerInfo{FullMethod: "/INTEGRATION.TESTSERVICE/GET"}, handler)
 		c.So(err, c.ShouldBeNil)
 
-		ctx = metadata.NewIncomingContext(ctx, metadata.Pairs("x-api-key", "123"))
+		ctx = metadata.NewIncomingContext(ctx, metadata.Pairs(gosdk.HeaderXApiKey, "123"))
 		_, err = mid.UnaryInterceptor(ctx, nil, &grpc.UnaryServerInfo{FullMethod: "/INTEGRATION.TESTSERVICE/GET"}, handler)
 		c.So(err, c.ShouldNotBeNil)
 		mid.SetPriority(1)
@@ -285,7 +305,7 @@ func TestUnaryInterceptor(t *testing.T) {
 		md.Append("uri", "/test/post")
 		md.Append("x-http-method", http.MethodPost)
 		patch := gomonkey.ApplyFuncReturn((*biz.AccessKeyAuth).GetSecret, secret, nil)
-		patch = patch.ApplyFuncReturn((*biz.AccessKeyAuth).GetAppid, appid, nil)
+		patch = patch.ApplyFuncReturn((*biz.AccessKeyAuth).GetAppOwner, appid, nil)
 		defer patch.Reset()
 		ctx := metadata.NewIncomingContext(context.Background(), md)
 		_, err = mid.UnaryInterceptor(ctx, u, &grpc.UnaryServerInfo{FullMethod: "/INTEGRATION.TESTSERVICE/GET"}, handler)
@@ -330,12 +350,20 @@ func TestStreamInterceptor(t *testing.T) {
 	R.LoadAllRouters(pd)
 	c.Convey("TestStreamInterceptor apikey", t, func() {
 
-		ctx = metadata.NewIncomingContext(ctx, metadata.Pairs("x-api-key", cnf.GetAdminAPIKey()))
+		ctx = metadata.NewIncomingContext(ctx, metadata.Pairs(gosdk.HeaderXApiKey, cnf.GetAdminAPIKey()))
 		err = mid.StreamInterceptor(&v1.Users{}, &greeterSayHelloWebsocketServer{ServerStream: &testStream{ctx: ctx}}, &grpc.StreamServerInfo{FullMethod: "/INTEGRATION.TESTSERVICE/GET"}, func(srv interface{}, ss grpc.ServerStream) error {
-			return nil
+			err:= ss.RecvMsg(srv)
+			md,_:=metadata.FromIncomingContext(ss.Context())
+			if identify:=md.Get(gosdk.HeaderXIdentity);len(identify)==0||identify[0]==""{
+				return fmt.Errorf("no app identity")
+			}
+			if xAppKey:=md.Get(gosdk.HeaderXApiKey);len(xAppKey)==0||xAppKey[0]==""{
+				return fmt.Errorf("no app key")
+			}
+			return err
 		})
 		c.So(err, c.ShouldBeNil)
-		ctx = metadata.NewIncomingContext(context.Background(), metadata.Pairs("x-api-key", "cnf.GetAdminAPIKey()"))
+		ctx = metadata.NewIncomingContext(context.Background(), metadata.Pairs(gosdk.HeaderXApiKey, "cnf.GetAdminAPIKey()"))
 		err = mid.StreamInterceptor(&v1.Users{}, &greeterSayHelloWebsocketServer{ServerStream: &testStream{ctx: ctx}}, &grpc.StreamServerInfo{FullMethod: "/INTEGRATION.TESTSERVICE/GET"}, func(srv interface{}, ss grpc.ServerStream) error {
 			return ss.RecvMsg(srv)
 		})
@@ -346,7 +374,15 @@ func TestStreamInterceptor(t *testing.T) {
 		jwt := getJWT()
 		ctx = metadata.NewIncomingContext(context.Background(), metadata.Pairs("authorization", "Bearer "+jwt))
 		err = mid.StreamInterceptor(&v1.Users{}, &greeterSayHelloWebsocketServer{ServerStream: &testStream{ctx: ctx}}, &grpc.StreamServerInfo{FullMethod: "/INTEGRATION.TESTSERVICE/GET"}, func(srv interface{}, ss grpc.ServerStream) error {
-			return ss.RecvMsg(srv)
+			err:= ss.RecvMsg(srv)
+			md,_:=metadata.FromIncomingContext(ss.Context())
+			if identify:=md.Get(gosdk.HeaderXIdentity);len(identify)==0||identify[0]==""{
+				return fmt.Errorf("no app identity")
+			}
+			if xAuthorization:=md.Get("authorization");len(xAuthorization)==0||xAuthorization[0]==""{
+				return fmt.Errorf("no jwt key")
+			}
+			return err
 		})
 		c.So(err, c.ShouldBeNil)
 		ctx = metadata.NewIncomingContext(context.Background(), metadata.Pairs("authorization", "Bearer 123"))
@@ -377,11 +413,23 @@ func TestStreamInterceptor(t *testing.T) {
 		md.Append("uri", "/test/post")
 		md.Append("x-http-method", http.MethodPost)
 		patch := gomonkey.ApplyFuncReturn((*biz.AccessKeyAuth).GetSecret, secret, nil)
-		patch = patch.ApplyFuncReturn((*biz.AccessKeyAuth).GetAppid, appid, nil)
+		patch = patch.ApplyFuncReturn((*biz.AccessKeyAuth).GetAppOwner, appid, nil)
 		defer patch.Reset()
 		ctx := metadata.NewIncomingContext(context.Background(), md)
 		err = mid.StreamInterceptor(u, &greeterSayHelloWebsocketServer{ServerStream: &testStream{ctx: ctx}}, &grpc.StreamServerInfo{FullMethod: "/INTEGRATION.TESTSERVICE/POST"}, func(srv interface{}, ss grpc.ServerStream) error {
-			return ss.RecvMsg(srv)
+			err:= ss.RecvMsg(srv)
+			md,ok:=metadata.FromIncomingContext(ss.Context())
+			if !ok{
+				return fmt.Errorf("no metadata")
+			}
+			if identify:=md.Get(gosdk.HeaderXIdentity);len(identify)==0||identify[0]==""{
+				return fmt.Errorf("no app identity")
+			}
+			if xAccessKey:=md.Get(gosdk.HeaderXAccessKey);len(xAccessKey)==0||xAccessKey[0]==""{
+				t.Logf("error metadata:%v",md)
+				return fmt.Errorf("no app access key")
+			}
+			return err
 		})
 		c.So(err, c.ShouldBeNil)
 

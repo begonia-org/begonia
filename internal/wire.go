@@ -47,8 +47,11 @@ func NewEndpointSvr(config *tiga.Configuration, log logger.Logger) ep.EndpointSe
 	panic(wire.Build(biz.ProviderSet, pkg.ProviderSet, data.ProviderSet, service.ProviderSet))
 }
 func NewFileSvr(config *tiga.Configuration, log logger.Logger) file.FileServiceServer {
-	panic(wire.Build(biz.ProviderSet, pkg.ProviderSet, service.ProviderSet))
+	panic(wire.Build(biz.ProviderSet, pkg.ProviderSet, data.ProviderSet, service.ProviderSet))
 }
 func NewSysSvr(config *tiga.Configuration, log logger.Logger) sys.SystemServiceServer {
 	panic(wire.Build(service.ProviderSet))
+}
+func NewWorker(config *tiga.Configuration, log logger.Logger, gw string) GatewayWorker {
+	panic(wire.Build(biz.ProviderSet, pkg.ProviderSet, data.ProviderSet, service.ProviderSet, daemon.ProviderSet, server.ProviderSet, middleware.ProviderSet, NewGatewayWorkerImpl))
 }

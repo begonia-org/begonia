@@ -57,7 +57,6 @@ func (s *HttpStream) SendMsg(m interface{}) error {
 		router := routersList.GetRouteByGrpcMethod(s.FullMethod)
 		// 对内置服务的http响应进行格式化
 		if routersList.IsLocalSrv(s.FullMethod) || router.UseJsonResponse {
-
 			rsp, _ := grpcToHttpResponse(m, nil)
 			return s.ServerStream.SendMsg(rsp)
 		}
@@ -149,7 +148,6 @@ func grpcToHttpResponse(rsp interface{}, err error) (*common.HttpResponse, error
 			return nil, gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "internal_error")
 		}
 	}
-
 	return &common.HttpResponse{
 		Code:    int32(common.Code_OK),
 		Message: "success",
