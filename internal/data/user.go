@@ -25,9 +25,45 @@ func NewUserRepoImpl(data *Data, local *LayeredCache, curd biz.CURD, cfg *config
 
 func (r *userRepoImpl) Add(ctx context.Context, user *api.Users) error {
 
-	err := r.curd.Add(ctx, user, true)
+	err := r.curd.Add(ctx, user, true,nil)
 	return err
 }
+// func (u *userRepoImpl) AddUserWithTenant(ctx context.Context, user *api.Users) error {
+// 	if user.TenantId != "" && user.TenantId != user.Uid {
+// 		ten, err := u.GetTenant(ctx, user.TenantId)
+// 		if err != nil || ten == nil || ten.TenantId == "" {
+// 			return fmt.Errorf("get tenant before add new user failed: %w or tenant not found", err)
+// 		}
+// 	} 
+// 	tx := u.curd.BeginTx(ctx)
+// 	defer func() {
+// 		if err := recover(); err != nil {
+// 			tx.Rollback()
+// 		}
+// 	}()
+// 	if user.TenantId==""{
+// 		user.TenantId = user.Uid
+// 		tenant := &api.Tenants{
+// 			TenantId: user.TenantId,
+// 			TenantName: user.Name,
+	
+// 		}
+// 		err := u.curd.Add(ctx, tenant, false, tx)
+// 		if err != nil {
+// 			tx.Rollback()
+// 			return fmt.Errorf("add tenant failed: %w", err)
+		
+// 		}
+// 	}
+
+// 	err := u.curd.Add(ctx, user, false, tx)
+// 	if err != nil {
+// 		tx.Rollback()
+// 		return fmt.Errorf("add user failed: %w", err)
+// 	}
+
+// 	return err
+// }
 func (r *userRepoImpl) Get(ctx context.Context, key string) (*api.Users, error) {
 
 	app := &api.Users{}
@@ -43,12 +79,12 @@ func (r *userRepoImpl) Del(ctx context.Context, key string) error {
 	if err != nil {
 		return err
 	}
-	err = r.curd.Del(ctx, user, true)
+	err = r.curd.Del(ctx, user, true,nil)
 	return err
 }
 func (r *userRepoImpl) Patch(ctx context.Context, model *api.Users) error {
 
-	return r.curd.Update(ctx, model, true)
+	return r.curd.Update(ctx, model, true,nil)
 }
 func (r *userRepoImpl) List(ctx context.Context, dept []string, status []api.USER_STATUS, page, pageSize int32) ([]*api.Users, error) {
 	apps := make([]*api.Users, 0)
@@ -108,3 +144,4 @@ func (u *userRepoImpl) cacheUsers(ctx context.Context, prefix string, uid string
 	}
 	return nil
 }
+

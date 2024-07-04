@@ -7,12 +7,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"strings"
 	"sync"
 
+	gosdk "github.com/begonia-org/go-sdk"
 	"github.com/gorilla/websocket"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc/codes"
@@ -297,7 +297,7 @@ func (h *HttpEndpointImpl) addHexEncodeSHA256HashV2(req *http.Request) error {
 	if req.ContentLength == 0 {
 		hashStruct.Write([]byte("{}"))
 		hexStr := fmt.Sprintf("%x", hashStruct.Sum(nil))
-		req.Header.Set("X-Content-Sha256", hexStr)
+		req.Header.Set(gosdk.HeaderXContentSha256, hexStr)
 		return nil
 
 	}
@@ -386,7 +386,7 @@ func (h *HttpEndpointImpl) RegisterHandlerClient(ctx context.Context, pd Protobu
 			if req.Header.Get("accept") == "" || req.Header.Get("accept") == "*/*" {
 				req.Header.Set("accept", "application/json")
 			}
-			log.Printf("request content-type:%s", req.Header.Get("content-type"))
+			// log.Printf("request content-type:%s", req.Header.Get("content-type"))
 			ctx, cancel := context.WithCancel(req.Context())
 			defer cancel()
 			inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)

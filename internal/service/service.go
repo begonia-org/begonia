@@ -24,7 +24,10 @@ var ProviderSet = wire.NewSet(NewAuthzService, NewUserService,
 	NewServices,
 	NewEndpointsService,
 	NewAppService,
-	NewSysService)
+	NewSysService,
+	NewTenantService,
+	NewBusinessService,
+)
 
 type ServiceOptions func(*grpc.Server, *runtime.ServeMux, string) error
 
@@ -34,10 +37,20 @@ func NewServices(file file.FileServiceServer,
 	app app.AppsServiceServer,
 	sys sys.SystemServiceServer,
 	users user.UserServiceServer,
+	business user.BusinessServiceServer,
+	tenant user.TenantsServiceServer,
 
 ) []Service {
 	services := make([]Service, 0)
-	services = append(services, file.(Service), authz.(Service), ep.(Service), app.(Service), sys.(Service), users.(Service))
+	services = append(services, file.(Service), 
+	authz.(Service), 
+	ep.(Service), 
+	app.(Service), 
+	sys.(Service), 
+	users.(Service),
+	business.(Service),
+	tenant.(Service),
+)
 	return services
 }
 

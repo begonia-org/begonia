@@ -44,13 +44,27 @@ func (m *UsersOperator) InitAdminUser(passwd string, aseKey, ivKey string, name,
 			CreatedAt: timestamppb.New(time.Now()),
 			UpdatedAt: timestamppb.New(time.Now()),
 			IsDeleted: false,
+			TenantId: fmt.Sprintf("%d", uid),
 		}
 
 		err = tiga.EncryptStructAES([]byte(aseKey), user, ivKey)
 		if err != nil {
 			return "", err
 		}
-		err = m.mysql.Create(context.Background(), user)
+		err = m.mysql.Create(context.Background(), user,nil)
+		tenant:=&api.Tenants{
+			TenantId: fmt.Sprintf("%d", uid),
+			TenantName: name,
+			Description: "Super Admin",
+			CreatedAt: timestamppb.New(time.Now()),
+			UpdatedAt: timestamppb.New(time.Now()),
+			Tags: []string{"admin"},
+			AdminId: fmt.Sprintf("%d", uid),
+		}
+		if err!=nil{
+			return "",err
+		}
+		_,err = m.mysql.Upsert(context.Background(), tenant,nil)
 		return user.Uid, err
 	}
 	return userExist.Uid, nil

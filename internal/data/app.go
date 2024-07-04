@@ -23,7 +23,7 @@ func NewAppRepoImpl(curd biz.CURD, local *LayeredCache, cfg *config.Config) biz.
 
 func (r *appRepoImpl) Add(ctx context.Context, apps *api.Apps) error {
 
-	if err := r.curd.Add(ctx, apps, false); err != nil {
+	if err := r.curd.Add(ctx, apps, false,nil); err != nil {
 		return fmt.Errorf("add app failed: %w", err)
 	}
 	key := r.cfg.GetAPPAccessKey(apps.AccessKey)
@@ -57,11 +57,11 @@ func (r *appRepoImpl) Del(ctx context.Context, key string) error {
 		return err
 	}
 	_ = r.local.Del(ctx, r.cfg.GetAPPAccessKey(app.AccessKey))
-	return r.curd.Del(ctx, app, false)
+	return r.curd.Del(ctx, app, false,nil)
 }
 func (r *appRepoImpl) Patch(ctx context.Context, model *api.Apps) error {
 
-	return r.curd.Update(ctx, model, false)
+	return r.curd.Update(ctx, model, false,nil)
 }
 func (r *appRepoImpl) List(ctx context.Context, tags []string, status []api.APPStatus, page, pageSize int32) ([]*api.Apps, error) {
 	apps := make([]*api.Apps, 0)

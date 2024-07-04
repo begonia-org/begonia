@@ -36,6 +36,22 @@ type BinaryDecoder struct {
 	marshaler runtime.Marshaler
 }
 
+// type JSONDecoder struct{
+// 	*runtime.DecoderWrapper
+// }
+// func (d *JSONDecoder) Decode(v interface{}) error {
+// 	if response, ok := v.(map[string]interface{}); ok {
+// 		if _, ok := response["result"]; ok {
+// 			v = response["result"]
+// 		}
+
+// 	}
+// 	if msg,ok:=v.(protoreflect.Message);ok{
+
+// 	}
+// 	return d.DecoderWrapper.Decode(v)
+
+// }
 // var typeOfBytes = reflect.TypeOf([]byte(nil))
 // var typeOfHttpbody = reflect.TypeOf(&httpbody.HttpBody{})
 
@@ -197,4 +213,7 @@ func (m *JSONMarshaler) Marshal(v interface{}) ([]byte, error) {
 }
 func (m *JSONMarshaler) ContentType(v interface{}) string {
 	return "application/json"
+}
+func (m *JSONMarshaler) NewDecoder(r io.Reader) runtime.Decoder {
+	return NewMaskDecoder(m.JSONPb.NewDecoder(r))
 }

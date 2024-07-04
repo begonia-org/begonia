@@ -26,7 +26,7 @@ type MySQLMigrate struct {
 
 func NewTableModels() []TableModel {
 	tables := make([]TableModel, 0)
-	tables = append(tables, api.Users{}, endpoint.Endpoints{}, app.Apps{}, file.Files{}, file.Buckets{})
+	tables = append(tables, api.Users{}, endpoint.Endpoints{}, app.Apps{}, file.Files{}, file.Buckets{},api.Tenants{},api.Business{},api.TenantsBusiness{})
 	return tables
 }
 func NewMySQLMigrate(mysql *tiga.MySQLDao, models ...TableModel) *MySQLMigrate {

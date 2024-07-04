@@ -50,6 +50,7 @@ func (u *UserUsecase) Add(ctx context.Context, users *api.Users) (err error) {
 	users.Uid = u.snowflake.GenerateIDString()
 
 	err = u.repo.Add(ctx, users)
+
 	return
 }
 func (u *UserUsecase) Get(ctx context.Context, key string) (*api.Users, error) {
@@ -62,12 +63,13 @@ func (u *UserUsecase) Get(ctx context.Context, key string) (*api.Users, error) {
 func (u *UserUsecase) Update(ctx context.Context, model *api.Users) error {
 	err := u.repo.Patch(ctx, model)
 	if err != nil {
-		if strings.Contains(err.Error(), "not found") {
-			return gosdk.NewError(err, int32(api.UserSvrCode_USER_NOT_FOUND_ERR), codes.NotFound, "get_user")
-		}
 		if strings.Contains(err.Error(), "Duplicate entry") {
 			return gosdk.NewError(err, int32(api.UserSvrCode_USER_USERNAME_DUPLICATE_ERR), codes.AlreadyExists, "patch_app")
 		}
+		if strings.Contains(err.Error(), "not found") {
+			return gosdk.NewError(err, int32(api.UserSvrCode_USER_NOT_FOUND_ERR), codes.NotFound, "get_user")
+		}
+
 		return gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_user")
 	}
 	return nil

@@ -129,7 +129,7 @@ func (d *DataOperatorUsecase) loadUsersBlacklist(ctx context.Context) error {
 	// 直接加载远程缓存到本地
 	// lastUpdate ttl<exp,避免更新不到缓存的情况
 	log.Printf("lastUpdate:%v", lastUpdate)
-	if lastUpdate.IsZero() || time.Since(lastUpdate) < 3*time.Second {
+	if lastUpdate.IsZero() || time.Since(lastUpdate) >= 3*time.Second {
 		users, err := d.repo.GetAllForbiddenUsers(ctx)
 		d.log.Infof(ctx, "load users:%d", len(users))
 

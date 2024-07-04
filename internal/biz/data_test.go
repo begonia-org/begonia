@@ -165,15 +165,20 @@ func TestDo(t *testing.T) {
 		}
 		err = appBiz.Put(context.TODO(), app, u2.Uid)
 		c.So(err, c.ShouldBeNil)
-		patch := gomonkey.ApplyFuncReturn((*cfg.Config).GetUserBlackListExpiration, 3)
+		patch := gomonkey.ApplyFuncReturn((*cfg.Config).GetUserBlackListExpiration, 6)
 		defer patch.Reset()
 		go dataOperator.Do(context.Background())
 		go dataOperator.Do(context.Background())
 
 		time.Sleep(5 * time.Second)
 		prefix := cnf.GetUserBlackListPrefix()
+		t.Logf("get blacklist: %s", fmt.Sprintf("%s:%s", prefix, u1.Uid))
+		// cache2:=data.NewLayered(config, gateway.Log)
+		// cache2.SetToLocal(context.TODO(), fmt.Sprintf("%s:%s", prefix, u1.Uid), []byte("1"), 3*time.Second)
+
 		val, err := cache.GetFromLocal(context.TODO(), fmt.Sprintf("%s:%s", prefix, u1.Uid))
 		c.So(err, c.ShouldBeNil)
+		t.Logf("blacklist value:%s",val)
 		c.So(val, c.ShouldNotBeEmpty)
 		appPrefix := cnf.GetAppPrefix()
 		val, err = cache.GetFromLocal(context.TODO(), fmt.Sprintf("%s:access_key:%s", appPrefix, app.AccessKey))

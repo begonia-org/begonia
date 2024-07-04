@@ -112,6 +112,7 @@ func (d *dataOperatorRepo) FlashUsersCache(ctx context.Context, prefix string, m
 	kv := make([]interface{}, 0)
 	for _, model := range models {
 		key := fmt.Sprintf("%s:%s", prefix, model.Uid)
+		// log.Printf("缓存用户:%s", key)
 		val, _ := protojson.Marshal(model)
 		kv = append(kv, key, string(val))
 	}

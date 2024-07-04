@@ -105,3 +105,25 @@ func NewFileRepo(cfg *tiga.Configuration, log logger.Logger) file.FileRepo {
 	fileRepo := NewFileRepoImpl(data, curd)
 	return fileRepo
 }
+
+func NewBusinessRepo(cfg *tiga.Configuration, log logger.Logger) biz.BusinessRepo {
+	mySQLDao := NewMySQL(cfg)
+	redisDao := NewRDB(cfg)
+	etcdDao := NewEtcd(cfg)
+	data := NewData(mySQLDao, redisDao, etcdDao)
+	configConfig := config.NewConfig(cfg)
+	curd := NewCurdImpl(mySQLDao, configConfig)
+	businessRepo := NewBusinessRepoImpl(data, curd, configConfig)
+	return businessRepo
+}
+
+func NewTenantRepo(cfg *tiga.Configuration, log logger.Logger) biz.TenantRepo {
+	mySQLDao := NewMySQL(cfg)
+	redisDao := NewRDB(cfg)
+	etcdDao := NewEtcd(cfg)
+	data := NewData(mySQLDao, redisDao, etcdDao)
+	configConfig := config.NewConfig(cfg)
+	curd := NewCurdImpl(mySQLDao, configConfig)
+	tenantRepo := NewTenantRepoImpl(data, configConfig, curd)
+	return tenantRepo
+}

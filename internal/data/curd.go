@@ -13,6 +13,7 @@ import (
 	"github.com/spark-lence/tiga"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"gorm.io/gorm"
 )
 
 type curdImpl struct {
@@ -48,7 +49,10 @@ func (c *curdImpl) SetBoolean(model biz.DeleteModel, name string) error {
 	model.ProtoReflect().Set(field, protoreflect.ValueOfBool(true))
 	return nil
 }
-func (c *curdImpl) Add(ctx context.Context, model biz.Model, needEncrypt bool) error {
+func (c *curdImpl) BeginTx(ctx context.Context) *gorm.DB {
+	return c.db.Begin()
+}
+func (c *curdImpl) Add(ctx context.Context, model biz.Model, needEncrypt bool, tx *gorm.DB) error {
 	if err := c.SetDatetimeAt(model, "created_at"); err != nil {
 		return err
 	}
@@ -66,7 +70,7 @@ func (c *curdImpl) Add(ctx context.Context, model biz.Model, needEncrypt bool) e
 		}
 
 	}
-	return c.db.Create(ctx, model)
+	return c.db.Create(ctx, model, tx)
 }
 func (c *curdImpl) Get(ctx context.Context, model interface{}, needDecrypt bool, query string, args ...interface{}) error {
 	if _, ok := model.(biz.DeleteModel); ok {
@@ -89,20 +93,21 @@ func (c *curdImpl) Get(ctx context.Context, model interface{}, needDecrypt bool,
 	}
 	return nil
 }
-func (c *curdImpl) Update(ctx context.Context, model biz.Model, needEncrypt bool) error {
+func (c *curdImpl) Update(ctx context.Context, model biz.Model, needEncrypt bool, tx *gorm.DB) error {
 	paths := make([]string, 0)
 	updateMask := model.GetUpdateMask()
 	if updateMask != nil {
 		paths = updateMask.Paths
 	}
 
-	key, val, err := getPrimaryColumnValue(model, "primary")
+	kv, err := getPrimaryColumnValue(model, "primary")
 	if err != nil {
 		return errors.Wrap(err, "get primary column value failed")
 	}
 	for _, path := range paths {
-		if path == key {
-			return fmt.Errorf("primary key %s can not be updated", key)
+		if k, ok := kv[path]; ok {
+
+			return fmt.Errorf("primary key %s can not be updated", k)
 		}
 
 	}
@@ -118,9 +123,14 @@ func (c *curdImpl) Update(ctx context.Context, model biz.Model, needEncrypt bool
 
 		}
 	}
-	err = c.db.UpdateSelectColumns(ctx, fmt.Sprintf("%s=%s", key, val), model, paths...)
+	query := make([]string, 0)
+	for k, v := range kv {
+		query = append(query, fmt.Sprintf("%s=%s", k, v))
+	}
+
+	err = c.db.UpdateSelectColumns(ctx, strings.Join(query, " and "), model, tx, paths...)
 	if err != nil {
-		return fmt.Errorf("update model for %s=%v failed: %w", key, val, err)
+		return fmt.Errorf("update model for %v failed: %w", query, err)
 	}
 	return nil
 }
@@ -132,9 +142,6 @@ func (c *curdImpl) renameUniqueFields(model biz.Model) ([]string, error) {
 		modelType = modelType.Elem()
 		modelVal = modelVal.Elem()
 
-	}
-	if modelType.Kind() != reflect.Struct {
-		return nil, fmt.Errorf("%s not a struct type", modelType.Kind().String())
 	}
 	updated := make([]string, 0)
 	// 遍历结构体的字段
@@ -160,11 +167,16 @@ func (c *curdImpl) renameUniqueFields(model biz.Model) ([]string, error) {
 	}
 	return updated, nil
 }
-func (c *curdImpl) Del(ctx context.Context, model interface{}, needEncrypt bool) error {
-	key, val, err := getPrimaryColumnValue(model, "primary")
+func (c *curdImpl) Del(ctx context.Context, model interface{}, needEncrypt bool, tx *gorm.DB) error {
+	kv, err := getPrimaryColumnValue(model, "primary")
 	if err != nil {
 		return errors.Wrap(err, "get primary column value failed")
 	}
+	query := []string{}
+	for k, v := range kv {
+		query = append(query, fmt.Sprintf("%s='%s'", k, v))
+	}
+
 	if delModel, ok := c.assertDeletedModel(model); ok {
 		if err := c.SetBoolean(delModel, "is_deleted"); err != nil {
 			return err
@@ -187,9 +199,13 @@ func (c *curdImpl) Del(ctx context.Context, model interface{}, needEncrypt bool)
 				}
 			}
 		}
-		return c.db.UpdateSelectColumns(ctx, fmt.Sprintf("%s=%s", key, val), model, updated...)
+		err = c.db.UpdateSelectColumns(ctx, strings.Join(query, " and "), delModel, tx, updated...)
+		if err != nil && !strings.Contains(err.Error(), "no rows affected") {
+			return err
+		}
+		return nil
 	} else {
-		return c.db.Delete(model, fmt.Sprintf("%s=?", key), val)
+		return c.db.Delete(model, tx, strings.Join(query, " and "))
 	}
 }
 func (c *curdImpl) assertDeletedModel(model interface{}) (biz.DeleteModel, bool) {

@@ -91,7 +91,7 @@ func (m *APPOperator) InitAdminAPP(owner,env string) (err error) {
 			UpdatedAt:   timestamppb.New(time.Now()),
 			Tags:        []string{"admin"},
 		}
-		err = m.mysql.Create(context.Background(), app)
+		err = m.mysql.Create(context.Background(), app,nil)
 		return err
 	}
 	return nil

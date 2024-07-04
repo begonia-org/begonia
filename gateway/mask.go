@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"io"
 
+	common "github.com/begonia-org/go-sdk/common/api/v1"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 )
@@ -22,7 +24,6 @@ func SetUpdateMaskFields(message protoreflect.ProtoMessage, fields []string) {
 	// 遍历所有字段
 	for i := 0; i < md.Fields().Len(); i++ {
 		field := md.Fields().Get(i)
-
 		// 检查字段是否是FieldMask类型
 		if field.Message() != nil && field.Message().FullName() == "google.protobuf.FieldMask" {
 			// 获取字段的值（确保它是FieldMask类型）
@@ -42,6 +43,21 @@ type maskDecoder struct {
 	newDecoder func(r io.Reader) runtime.Decoder
 }
 
+func FilterUnUpdatedFields(message protoreflect.ProtoMessage, mask []string) []string {
+	md := message.ProtoReflect().Descriptor()
+	filters := make([]string, 0)
+	for _, field := range mask {
+		if fd := md.Fields().ByJSONName(field); fd != nil {
+			// opt, ok := proto.GetExtension(fd.Options(), common.E_UnUpdatable).(bool)
+			// log.Printf("field:%v,ok:%v,opt:%v", fd.JSONName(),ok,opt)
+
+			if opt, ok := proto.GetExtension(fd.Options(), common.E_UnUpdatable).(bool); !ok || !opt {
+				filters = append(filters, field)
+			}
+		}
+	}
+	return filters
+}
 func NewJsonDecoder(r io.Reader) runtime.Decoder {
 	return runtime.DecoderWrapper{Decoder: json.NewDecoder(r)}
 }
@@ -82,6 +98,8 @@ func (d *maskDecoder) Decode(v interface{}) error {
 		return err
 	}
 	// 设置更新掩码字段
+	fields = FilterUnUpdatedFields(message, fields)
+	// log.Printf("fields:%v", fields)
 	SetUpdateMaskFields(message, fields)
 
 	return nil

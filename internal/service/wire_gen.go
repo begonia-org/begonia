@@ -16,7 +16,6 @@ import (
 	v1_2 "github.com/begonia-org/go-sdk/api/app/v1"
 	v1_3 "github.com/begonia-org/go-sdk/api/endpoint/v1"
 	v1_4 "github.com/begonia-org/go-sdk/api/file/v1"
-	v1_5 "github.com/begonia-org/go-sdk/api/sys/v1"
 	"github.com/begonia-org/go-sdk/api/user/v1"
 	"github.com/begonia-org/go-sdk/logger"
 	"github.com/spark-lence/tiga"
@@ -78,11 +77,9 @@ func NewFileSvrForTest(config2 *tiga.Configuration, log logger.Logger) v1_4.File
 	return fileServiceServer
 }
 
-func NewSysSvrForTest(config2 *tiga.Configuration, log logger.Logger) v1_5.SystemServiceServer {
-	systemServiceServer := NewSysService()
-	return systemServiceServer
-}
-
+//	func NewSysSvrForTest(config *tiga.Configuration, log logger.Logger) sys.SystemServiceServer {
+//		panic(wire.Build(NewSysService))
+//	}
 func NewUserSvrForTest(config2 *tiga.Configuration, log logger.Logger) v1.UserServiceServer {
 	mySQLDao := data.NewMySQL(config2)
 	redisDao := data.NewRDB(config2)

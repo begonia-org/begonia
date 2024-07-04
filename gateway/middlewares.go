@@ -2,7 +2,6 @@ package gateway
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -28,15 +27,15 @@ import (
 )
 
 const (
-	XRequestID  = "x-request-id"
-	XUID        = "x-uid"
-	XAccessKey  = "x-access-key"
-	XHttpMethod = "x-http-method"
-	XRemoteAddr = "x-http-forwarded-for"
-	XProtocol   = "x-http-protocol"
-	XHttpURI    = "x-http-uri"
-	XIdentity   = "x-identity"
-	XApiKey	  = "x-api-key"
+	XRequestID    = "x-request-id"
+	XUID          = "x-uid"
+	XAccessKey    = "x-access-key"
+	XHttpMethod   = "x-http-method"
+	XRemoteAddr   = "x-http-forwarded-for"
+	XProtocol     = "x-http-protocol"
+	XHttpURI      = "x-http-uri"
+	XIdentity     = "x-identity"
+	XApiKey       = "x-api-key"
 	XIdentityType = "x-identity-type"
 )
 
@@ -117,7 +116,7 @@ func IncomingHeadersToMetadata(ctx context.Context, req *http.Request) metadata.
 	md.Set(gosdk.GetMetadataKey(XRequestID), reqID)
 	xuid := md.Get(XUID)
 	accessKey := md.Get(XAccessKey)
-	apikey:=md.Get(XApiKey)
+	apikey := md.Get(XApiKey)
 	author := ""
 	// idType := gosdk.UidType
 	if len(xuid) > 0 {
@@ -127,7 +126,7 @@ func IncomingHeadersToMetadata(ctx context.Context, req *http.Request) metadata.
 		author = accessKey[0]
 		// idType = gosdk.AccessKeyType
 	}
-	if author == ""&& len(apikey)>0{ 
+	if author == "" && len(apikey) > 0 {
 		author = apikey[0]
 		// idType = gosdk.ApiKeyType
 	}
@@ -182,6 +181,13 @@ func (log *LoggerMiddleware) UnaryInterceptor(ctx context.Context, req interface
 			elapsed := time.Since(now)
 			log.logger(ctx, info.FullMethod, err, elapsed)
 		}
+		if md, ok := metadata.FromIncomingContext(ctx); ok {
+			reqId := md.Get(XRequestID)
+			if len(reqId) > 0 {
+				_ = grpc.SendHeader(ctx, metadata.Pairs(XRequestID, reqId[0]))
+			}
+		}
+
 	}()
 
 	rsp, err = handler(ctx, req)
@@ -195,6 +201,12 @@ func (log *LoggerMiddleware) StreamInterceptor(srv interface{}, ss grpc.ServerSt
 		if r := recover(); r != nil {
 			elapsed := time.Since(now)
 			log.logger(ss.Context(), info.FullMethod, err, elapsed)
+		}
+		if md, ok := metadata.FromIncomingContext(ss.Context()); ok {
+			reqId := md.Get(XRequestID)
+			if len(reqId) > 0 {
+				_ = grpc.SendHeader(ss.Context(), metadata.Pairs(XRequestID, reqId[0]))
+			}
 		}
 	}()
 
@@ -214,6 +226,9 @@ func getClientMessageMap() map[int32]string {
 			v := values.Get(i)
 			opts := v.Options()
 			if msg := proto.GetExtension(opts, common.E_Msg); msg != nil {
+				codes[int32(v.Number())] = msg.(string)
+			}
+			if msg := proto.GetExtension(opts, common.E_Description); msg != nil {
 				codes[int32(v.Number())] = msg.(string)
 			}
 		}
@@ -248,7 +263,7 @@ func HandleErrorWithLogger(logger logger.Logger) runtime.ErrorHandlerFunc {
 			"status": statusCode,
 		},
 		)
-		fmt.Printf("error type:%T, error:%v", err, err)
+		// fmt.Printf("error type:%T, error:%v", err, err)
 		if _, ok := metadata.FromIncomingContext(ctx); !ok {
 			md := IncomingHeadersToMetadata(ctx, req)
 			ctx = metadata.NewIncomingContext(ctx, md)
@@ -261,6 +276,7 @@ func HandleErrorWithLogger(logger logger.Logger) runtime.ErrorHandlerFunc {
 			msg := st.Message()
 			details := st.Details()
 			data.Message = clientMessageFromCode(st.Code())
+			// log.Info(ctx, fmt.Sprintf("error message:%s", data.Message))
 			// data.Data = &structpb.Struct{}
 			for _, detail := range details {
 				if anyType, ok := detail.(*anypb.Any); ok {
@@ -275,6 +291,8 @@ func HandleErrorWithLogger(logger logger.Logger) runtime.ErrorHandlerFunc {
 						})
 
 						msg := codes[int32(errDetail.Code)]
+						// log.Infof(ctx, "error message:%s,err code:%d", msg, errDetail.Code)
+						// log.Infof(ctx, "codes map:%v", codes)
 						if errDetail.ToClientMessage != "" {
 							msg = errDetail.ToClientMessage
 						}
@@ -295,6 +313,7 @@ func HandleErrorWithLogger(logger logger.Logger) runtime.ErrorHandlerFunc {
 			log.WithField("status", code).Errorf(ctx, msg)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(code)
+			// log.Infof(ctx, "error message:%s,err code:%d", data.Message, data.Code)
 			bData, _ := protojson.Marshal(data)
 			_, _ = w.Write(bData)
 			return
@@ -344,6 +363,7 @@ func HttpResponseBodyModify(ctx context.Context, w http.ResponseWriter, msg prot
 			w.Header().Del(key)
 
 		}
+		// log.Printf("send to client rsp header,key:%s,value:%s", key, value[0])
 		writeHttpHeaders(w, key, value)
 		if strings.HasSuffix(http.CanonicalHeaderKey(key), http.CanonicalHeaderKey("X-Http-Code")) {
 			codeStr := value[0]

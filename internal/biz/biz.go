@@ -13,4 +13,7 @@ var ProviderSet = wire.NewSet(NewAuthzUsecase,
 	endpoint.NewEndpointUsecase,
 	NewAppUsecase,
 	endpoint.NewWatcher,
-	NewDataOperatorUsecase)
+	NewDataOperatorUsecase,
+	NewTenantUsecase,
+	NewBusinessUsecase,
+)

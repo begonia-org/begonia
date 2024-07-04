@@ -3,7 +3,6 @@ package data
 import (
 	"context"
 	"fmt"
-	"log"
 
 	"github.com/begonia-org/begonia/internal/biz"
 	"github.com/begonia-org/begonia/internal/biz/file"
@@ -29,11 +28,10 @@ func (f *fileRepoImpl) UpsertFile(ctx context.Context, in *api.Files) (bool, err
 		mask = in.UpdateMask.Paths
 	}
 	// log.Printf("mask:%v", in.Uid)
-	return f.data.db.Upsert(ctx, in, mask...)
+	return f.data.db.Upsert(ctx, in, nil, mask...)
 }
 func (f *fileRepoImpl) DelFile(ctx context.Context, engine, bucket, key string) error {
-	// return f.curd.Del(ctx, &api.Files{Uid: fid},false)
-	return f.data.db.UpdateSelectColumns(ctx, &api.Files{Engine: engine, Bucket: bucket, Key: key}, &api.Files{IsDeleted: true}, "is_deleted")
+	return f.curd.Del(ctx, &api.Files{Engine: engine, Bucket: bucket, Key: key},false, nil)
 }
 func (f *fileRepoImpl) UpsertBucket(ctx context.Context, bucket *api.Buckets) (bool, error) {
 	bucket.UpdatedAt = timestamppb.Now()
@@ -41,10 +39,10 @@ func (f *fileRepoImpl) UpsertBucket(ctx context.Context, bucket *api.Buckets) (b
 	if bucket.UpdateMask != nil {
 		mask = bucket.UpdateMask.Paths
 	}
-	return f.data.db.Upsert(ctx, bucket, mask...)
+	return f.data.db.Upsert(ctx, bucket, nil, mask...)
 }
 func (f *fileRepoImpl) DelBucket(ctx context.Context, bucketId string) error {
-	return f.curd.Del(ctx, &api.Buckets{Uid: bucketId}, false)
+	return f.curd.Del(ctx, &api.Buckets{Uid: bucketId}, false, nil)
 }
 func (f *fileRepoImpl) GetFileById(ctx context.Context, fid string) (*api.Files, error) {
 	file := &api.Files{Uid: fid}
@@ -82,7 +80,7 @@ func (f *fileRepoImpl) List(ctx context.Context, page, pageSize int32, bucket, e
 		}
 		pagination.Args = append(pagination.Args, engine)
 	}
-	log.Printf("query:%s,args:%s", pagination.Query, pagination.Args)
+	// log.Printf("query:%s,args:%s", pagination.Query, pagination.Args)
 	err := f.curd.List(ctx, &files, pagination)
 
 	if err != nil {

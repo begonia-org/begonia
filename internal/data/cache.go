@@ -75,11 +75,13 @@ func (l *LayeredCache) Get(ctx context.Context, key string) ([]byte, error) {
 	return l.kv.Get(ctx, key)
 }
 func (l *LayeredCache) GetFromLocal(ctx context.Context, key string) ([]byte, error) {
+	// log.Printf("cache get from local %s ,with %p", key, l.kv)
+
 	values, err := l.kv.GetFromLocal(ctx, key)
 	if err != nil {
 		return nil, err
 	}
-
+	// log.Printf("get cache %s from local %v", key, values)
 	for _, val := range values {
 		if val, ok := val.([]byte); ok {
 			return val, nil
@@ -91,6 +93,7 @@ func (l *LayeredCache) Del(ctx context.Context, key string) error {
 	return l.kv.Del(ctx, key)
 }
 func (l *LayeredCache) SetToLocal(ctx context.Context, key string, value []byte, exp time.Duration) error {
+	// log.Printf("cache set to local %s,%s,with %p", key,value, l.kv)
 	return l.kv.SetToLocal(ctx, key, value, exp)
 }
 

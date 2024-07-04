@@ -2,6 +2,7 @@ package routers
 
 import (
 	"fmt"
+	"log"
 	"strings"
 	"sync"
 
@@ -97,6 +98,7 @@ func (r *HttpURIRouteToSrvMethod) getHttpRule(method *descriptorpb.MethodDescrip
 	return nil
 }
 func (r *HttpURIRouteToSrvMethod) AddLocalSrv(fullMethod string) {
+	log.Printf("add local srv:%s", fullMethod)
 	r.localSrv[strings.ToUpper(fullMethod)] = true
 }
 func (r *HttpURIRouteToSrvMethod) IsLocalSrv(fullMethod string) bool {
