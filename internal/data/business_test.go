@@ -82,12 +82,12 @@ func testListBusiness(t *testing.T) {
 	bs := NewBusinessRepo(cfg.ReadConfig(env), gateway.Log)
 	c.Convey("test list business", t, func() {
 
-		businesses, err := bs.List(context.Background(), []string{"test","test2"}, 1, 10)
+		businesses, err := bs.List(context.Background(), []string{"test", "test2"}, 1, 10)
 		c.So(err, c.ShouldBeNil)
 		c.So(len(businesses), c.ShouldBeGreaterThan, 0)
 	})
 	c.Convey("test list business fail", t, func() {
-		patch:=gomonkey.ApplyFuncReturn(tiga.MySQLDao.Pagination,fmt.Errorf("pagination error"))
+		patch := gomonkey.ApplyFuncReturn(tiga.MySQLDao.Pagination, fmt.Errorf("pagination error"))
 		defer patch.Reset()
 		_, err := bs.List(context.Background(), []string{"not found"}, 1, 10)
 		c.So(err, c.ShouldNotBeNil)
@@ -104,14 +104,14 @@ func testDelBusiness(t *testing.T) {
 		err := bs.Del(context.Background(), bid)
 		c.So(err, c.ShouldBeNil)
 		err = bs.Del(context.Background(), bn)
-		c.So(err,c.ShouldNotBeNil)
+		c.So(err, c.ShouldNotBeNil)
 	})
 }
-func TestBusiness(t *testing.T){
-	t.Run("test add business",testAddBusiness)
-	t.Run("test update business",testUpdateBusiness)
-	t.Run("test get business",testGetBusiness)
-	t.Run("test list business",testListBusiness)
-	t.Run("test del business",testDelBusiness)
+func TestBusiness(t *testing.T) {
+	t.Run("test add business", testAddBusiness)
+	t.Run("test update business", testUpdateBusiness)
+	t.Run("test get business", testGetBusiness)
+	t.Run("test list business", testListBusiness)
+	t.Run("test del business", testDelBusiness)
 
 }

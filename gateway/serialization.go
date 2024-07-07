@@ -15,6 +15,7 @@ import (
 	common "github.com/begonia-org/go-sdk/common/api/v1"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/genproto/googleapis/api/httpbody"
+	spb "google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -35,25 +36,6 @@ type BinaryDecoder struct {
 	r         io.Reader
 	marshaler runtime.Marshaler
 }
-
-// type JSONDecoder struct{
-// 	*runtime.DecoderWrapper
-// }
-// func (d *JSONDecoder) Decode(v interface{}) error {
-// 	if response, ok := v.(map[string]interface{}); ok {
-// 		if _, ok := response["result"]; ok {
-// 			v = response["result"]
-// 		}
-
-// 	}
-// 	if msg,ok:=v.(protoreflect.Message);ok{
-
-// 	}
-// 	return d.DecoderWrapper.Decode(v)
-
-// }
-// var typeOfBytes = reflect.TypeOf([]byte(nil))
-// var typeOfHttpbody = reflect.TypeOf(&httpbody.HttpBody{})
 
 func (d *BinaryDecoder) Decode(v interface{}) error {
 	if v == nil {
@@ -147,6 +129,11 @@ func (m *RawBinaryUnmarshaler) Marshal(v interface{}) ([]byte, error) {
 			}
 		}
 	}
+	if resp, ok := v.(map[string]interface{}); ok {
+		if _, ok := resp["result"]; ok {
+			v = resp["result"]
+		}
+	}
 	return m.Marshaler.Marshal(v)
 }
 
@@ -156,17 +143,24 @@ func (m *EventSourceMarshaler) ContentType(v interface{}) string {
 
 func (m *EventSourceMarshaler) Marshal(v interface{}) ([]byte, error) {
 	if response, ok := v.(map[string]interface{}); ok {
-		// result:=response
 		if _, ok := response["result"]; ok {
 			v = response["result"]
 		}
-
 	}
-	// 在这里定义你的自定义序列化逻辑
+	if response, ok := v.(map[string]proto.Message); ok {
+		if _, ok := response["error"]; ok {
+			v = response["error"]
+		}
+	}
+	// build event stream format line by line
 	if stream, ok := v.(*common.EventStream); ok {
 		line := fmt.Sprintf("id: %d\nevent: %s\nretry: %d\ndata: %s\n", stream.Id, stream.Event, stream.Retry, stream.Data)
 		return []byte(line), nil
-
+	}
+	// build error message
+	if stream, ok := v.(*spb.Status); ok {
+		line := fmt.Sprintf("id: %d\nevent: %s\nretry: %d\ndata: %s\n", 0, "error", 0, stream.GetMessage())
+		return []byte(line), nil
 	}
 	return m.JSONPb.Marshal(v)
 }
@@ -199,7 +193,6 @@ func (m *JSONMarshaler) Marshal(v interface{}) ([]byte, error) {
 		}
 
 	}
-
 	if response, ok := v.(*dynamicpb.Message); ok {
 		// log.Println("实际类型,", response.Type().Descriptor().Name())
 		byteData, err := m.JSONPb.Marshal(response)

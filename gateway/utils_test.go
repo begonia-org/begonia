@@ -16,7 +16,7 @@ import (
 
 func TestNewEndpoint(t *testing.T) {
 	opts := &gateway.GrpcServerOptions{
-		Middlewares:     make([]gateway.GrpcProxyMiddleware, 0),
+		Middlewares:     make([]grpc.StreamClientInterceptor, 0),
 		Options:         make([]grpc.ServerOption, 0),
 		PoolOptions:     make([]loadbalance.PoolOptionsBuildOption, 0),
 		HttpMiddlewares: make([]gwRuntime.ServeMuxOption, 0),

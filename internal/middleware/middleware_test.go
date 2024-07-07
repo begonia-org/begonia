@@ -28,8 +28,8 @@ func TestMiddlewareUnaryInterceptorChains(t *testing.T) {
 		user := data.NewUserRepo(config, gateway.Log)
 		userAuth := crypto.NewUsersAuth(cnf)
 		authzRepo := data.NewAuthzRepo(config, gateway.Log)
-		appRepo:=data.NewAppRepo(config,gateway.Log)
-		authz := biz.NewAuthzUsecase(authzRepo, user,appRepo, gateway.Log, userAuth, cnf)
+		appRepo := data.NewAppRepo(config, gateway.Log)
+		authz := biz.NewAuthzUsecase(authzRepo, user, appRepo, gateway.Log, userAuth, cnf)
 		repo := data.NewAppRepo(config, gateway.Log)
 
 		akBiz := biz.NewAccessKeyAuth(repo, cnf, gateway.Log)
@@ -37,6 +37,7 @@ func TestMiddlewareUnaryInterceptorChains(t *testing.T) {
 		// mid.SetPriority(1)
 		c.So(len(mid.StreamInterceptorChains()), c.ShouldBeGreaterThanOrEqualTo, 0)
 		c.So(len(mid.UnaryInterceptorChains()), c.ShouldBeGreaterThanOrEqualTo, 0)
+		c.So(len(mid.StreamClientInterceptorChains()), c.ShouldBeGreaterThanOrEqualTo, 0)
 
 		plugins := cnf.GetPlugins()
 		plugins["test"] = 1

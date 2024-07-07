@@ -1,4 +1,4 @@
-package routers_test
+package gateway_test
 
 import (
 	"path/filepath"
@@ -6,15 +6,14 @@ import (
 	"testing"
 
 	"github.com/begonia-org/begonia/gateway"
-	"github.com/begonia-org/begonia/internal/pkg/routers"
 	c "github.com/smartystreets/goconvey/convey"
 )
 
 func TestLoadAllRouters(t *testing.T) {
 	c.Convey("TestLoadAllRouters", t, func() {
-		R := routers.NewHttpURIRouteToSrvMethod()
+		R := gateway.NewHttpURIRouteToSrvMethod()
 		_, filename, _, _ := runtime.Caller(0)
-		pbFile := filepath.Join(filepath.Dir(filepath.Dir(filepath.Dir(filepath.Dir(filename)))), "testdata")
+		pbFile := filepath.Join(filepath.Dir(filepath.Dir(filename)), "testdata")
 		pd, err := gateway.NewDescription(pbFile)
 		c.So(err, c.ShouldBeNil)
 		R.LoadAllRouters(pd)
@@ -32,14 +31,19 @@ func TestLoadAllRouters(t *testing.T) {
 		d, ok := rs["/test/custom"]
 		c.So(ok, c.ShouldBeTrue)
 		c.So(d.ServiceName, c.ShouldEqual, "/INTEGRATION.TESTSERVICE/CUSTOM")
+		c.So(d.UseJsonResponse, c.ShouldBeTrue)
+
+		r := rs["/test/body"]
+		c.So(r, c.ShouldNotBeNil)
+		c.So(r.UseJsonResponse, c.ShouldBeFalse)
 
 	})
 }
 func TestDeleteRouters(t *testing.T) {
 	c.Convey("TestDeleteRouters", t, func() {
-		R := routers.Get()
+		R := gateway.GetRouter()
 		_, filename, _, _ := runtime.Caller(0)
-		pbFile := filepath.Join(filepath.Dir(filepath.Dir(filepath.Dir(filepath.Dir(filename)))), "testdata")
+		pbFile := filepath.Join((filepath.Dir(filepath.Dir(filename))), "testdata")
 
 		pd, err := gateway.NewDescription(pbFile)
 		c.So(err, c.ShouldBeNil)

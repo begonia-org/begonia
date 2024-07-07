@@ -31,6 +31,7 @@ func NewAuth(ak *AccessKeyAuthMiddleware, jwt *JWTAuth, apikey ApiKeyAuth) gosdk
 }
 
 func (a *Auth) UnaryInterceptor(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
+	// fmt.Print("auth unary interceptor \n")
 	if !IfNeedValidate(ctx, info.FullMethod) {
 		return handler(ctx, req)
 	}
@@ -57,13 +58,14 @@ func (a *Auth) UnaryInterceptor(ctx context.Context, req any, info *grpc.UnarySe
 
 func (a *Auth) StreamInterceptor(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 	if !IfNeedValidate(ss.Context(), info.FullMethod) {
+		// log.Printf("no need stream validate %s", info.FullMethod)
 		return handler(srv, ss)
 	}
 	md, ok := metadata.FromIncomingContext(ss.Context())
 	if !ok {
 		return status.Errorf(codes.Unauthenticated, "metadata not exists in context")
 	}
-	xApiKey := md.Get("x-api-key")
+	xApiKey := md.Get(gosdk.HeaderXApiKey)
 	if len(xApiKey) != 0 {
 		return a.apikey.StreamInterceptor(srv, ss, info, handler)
 	}
@@ -88,4 +90,29 @@ func (a *Auth) Priority() int {
 
 func (a *Auth) Name() string {
 	return a.name
+}
+
+func (a *Auth) StreamClientInterceptor(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, streamer grpc.Streamer, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+	if !IfNeedValidate(ctx, method) {
+		// log.Printf("no need stream validate %s", info.FullMethod)
+		return streamer(ctx, desc, cc, method, opts...)
+	}
+	md, ok := metadata.FromOutgoingContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "metadata not exists in context")
+	}
+	xApiKey := md.Get("x-api-key")
+	if len(xApiKey) != 0 {
+		return a.apikey.StreamClientInterceptor(ctx, desc, cc, method, streamer, opts...)
+	}
+	authorization := a.jwt.GetAuthorizationFromMetadata(md)
+
+	if authorization == "" {
+		return nil, gosdk.NewError(pkg.ErrTokenMissing, int32(api.UserSvrCode_USER_AUTH_MISSING_ERR), codes.Unauthenticated, "authorization_check")
+	}
+	if strings.Contains(authorization, "Bearer") {
+		return a.jwt.StreamClientInterceptor(ctx, desc, cc, method, streamer, opts...)
+
+	}
+	return a.ak.StreamClientInterceptor(ctx, desc, cc, method, streamer, opts...)
 }

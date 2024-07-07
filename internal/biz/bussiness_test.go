@@ -126,11 +126,11 @@ func testListBusiness(t *testing.T) {
 		c.So(err, c.ShouldBeNil)
 		c.So(business, c.ShouldNotBeEmpty)
 
-		patch:=gomonkey.ApplyMethodReturn(repo,"List",nil,fmt.Errorf("list error"))
+		patch := gomonkey.ApplyMethodReturn(repo, "List", nil, fmt.Errorf("list error"))
 		defer patch.Reset()
-		_,err=bs.List(context.Background(),[]string{"test"},1,10)
-		c.So(err,c.ShouldNotBeNil)
-		c.So(err.Error(),c.ShouldContainSubstring,"list error")
+		_, err = bs.List(context.Background(), []string{"test"}, 1, 10)
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "list error")
 
 	})
 }

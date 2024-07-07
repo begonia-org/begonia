@@ -27,3 +27,7 @@ extend google.protobuf.FileOptions {
 extend google.protobuf.ServiceOptions {
   optional string http_response = 50038;
 }
+
+extend google.protobuf.MethodOptions {
+     bool dont_use_http_response = 50041;
+  }

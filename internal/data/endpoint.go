@@ -57,7 +57,7 @@ func (e *endpointRepoImpl) ServiceNameExists(ctx context.Context, name, id strin
 				return fmt.Errorf("unmarshal service name error: %w", err)
 			}
 			if ep["uid"] != id {
-				return fmt.Errorf("%s service name already exists in %s",ep["uid"],id)
+				return fmt.Errorf("%s service name already exists in %s", ep["uid"], id)
 			}
 			return nil
 		}
@@ -247,7 +247,7 @@ func (e *endpointRepoImpl) PutTags(ctx context.Context, id string, tags []string
 	ops = append(ops, clientv3.OpPut(srvKey, string(updated)))
 
 	ok, err := e.data.PutEtcdWithTxn(ctx, ops)
-	if err != nil||!ok {
+	if err != nil || !ok {
 		return fmt.Errorf("put tags fail: %w", err)
 	}
 	return nil

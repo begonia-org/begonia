@@ -216,7 +216,7 @@ func getPrimaryColumnValue(model interface{}, tagName string) (map[string]interf
 			tagParts := strings.Split(tag, ";")
 			for _, part := range tagParts {
 				kv := strings.Split(part, ":")
-				if len(kv) == 2 && strings.TrimSpace(kv[0]) == "column" && !strings.Contains(tag,"primaryKey"){
+				if len(kv) == 2 && strings.TrimSpace(kv[0]) == "column" && !strings.Contains(tag, "primaryKey") {
 					value := modelVal.Field(i).Interface()
 					fieldValue[strings.TrimSpace(kv[1])] = value
 					// return strings.TrimSpace(kv[1]), value, nil

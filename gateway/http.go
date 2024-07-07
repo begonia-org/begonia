@@ -5,8 +5,10 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -88,6 +90,9 @@ func loadHttpEndpointItem(pd ProtobufDescription, descFile string) ([]*HttpEndpo
 		return nil, fmt.Errorf("Failed to unmarshal %s file: %w,%s", descFile, err, string(data))
 	}
 	for _, binds := range items {
+		if len(binds) == 0 {
+			continue
+		}
 		item := binds[0]
 		//  设置入参和出参
 		item.In = pd.GetMessageTypeByName(item.InPkg, item.InName)
@@ -208,7 +213,7 @@ func (h *HttpEndpointImpl) serverStreamRequest(ctx context.Context, item *HttpEn
 		dec := marshaler.NewDecoder(req.Body)
 		err := dec.Decode(protoReq)
 
-		if err != nil && err != io.EOF {
+		if err != nil && !errors.Is(err, io.EOF) {
 			return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 		}
 	}
@@ -368,6 +373,7 @@ func (h *HttpEndpointImpl) DeleteEndpoint(ctx context.Context, pd ProtobufDescri
 	}
 	return nil
 }
+
 func (h *HttpEndpointImpl) RegisterHandlerClient(ctx context.Context, pd ProtobufDescription, mux *runtime.ServeMux) error {
 	h.mux.Lock()
 	defer h.mux.Unlock()
@@ -384,12 +390,17 @@ func (h *HttpEndpointImpl) RegisterHandlerClient(ctx context.Context, pd Protobu
 		// log.Printf("register endpoint %s: %s %v", strings.ToUpper(item.HttpMethod), item.HttpUri, item.Pattern)
 		mux.Handle(strings.ToUpper(item.HttpMethod), item.Pattern, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 			if req.Header.Get("accept") == "" || req.Header.Get("accept") == "*/*" {
-				req.Header.Set("accept", "application/json")
+				if item.IsServerStream && !item.IsClientStream {
+					req.Header.Set("accept", "text/event-stream")
+				} else if !item.IsClientStream && !item.IsServerStream {
+					req.Header.Set("accept", "application/json")
+				}
 			}
 			// log.Printf("request content-type:%s", req.Header.Get("content-type"))
 			ctx, cancel := context.WithCancel(req.Context())
 			defer cancel()
 			inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+			// log.Printf("outbound marshaler:%s", outboundMarshaler.ContentType(req))
 			var err error
 			var annotatedContext context.Context
 			// 添加sha256 hash
@@ -421,12 +432,12 @@ func (h *HttpEndpointImpl) RegisterHandlerClient(ctx context.Context, pd Protobu
 					return
 				}
 				resp, md, err := h.client.Request(reqInstance)
-
 				annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
 				if err != nil {
 					runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
 					return
 				}
+				// log.Printf("response marshaler:%s",outboundMarshaler.ContentType(resp))
 				runtime.ForwardResponseMessage(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 			} else if item.IsServerStream && !item.IsClientStream {
 				// 服务端推流,升级为sse服务
@@ -436,9 +447,14 @@ func (h *HttpEndpointImpl) RegisterHandlerClient(ctx context.Context, pd Protobu
 					return
 				}
 				annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
-
+				w.Header().Set("Content-Type", "text/event-stream")
+				w.Header().Set("Cache-Control", "no-cache")
+				w.Header().Set("Connection", "keep-alive")
 				recv := func() (proto.Message, error) {
-					return resp.Recv()
+
+					rsp, err := resp.Recv()
+					return rsp, err
+
 				}
 				runtime.ForwardResponseStream(annotatedContext, mux, outboundMarshaler, w, req, recv, mux.GetForwardResponseOptions()...)
 			} else if !item.IsServerStream && item.IsClientStream {
@@ -460,6 +476,7 @@ func (h *HttpEndpointImpl) RegisterHandlerClient(ctx context.Context, pd Protobu
 					return
 				}
 				// defer ws.Close()
+				log.Printf("upgrade to websocket:%v", outboundMarshaler.ContentType(req))
 				stream, md, err := h.stream(annotatedContext, item, inboundMarshaler, ws)
 				annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
 

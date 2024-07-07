@@ -27,10 +27,10 @@ func addUser(t *testing.T) {
 		t,
 		func() {
 			apiClient := client.NewUsersAPI(apiAddr, accessKey, secret)
-			tenantAPI:=client.NewTenantAPI(apiAddr,accessKey,secret)
-			snk,_:=tiga.NewSnowflake(2)
-			resp,err:=tenantAPI.RegisterTenant(context.Background(),snk.GenerateIDString(),"test-tenant",fmt.Sprintf("%s@example.com",snk.GenerateIDString()),[]string{"test"})
-			c.So(err,c.ShouldBeNil)
+			tenantAPI := client.NewTenantAPI(apiAddr, accessKey, secret)
+			snk, _ := tiga.NewSnowflake(2)
+			resp, err := tenantAPI.RegisterTenant(context.Background(), snk.GenerateIDString(), "test-tenant", fmt.Sprintf("%s@example.com", snk.GenerateIDString()), []string{"test"})
+			c.So(err, c.ShouldBeNil)
 			name := fmt.Sprintf("user-service-test-%s", time.Now().Format("20060102150405"))
 			rsp, err := apiClient.PostUser(context.Background(), &api.PostUserRequest{
 				Name:     name,
@@ -42,7 +42,6 @@ func addUser(t *testing.T) {
 				Owner:    "test-user-01",
 				Phone:    time.Now().Format("20060102150405"),
 				TenantId: resp.TenantId,
-
 			})
 			c.So(err, c.ShouldBeNil)
 			c.So(rsp.StatusCode, c.ShouldEqual, common.Code_OK)

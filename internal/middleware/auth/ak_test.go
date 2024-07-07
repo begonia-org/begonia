@@ -15,7 +15,6 @@ import (
 	"github.com/begonia-org/begonia/internal/data"
 	"github.com/begonia-org/begonia/internal/middleware/auth"
 	cfg "github.com/begonia-org/begonia/internal/pkg/config"
-	"github.com/begonia-org/begonia/internal/pkg/routers"
 	gosdk "github.com/begonia-org/go-sdk"
 	hello "github.com/begonia-org/go-sdk/api/example/v1"
 	c "github.com/smartystreets/goconvey/convey"
@@ -38,7 +37,7 @@ func TestAccessKeyAuthMiddleware(t *testing.T) {
 		ak.SetPriority(1)
 		c.So(ak.Name(), c.ShouldEqual, "ak_auth")
 		c.So(ak.Priority(), c.ShouldEqual, 1)
-		R := routers.Get()
+		R := gateway.GetRouter()
 		_, filename, _, _ := runtime.Caller(0)
 		pbFile := filepath.Join(filepath.Dir(filepath.Dir(filepath.Dir(filepath.Dir(filename)))), "testdata")
 
@@ -58,11 +57,18 @@ func TestAccessKeyAuthMiddleware(t *testing.T) {
 			return fmt.Errorf("metadata not exists in context")
 		})
 		c.So(err.Error(), c.ShouldContainSubstring, fmt.Errorf("metadata not exists in context").Error())
-
-		patch := gomonkey.ApplyFuncReturn((*auth.AccessKeyAuthMiddleware).StreamRequestBefore, nil, nil)
+		patch := gomonkey.ApplyMethodReturn(akBiz, "AppValidator", "test", nil)
+		patch = patch.ApplyMethodReturn(akBiz, "GetAppOwner", "test", nil)
+		// patch := gomonkey.ApplyFuncReturn((*auth.AccessKeyAuthMiddleware).StreamRequestBefore, nil, nil)
 		patch = patch.ApplyFuncReturn((*auth.AccessKeyAuthMiddleware).StreamResponseAfter, fmt.Errorf("StreamResponseAfter err"))
 		defer patch.Reset()
-		err = ak.StreamInterceptor(context.Background(), &testStream{ctx: context.Background()}, &grpc.StreamServerInfo{FullMethod: "/integration.TestService/Get"}, func(srv any, stream grpc.ServerStream) error {
+		ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs(gosdk.HeaderXAccessKey, "test"))
+		err = ak.StreamInterceptor(ctx, &testStream{ctx: ctx}, &grpc.StreamServerInfo{FullMethod: "/integration.TestService/Get"}, func(srv any, ss grpc.ServerStream) error {
+			md, _ := metadata.FromIncomingContext(ss.Context())
+			if len(md.Get(gosdk.HeaderXIdentity)) == 0 || md.Get(gosdk.HeaderXIdentity)[0] == "" {
+				t.Error("identity not exists in context")
+				return fmt.Errorf("identity not exists in context")
+			}
 			return nil
 
 		})
@@ -76,6 +82,29 @@ func TestAccessKeyAuthMiddleware(t *testing.T) {
 		})
 		patch2.Reset()
 		c.So(err.Error(), c.ShouldContainSubstring, fmt.Errorf("StreamRequestBefore err").Error())
+		// do not need validate
+		outCTX := metadata.NewOutgoingContext(context.Background(), metadata.Pairs(gosdk.HeaderXAccessKey, "test"))
+		_, err = ak.StreamClientInterceptor(outCTX, nil, nil, "/INTEGRATION.TESTSERVICE/NOT_FOUND", func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+			return &testClientStream{ctx: ctx}, nil
+		})
+		c.So(err, c.ShouldBeNil)
+
+		// NO CONTEXT
+		_, err = ak.StreamClientInterceptor(context.Background(), nil, nil, "/INTEGRATION.TESTSERVICE/GET", func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+			return &testClientStream{ctx: ctx}, nil
+		})
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "metadata not exists in context")
+		// get owner error
+		patch3 := gomonkey.ApplyFuncReturn((*biz.AccessKeyAuth).GetAppOwner, "", fmt.Errorf("get owner error"))
+		defer patch3.Reset()
+		// get owner error
+		in := metadata.NewIncomingContext(context.Background(), metadata.Pairs(gosdk.HeaderXAccessKey, "test"))
+		_, err = ak.StreamRequestBefore(in, &testStream{ctx: in}, &grpc.StreamServerInfo{FullMethod: "/integration.TestService/Get"}, nil)
+		patch3.Reset()
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "get app owner error")
+
 	})
 }
 func TestRequestBeforeErr(t *testing.T) {
@@ -133,7 +162,7 @@ func TestValidateStream(t *testing.T) {
 		ak := auth.NewAccessKeyAuth(akBiz, cnf, gateway.Log)
 		patch := gomonkey.ApplyFuncReturn(gosdk.NewGatewayRequestFromGrpc, nil, fmt.Errorf("NewGatewayRequestFromGrpc err"))
 		defer patch.Reset()
-		_, err := ak.ValidateStream(context.TODO(), nil, "", nil)
+		_, err := ak.ValidateStream(context.TODO(), nil, "")
 		patch.Reset()
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "NewGatewayRequestFromGrpc err")

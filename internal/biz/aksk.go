@@ -5,9 +5,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/begonia-org/begonia/gateway"
 	"github.com/begonia-org/begonia/internal/pkg"
 	"github.com/begonia-org/begonia/internal/pkg/config"
-	"github.com/begonia-org/begonia/internal/pkg/routers"
 	gosdk "github.com/begonia-org/go-sdk"
 	api "github.com/begonia-org/go-sdk/api/app/v1"
 	common "github.com/begonia-org/go-sdk/common/api/v1"
@@ -30,7 +30,7 @@ func NewAccessKeyAuth(app AppRepo, config *config.Config, log logger.Logger) *Ac
 }
 
 func IfNeedValidate(ctx context.Context, fullMethod string) bool {
-	routersList := routers.Get()
+	routersList := gateway.GetRouter()
 	router := routersList.GetRouteByGrpcMethod(strings.ToUpper(fullMethod))
 	if router == nil {
 		return false

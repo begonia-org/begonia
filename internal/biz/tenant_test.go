@@ -43,18 +43,18 @@ func testAddTenant(t *testing.T) {
 			Tags:        []string{"test"},
 			Email:       fmt.Sprintf("%s@example.com", snk.GenerateIDString()),
 		}
-		uid:=snk.GenerateIDString()
-		tenant, err := tbiz.Add(context.Background(), in,uid)
+		uid := snk.GenerateIDString()
+		tenant, err := tbiz.Add(context.Background(), in, uid)
 		c.So(err, c.ShouldBeNil)
 		c.So(tenant.TenantId, c.ShouldNotBeEmpty)
 		tid = tenant.TenantId
 		tn = tenant.TenantName
-		_, err = tbiz.Add(context.Background(), in,uid)
+		_, err = tbiz.Add(context.Background(), in, uid)
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "Duplicate entry")
 		patch := gomonkey.ApplyMethodReturn(repo, "Add", fmt.Errorf("too long"))
 		defer patch.Reset()
-		_, err = tbiz.Add(context.Background(), in,uid)
+		_, err = tbiz.Add(context.Background(), in, uid)
 		patch.Reset()
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "too long")
@@ -65,7 +65,7 @@ func testAddTenant(t *testing.T) {
 			Tags:        []string{"test"},
 			Email:       fmt.Sprintf("%s@example.com", snk.GenerateIDString()),
 		}
-		tenant, err = tbiz.Add(context.Background(), in2,uid)
+		tenant, err = tbiz.Add(context.Background(), in2, uid)
 		c.So(err, c.ShouldBeNil)
 		tid2 = tenant.TenantId
 		tn2 = tenant.TenantName
@@ -196,7 +196,7 @@ func testDelTenant(t *testing.T) {
 		_, err = tbiz.Get(context.Background(), tid)
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "not found")
-		patch:=gomonkey.ApplyMethodReturn(repo,"Del",fmt.Errorf("del error"))
+		patch := gomonkey.ApplyMethodReturn(repo, "Del", fmt.Errorf("del error"))
 		defer patch.Reset()
 		err = tbiz.Delete(context.Background(), tid)
 		// patch.Reset()
@@ -222,25 +222,25 @@ func testAddTenantBusiness(t *testing.T) {
 			BusinessName: fmt.Sprintf("test-data-%s", snk.GenerateIDString()),
 			Description:  "test business",
 		}
-		business, err := bs.Add(context.Background(), in,snk.GenerateIDString())
+		business, err := bs.Add(context.Background(), in, snk.GenerateIDString())
 		c.So(err, c.ShouldBeNil)
-		tb, err := tr.AddTenantBusiness(context.Background(), tid, business.BusinessId, "FREE",uid)
+		tb, err := tr.AddTenantBusiness(context.Background(), tid, business.BusinessId, "FREE", uid)
 		c.So(err, c.ShouldBeNil)
 		tenantBusinessId = business.BusinessId
 		c.So(tb.TenantId, c.ShouldEqual, tid)
 		c.So(tb.BusinessId, c.ShouldEqual, business.BusinessId)
 
-		_, err = tr.AddTenantBusiness(context.Background(), tid, snk.GenerateIDString(), "FREE",uid)
+		_, err = tr.AddTenantBusiness(context.Background(), tid, snk.GenerateIDString(), "FREE", uid)
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "not found business")
 
-		_, err = tr.AddTenantBusiness(context.Background(), snk.GenerateIDString(), business.BusinessId, "FREE",uid)
+		_, err = tr.AddTenantBusiness(context.Background(), snk.GenerateIDString(), business.BusinessId, "FREE", uid)
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "not found tenant")
 
 		patch := gomonkey.ApplyMethodReturn(repo, "AddBusiness", fmt.Errorf("add error"))
 		defer patch.Reset()
-		_, err = tr.AddTenantBusiness(context.Background(), tid, business.BusinessId, "FREE",uid)
+		_, err = tr.AddTenantBusiness(context.Background(), tid, business.BusinessId, "FREE", uid)
 		patch.Reset()
 		c.So(err, c.ShouldNotBeNil)
 

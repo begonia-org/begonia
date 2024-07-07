@@ -104,18 +104,21 @@ func (a *JWTAuth) checkJWTItem(ctx context.Context, payload *api.BasicAuth, toke
 	}
 	return true, nil
 }
-func (a *JWTAuth) checkJWT(ctx context.Context, authorization string, rspHeader Header, reqHeader Header) (ok bool, err error) {
+func (a *JWTAuth) checkJWT(ctx context.Context, authorization string, io *metadata.MD) (ok bool, err error) {
 	payload, errAuth := a.jwt2BasicAuth(authorization)
 	err = errAuth
 	if err != nil {
 		return false, err
 	}
+	io.Set("x-uid", payload.Uid)
+
 	strArr := strings.Split(authorization, " ")
 	token := strArr[1]
 	ok, err = a.checkJWTItem(ctx, payload, token)
 	if err != nil || !ok {
 		return false, err
 	}
+	io.Set("x-token", token)
 
 	left := payload.Expiration - time.Now().Unix()
 	// expiration := a.config.GetJWTExpiration()
@@ -156,64 +159,73 @@ func (a *JWTAuth) checkJWT(ctx context.Context, authorization string, rspHeader 
 		}
 		// 旧token加入黑名单
 		go a.biz.PutBlackList(ctx, a.config.GetUserBlackListKey(tiga.GetMd5(token)))
-		rspHeader.SendHeader("Authorization", fmt.Sprintf("Bearer %s", newToken))
+		// rspHeader.Set("Authorization", fmt.Sprintf("Bearer %s", newToken))
+		_ = grpc.SetHeader(ctx, metadata.Pairs("Authorization", fmt.Sprintf("Bearer %s", newToken)))
 		token = newToken
 
 	}
-	// 设置uid
-	reqHeader.Set("x-token", token)
-	reqHeader.Set("x-uid", payload.Uid)
-	reqHeader.Set(gosdk.HeaderXIdentity, payload.Uid)
+	io.Set("x-token", token)
 	return true, nil
 
 }
-func (a *JWTAuth) jwtValidator(ctx context.Context, headers Header) (context.Context, error) {
-	
+func (a *JWTAuth) jwtValidator(ctx context.Context) (context.Context, error) {
 
-	md, _ := metadata.FromIncomingContext(ctx)
-
-	token := a.GetAuthorizationFromMetadata(md)
-	if token == "" {
-		return nil, status.Errorf(codes.Unauthenticated, "token not exists in context")
-	}
-
-	ok, err := a.checkJWT(ctx, token, headers, headers)
-	if err != nil || !ok {
-		return nil, status.Errorf(codes.Unauthenticated, "check token error,%v", err)
-	}
-
-	newCtx := metadata.NewIncomingContext(ctx, md)
-	return newCtx, nil
-	// return handler(newCtx, req)
-}
-
-func (a *JWTAuth) RequestBefore(ctx context.Context, info *grpc.UnaryServerInfo, req interface{}) (context.Context, error) {
-	in, ok := metadata.FromIncomingContext(ctx)
-	if !ok {
-		return nil, status.Errorf(codes.Unauthenticated, "metadata not exists in context")
-
+	in, inOK := metadata.FromIncomingContext(ctx)
+	if !inOK {
+		in = metadata.MD{}
 	}
 	out, ok := metadata.FromOutgoingContext(ctx)
 	if !ok {
 		out = metadata.MD{}
 	}
-	headers := NewGrpcHeader(in, ctx, out)
-	defer headers.Release()
-	_, err := a.jwtValidator(ctx, headers)
+	md := metadata.Join(in, out)
+	token := a.GetAuthorizationFromMetadata(md)
+	if token == "" {
+		if token = a.GetAuthorizationFromMetadata(out); token == "" {
+			return nil, status.Errorf(codes.Unauthenticated, "token not exists in context")
+		}
+
+	}
+	ioMD := metadata.New(make(map[string]string))
+	ok, err := a.checkJWT(ctx, token, &ioMD)
+	if err != nil || !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "check token error,%v", err)
+	}
+	in.Set("x-token", ioMD.Get("x-token")...)
+	in.Set("x-uid", ioMD.Get("x-uid")...)
+	in.Set(gosdk.HeaderXIdentity, ioMD.Get("x-uid")...)
+	newCtx := metadata.NewIncomingContext(ctx, in)
+
+	out.Set("x-token", ioMD.Get("x-token")...)
+	out.Set("x-uid", ioMD.Get("x-uid")...)
+	out.Set(gosdk.HeaderXIdentity, ioMD.Get("x-uid")...)
+
+	newCtx = metadata.NewOutgoingContext(newCtx, out)
+	return newCtx, nil
+	// return handler(newCtx, req)
+}
+
+func (a *JWTAuth) RequestBefore(ctx context.Context, info *grpc.UnaryServerInfo, req interface{}) (context.Context, error) {
+
+	ctx, err := a.jwtValidator(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return headers.ctx, nil
+	return ctx, nil
 }
 
-func (a *JWTAuth) ValidateStream(ctx context.Context, req interface{}, fullName string, headers Header) (context.Context, error) {
+func (a *JWTAuth) ValidateStream(ctx context.Context, req interface{}, fullName string) (context.Context, error) {
 	// headers := NewGrpcStreamHeader(in, ctx, out,ss)
-	ctx, err := a.jwtValidator(ctx, headers)
+	ctx, err := a.jwtValidator(ctx)
 	return ctx, err
 
 }
 func (a *JWTAuth) StreamRequestBefore(ctx context.Context, ss grpc.ServerStream, info *grpc.StreamServerInfo, req interface{}) (grpc.ServerStream, error) {
-	grpcStream := NewGrpcStream(ss, info.FullMethod, ss.Context(), a)
+	ctx, err := a.jwtValidator(ctx)
+	if err != nil {
+		return nil, err
+	}
+	grpcStream := NewGrpcStream(ss, info.FullMethod, ctx, a)
 	return grpcStream, nil
 }
 
@@ -272,4 +284,16 @@ func (jwt *JWTAuth) Priority() int {
 
 func (jwt *JWTAuth) Name() string {
 	return jwt.name
+}
+
+func (jwt *JWTAuth) StreamClientInterceptor(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, streamer grpc.Streamer, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+	if !IfNeedValidate(ctx, method) {
+		return streamer(ctx, desc, cc, method, opts...)
+	}
+
+	ctx, err := jwt.jwtValidator(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return streamer(ctx, desc, cc, method, opts...)
 }

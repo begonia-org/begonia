@@ -7,10 +7,15 @@ import (
 	"testing"
 
 	"github.com/agiledragon/gomonkey/v2"
+	common "github.com/begonia-org/go-sdk/common/api/v1"
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	c "github.com/smartystreets/goconvey/convey"
 	"google.golang.org/genproto/googleapis/api/httpbody"
+	spb "google.golang.org/genproto/googleapis/rpc/status"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/dynamicpb"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 func TestRawBinaryUnmarshaler(t *testing.T) {
@@ -106,5 +111,77 @@ func TestRawBinaryDecodeErr(t *testing.T) {
 
 		}
 
+	})
+}
+func TestJSONMarshaler(t *testing.T) {
+	c.Convey("TestJSONMarshaler", t, func() {
+		marshaler := NewJSONMarshaler()
+		data := map[string]interface{}{
+			"test": "test",
+		}
+		buf, err := marshaler.Marshal(data)
+		c.So(err, c.ShouldBeNil)
+		c.So(string(buf), c.ShouldEqual, `{"test":"test"}`)
+
+		httpBody := &httpbody.HttpBody{
+			ContentType: "application/octet-stream-test",
+			Data:        []byte("test"),
+		}
+		msg2 := dynamicpb.NewMessage(httpBody.ProtoReflect().Descriptor()).New()
+		patch := gomonkey.ApplyFuncReturn((*runtime.JSONPb).Marshal, nil, fmt.Errorf("runtime.JSONPb{}.Marshal: nil"))
+		defer patch.Reset()
+		_, err = marshaler.Marshal(msg2)
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "runtime.JSONPb{}.Marshal: nil")
+	})
+}
+
+func TestEventSourceMarshaler(t *testing.T) {
+	c.Convey("TestEventSourceMarshaler", t, func() {
+		marshaler := NewEventSourceMarshaler()
+		cases := []struct {
+			data      interface{}
+			err       error
+			exception string
+		}{
+			{
+				data: map[string]interface{}{
+					"result": &common.EventStream{
+						Event: "test",
+						Id:    1,
+						Data:  "test",
+						Retry: 0,
+					},
+				},
+				err:       nil,
+				exception: fmt.Sprintf("id: %d\nevent: %s\nretry: %d\ndata: %s\n", 1, "test", 0, "test"),
+			},
+			{
+				data: &common.EventStream{
+					Event: "test-data",
+					Id:    1,
+					Data:  "test-data",
+					Retry: 0,
+				},
+				err:       nil,
+				exception: fmt.Sprintf("id: %d\nevent: %s\nretry: %d\ndata: %s\n", 1, "test-data", 0, "test-data"),
+			},
+			{
+				data: map[string]proto.Message{
+					"error": &spb.Status{
+						Message: "test error",
+						Code:    int32(codes.Internal),
+						Details: []*anypb.Any{},
+					},
+				},
+				err:       nil,
+				exception: fmt.Sprintf("id: %d\nevent: %s\nretry: %d\ndata: %s\n", 0, "error", 0, "test error"),
+			},
+		}
+		for _, caseV := range cases {
+			buf, err := marshaler.Marshal(caseV.data)
+			c.So(err, c.ShouldBeNil)
+			c.So(string(buf), c.ShouldEqual, caseV.exception)
+		}
 	})
 }

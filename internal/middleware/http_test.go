@@ -11,7 +11,6 @@ import (
 	"github.com/begonia-org/begonia/gateway"
 	"github.com/begonia-org/begonia/internal/middleware"
 	"github.com/begonia-org/begonia/internal/pkg"
-	"github.com/begonia-org/begonia/internal/pkg/routers"
 	gosdk "github.com/begonia-org/go-sdk"
 	hello "github.com/begonia-org/go-sdk/api/example/v1"
 	user "github.com/begonia-org/go-sdk/api/user/v1"
@@ -70,7 +69,7 @@ func (x *greeterSayHelloWebsocketServer) Context() context.Context {
 func TestStreamInterceptor(t *testing.T) {
 	c.Convey("test stream interceptor", t, func() {
 		mid := middleware.NewHttp()
-		R := routers.Get()
+		R := gateway.GetRouter()
 		_, filename, _, _ := runtime.Caller(0)
 		pbFile := filepath.Join(filepath.Dir(filepath.Dir(filepath.Dir(filename))), "testdata")
 
@@ -84,10 +83,37 @@ func TestStreamInterceptor(t *testing.T) {
 		c.So(err, c.ShouldBeNil)
 	})
 }
+func TestHttpStreamClientInterceptor(t *testing.T) {
+	c.Convey("test http stream client interceptor", t, func() {
+		mid := middleware.NewHttp()
+		R := gateway.GetRouter()
+		_, filename, _, _ := runtime.Caller(0)
+		pbFile := filepath.Join(filepath.Dir(filepath.Dir(filepath.Dir(filename))), "testdata")
+
+		pd, err := gateway.NewDescription(pbFile)
+		c.So(err, c.ShouldBeNil)
+		R.LoadAllRouters(pd)
+		stream, err := mid.StreamClientInterceptor(metadata.NewOutgoingContext(context.Background(), metadata.Pairs("grpcgateway-accept", "application/json")), nil, nil, "/INTEGRATION.TESTSERVICE/GET", func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+			return &testClientStream{ctx: ctx}, nil
+		},
+		)
+		c.So(err, c.ShouldBeNil)
+		c.So(stream, c.ShouldNotBeNil)
+
+		stream, err = mid.StreamClientInterceptor(metadata.NewOutgoingContext(context.Background(), metadata.Pairs("grpcgateway-accept", "application/json")), nil, nil, "/INTEGRATION.TESTSERVICE/GET", func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+			return nil, fmt.Errorf("new stream err")
+		},
+		)
+		c.So(err, c.ShouldNotBeNil)
+		c.So(stream, c.ShouldBeNil)
+
+	})
+
+}
 func TestUnaryInterceptor(t *testing.T) {
 	c.Convey("test unary interceptor", t, func() {
 		mid := middleware.NewHttp()
-		R := routers.Get()
+		R := gateway.GetRouter()
 		_, filename, _, _ := runtime.Caller(0)
 		pbFile := filepath.Join(filepath.Dir(filepath.Dir(filepath.Dir(filename))), "testdata")
 
@@ -117,6 +143,16 @@ func TestUnaryInterceptor(t *testing.T) {
 
 		req, err = mid.UnaryInterceptor(ctx, &hello.HelloRequest{}, &grpc.UnaryServerInfo{FullMethod: "/INTEGRATION.TESTSERVICE/GET"}, func(ctx context.Context, req interface{}) (interface{}, error) {
 			return nil, status.Error(codes.Unimplemented, "test")
+		})
+		c.So(err, c.ShouldNotBeNil)
+		c.So(req, c.ShouldNotBeNil)
+		req, err = mid.UnaryInterceptor(ctx, &hello.HelloRequest{}, &grpc.UnaryServerInfo{FullMethod: "/INTEGRATION.TESTSERVICE/GET"}, func(ctx context.Context, req interface{}) (interface{}, error) {
+			return nil, status.Error(codes.InvalidArgument, "test")
+		})
+		c.So(err, c.ShouldNotBeNil)
+		c.So(req, c.ShouldNotBeNil)
+		req, err = mid.UnaryInterceptor(ctx, &hello.HelloRequest{}, &grpc.UnaryServerInfo{FullMethod: "/INTEGRATION.TESTSERVICE/GET"}, func(ctx context.Context, req interface{}) (interface{}, error) {
+			return nil, status.Error(codes.AlreadyExists, "test")
 		})
 		c.So(err, c.ShouldNotBeNil)
 		c.So(req, c.ShouldNotBeNil)

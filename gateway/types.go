@@ -47,7 +47,7 @@ func (x *serverSideStreamClient) buildEventStreamResponse(dpm *dynamicpb.Message
 		return nil, err
 
 	}
-
+	// log.Printf("buildEventStreamResponse data:%s", string(data))
 	commonEvent := &common.EventStream{
 		Event: string(dpm.Descriptor().Name()),
 		Id:    atomic.LoadInt64(&x.ID),

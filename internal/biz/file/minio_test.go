@@ -89,7 +89,7 @@ func testMinioUpload(t *testing.T) {
 			Bucket:  minioBucket,
 			Key:     "test.txt",
 			Content: []byte("hello"),
-			Engine: api.FileEngine_FILE_ENGINE_MINIO.String(),
+			Engine:  api.FileEngine_FILE_ENGINE_MINIO.String(),
 		}, minioFileAuthor)
 		c.So(err, c.ShouldBeNil)
 		c.So(rsp, c.ShouldNotBeNil)
@@ -106,7 +106,7 @@ func testMinioUpload(t *testing.T) {
 			Bucket:  minioBucket,
 			Key:     "test.txt",
 			Content: []byte("hello"),
-			Engine: api.FileEngine_FILE_ENGINE_MINIO.String(),
+			Engine:  api.FileEngine_FILE_ENGINE_MINIO.String(),
 		}, minioFileAuthor)
 		patch.Reset()
 		c.So(err, c.ShouldNotBeNil)
@@ -260,7 +260,7 @@ func testMinioInitPartsUpload(t *testing.T) {
 	fileBiz := newFileMinioBiz()
 	c.Convey("test init parts upload success", t, func() {
 		rsp, err := fileBiz.InitiateUploadFile(context.TODO(), &api.InitiateMultipartUploadRequest{
-			Key: "test-minio.txt",
+			Key:    "test-minio.txt",
 			Engine: api.FileEngine_FILE_ENGINE_MINIO.String(),
 		})
 		c.So(err, c.ShouldBeNil)
@@ -477,14 +477,14 @@ func testMinioDelete(t *testing.T) {
 func testMinioList(t *testing.T) {
 	fileBiz := newFileMinioBiz()
 	c.Convey("test list success", t, func() {
-		t.Logf("minio bucket:%s,engine:%s,author:%s", minioBucket,api.FileEngine_FILE_ENGINE_MINIO.String(),minioFileAuthor)
+		t.Logf("minio bucket:%s,engine:%s,author:%s", minioBucket, api.FileEngine_FILE_ENGINE_MINIO.String(), minioFileAuthor)
 		rsp, err := fileBiz.List(context.Background(), &api.ListFilesRequest{Bucket: minioBucket, Page: 1, PageSize: 20, Engine: api.FileEngine_FILE_ENGINE_MINIO.String()}, minioFileAuthor)
 		c.So(err, c.ShouldBeNil)
 		c.So(rsp, c.ShouldNotBeNil)
 		c.So(len(rsp), c.ShouldBeGreaterThanOrEqualTo, 1)
 	})
 	c.Convey("test list fail", t, func() {
-		_, err := fileBiz.List(context.Background(), &api.ListFilesRequest{Bucket: minioBucket, Page: -1, PageSize: -1,Engine: api.FileEngine_FILE_ENGINE_MINIO.String()}, minioFileAuthor)
+		_, err := fileBiz.List(context.Background(), &api.ListFilesRequest{Bucket: minioBucket, Page: -1, PageSize: -1, Engine: api.FileEngine_FILE_ENGINE_MINIO.String()}, minioFileAuthor)
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "SQL syntax")
 	})

@@ -2,13 +2,14 @@ package gateway
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
 	gosdk "github.com/begonia-org/go-sdk"
-	_ "github.com/begonia-org/go-sdk/api"
+	// _ "github.com/begonia-org/go-sdk/api"
 	common "github.com/begonia-org/go-sdk/common/api/v1"
 	"github.com/begonia-org/go-sdk/logger"
 	"github.com/google/uuid"
@@ -189,11 +190,44 @@ func (log *LoggerMiddleware) UnaryInterceptor(ctx context.Context, req interface
 		}
 
 	}()
-
+	// fmt.Printf("call logger mid\n")
 	rsp, err = handler(ctx, req)
 	elapsed := time.Since(now)
+	// fmt.Printf("logger error:%v", err)
 	log.logger(ctx, info.FullMethod, err, elapsed)
 	return
+}
+func (log *LoggerMiddleware) wrapHandlerWithLogger(handler grpc.StreamHandler) grpc.StreamHandler {
+	return func(srv interface{}, ss grpc.ServerStream) (err error) {
+		now := time.Now()
+		defer func() {
+			if r := recover(); r != nil {
+				elapsed := time.Since(now)
+				method, _ := grpc.Method(ss.Context())
+				err = fmt.Errorf("handle err:%v", r)
+				log.logger(ss.Context(), method, fmt.Errorf("handle err:%v", r), elapsed)
+			}
+			if md, ok := metadata.FromIncomingContext(ss.Context()); ok {
+				reqId := md.Get(XRequestID)
+				if len(reqId) > 0 {
+					_ = grpc.SendHeader(ss.Context(), metadata.Pairs(XRequestID, reqId[0]))
+				}
+			}
+		}()
+		err = handler(srv, ss)
+		elapsed := time.Since(now)
+		method, _ := grpc.Method(ss.Context())
+
+		log.logger(ss.Context(), method, err, elapsed)
+		return err
+	}
+
+}
+func (log *LoggerMiddleware) StreamClientInterceptor(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, streamer grpc.Streamer, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+
+	desc.Handler = log.wrapHandlerWithLogger(desc.Handler)
+	return streamer(ctx, desc, cc, method, opts...)
+
 }
 func (log *LoggerMiddleware) StreamInterceptor(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) (err error) {
 	now := time.Now()
@@ -252,6 +286,42 @@ func clientMessageFromCode(code codes.Code) string {
 	}
 }
 
+// HandleServerStreamError handle server stream error
+//
+// convert error to status.Status, and get error message from error details,
+// try to get error message from error details message or ToClientMessage, if not found, get error message from error code,
+// if not found, return "internal error"
+func HandleServerStreamError(logger logger.Logger) runtime.StreamErrorHandlerFunc {
+	return func(ctx context.Context, err error) *status.Status {
+		if st, ok := status.FromError(err); ok {
+			details := st.Details()
+			message := clientMessageFromCode(st.Code())
+			for _, detail := range details {
+				var errDetail *common.Errors = new(common.Errors)
+
+				if d, ok := detail.(*common.Errors); ok {
+
+					errDetail = d
+				} else if anyType, ok := detail.(*anypb.Any); ok {
+					if err := anyType.UnmarshalTo(errDetail); err != nil {
+						Log.Errorf(ctx, "unmarshal error details err:%v", err)
+						continue
+					}
+				}
+				if errDetail.Message != "" {
+					message = errDetail.Message
+				}
+				if errDetail.ToClientMessage != "" {
+					message = errDetail.ToClientMessage
+				}
+			}
+			return status.New(st.Code(), message)
+		}
+		return status.New(codes.Internal, fmt.Sprintf("Unknown error:%v", err))
+
+	}
+
+}
 func HandleErrorWithLogger(logger logger.Logger) runtime.ErrorHandlerFunc {
 	codes := getClientMessageMap()
 	return func(ctx context.Context, mux *runtime.ServeMux, marshaler runtime.Marshaler, w http.ResponseWriter, req *http.Request, err error) {
@@ -272,48 +342,53 @@ func HandleErrorWithLogger(logger logger.Logger) runtime.ErrorHandlerFunc {
 		data := &common.HttpResponse{}
 		data.Code = int32(common.Code_INTERNAL_ERROR)
 		data.Message = "internal error"
+		// fmt.Printf("sse error type:%T, error:%v", err, err)
 		if st, ok := status.FromError(err); ok {
 			msg := st.Message()
 			details := st.Details()
 			data.Message = clientMessageFromCode(st.Code())
-			// log.Info(ctx, fmt.Sprintf("error message:%s", data.Message))
-			// data.Data = &structpb.Struct{}
 			for _, detail := range details {
-				if anyType, ok := detail.(*anypb.Any); ok {
-					var errDetail common.Errors
-					if err := anyType.UnmarshalTo(&errDetail); err == nil {
-						rspCode := float64(errDetail.Code)
-						log = log.WithFields(logrus.Fields{
-							"status": int(rspCode),
-							"file":   errDetail.File,
-							"line":   errDetail.Line,
-							"fn":     errDetail.Fn,
-						})
+				var errDetail *common.Errors = new(common.Errors)
 
-						msg := codes[int32(errDetail.Code)]
-						// log.Infof(ctx, "error message:%s,err code:%d", msg, errDetail.Code)
-						// log.Infof(ctx, "codes map:%v", codes)
-						if errDetail.ToClientMessage != "" {
-							msg = errDetail.ToClientMessage
-						}
+				if d, ok := detail.(*common.Errors); ok {
 
-						data.Code = errDetail.Code
-						data.Message = msg
-						data.Data = &structpb.Struct{}
-						break
+					errDetail = d
+				} else if anyType, ok := detail.(*anypb.Any); ok {
+					if err := anyType.UnmarshalTo(errDetail); err != nil {
+						log.Errorf(ctx, "error type:%T, error:%v", err, err)
+						continue
 					}
 				} else {
 					log.Errorf(ctx, "error type:%T, error:%v", err, err)
 
 				}
+				if errDetail.Message != "" {
+					rspCode := float64(errDetail.Code)
+					log = log.WithFields(logrus.Fields{
+						"status": int(rspCode),
+						"file":   errDetail.File,
+						"line":   errDetail.Line,
+						"fn":     errDetail.Fn,
+					})
+
+					msg := codes[int32(errDetail.Code)]
+					if errDetail.ToClientMessage != "" {
+						msg = errDetail.ToClientMessage
+					}
+					data.Code = errDetail.Code
+					data.Message = msg
+					data.Data = &structpb.Struct{}
+					break
+				}
 
 			}
+			// fmt.Printf("error message:%s,err code:%d", data.Message, st.Code())
 			code = runtime.HTTPStatusFromCode(st.Code())
 
 			log.WithField("status", code).Errorf(ctx, msg)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(code)
-			// log.Infof(ctx, "error message:%s,err code:%d", data.Message, data.Code)
+			log.Errorf(ctx, "error message:%s,err code:%d", data.Message, data.Code)
 			bData, _ := protojson.Marshal(data)
 			_, _ = w.Write(bData)
 			return
@@ -331,8 +406,9 @@ func writeHttpHeaders(w http.ResponseWriter, key string, value []string) {
 		for _, v := range value {
 			w.Header().Del(key)
 			if v != "" {
+				// log.Printf("http key:%s, value:%s", httpKey, v)
 				if strings.EqualFold(httpKey, "Content-Type") {
-					if v == "application/grpc" {
+					if strings.EqualFold(v, "application/grpc") {
 						continue
 					}
 					w.Header().Set(httpKey, v)
@@ -347,6 +423,9 @@ func writeHttpHeaders(w http.ResponseWriter, key string, value []string) {
 						return
 					}
 				}
+				if strings.HasPrefix(strings.ToLower(httpKey), strings.ToLower("Grpc-")) {
+					continue
+				}
 				headers = append(headers, http.CanonicalHeaderKey(httpKey))
 				w.Header().Set("Access-Control-Expose-Headers", strings.Join(headers, ","))
 
@@ -358,32 +437,37 @@ func writeHttpHeaders(w http.ResponseWriter, key string, value []string) {
 }
 func HttpResponseBodyModify(ctx context.Context, w http.ResponseWriter, msg proto.Message) error {
 	httpCode := http.StatusOK
-	for key, value := range w.Header() {
-		if strings.HasPrefix(key, "Grpc-Metadata-") {
+	// log.Printf("response message header:%v", w.Header())
+	for key := range w.Header() {
+		if strings.HasPrefix(http.CanonicalHeaderKey(key), http.CanonicalHeaderKey("Grpc-")) {
 			w.Header().Del(key)
+			continue
 
 		}
-		// log.Printf("send to client rsp header,key:%s,value:%s", key, value[0])
-		writeHttpHeaders(w, key, value)
-		if strings.HasSuffix(http.CanonicalHeaderKey(key), http.CanonicalHeaderKey("X-Http-Code")) {
-			codeStr := value[0]
-			code, err := strconv.ParseInt(codeStr, 10, 32)
-			if err != nil {
-				Log.Error(ctx, err)
-				return status.Error(codes.Internal, err.Error())
+	}
+	if out, ok := runtime.ServerMetadataFromContext(ctx); ok {
+		// log.Printf("response message header from server metadata:%v", out.HeaderMD)
+		for key, value := range out.HeaderMD {
+
+			if strings.HasPrefix(strings.ToLower(key), strings.ToLower("Grpc-")) || strings.EqualFold(key, "content-type") {
+				continue
+
 			}
-			httpCode = int(code)
+			writeHttpHeaders(w, key, value)
+			if strings.HasSuffix(http.CanonicalHeaderKey(key), http.CanonicalHeaderKey("X-Http-Code")) {
+				codeStr := value[0]
+				code, err := strconv.ParseInt(codeStr, 10, 32)
+				if err != nil {
+					Log.Error(ctx, err)
+					return status.Error(codes.Internal, err.Error())
+				}
+				httpCode = int(code)
+
+			}
 
 		}
-
 	}
 
-	out, ok := metadata.FromIncomingContext(ctx)
-	if ok {
-		for k, v := range out {
-			writeHttpHeaders(w, k, v)
-		}
-	}
 	if httpCode != http.StatusOK {
 		w.WriteHeader(httpCode)
 	}

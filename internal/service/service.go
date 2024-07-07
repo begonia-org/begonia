@@ -42,15 +42,15 @@ func NewServices(file file.FileServiceServer,
 
 ) []Service {
 	services := make([]Service, 0)
-	services = append(services, file.(Service), 
-	authz.(Service), 
-	ep.(Service), 
-	app.(Service), 
-	sys.(Service), 
-	users.(Service),
-	business.(Service),
-	tenant.(Service),
-)
+	services = append(services, file.(Service),
+		authz.(Service),
+		ep.(Service),
+		app.(Service),
+		sys.(Service),
+		users.(Service),
+		business.(Service),
+		tenant.(Service),
+	)
 	return services
 }
 

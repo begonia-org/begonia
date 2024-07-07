@@ -7,10 +7,12 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -29,7 +31,6 @@ import (
 	"github.com/begonia-org/begonia/internal/pkg"
 	cfg "github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/crypto"
-	"github.com/begonia-org/begonia/internal/pkg/routers"
 	"github.com/begonia-org/begonia/internal/pkg/utils"
 	gosdk "github.com/begonia-org/go-sdk"
 	api "github.com/begonia-org/go-sdk/api/app/v1"
@@ -43,6 +44,21 @@ import (
 
 type testStream struct {
 	ctx context.Context
+}
+type testClientStream struct {
+	ctx context.Context
+	grpc.ClientStream
+}
+
+func (t *testClientStream) Context() context.Context {
+	return t.ctx
+}
+func (t *testClientStream) SendMsg(m interface{}) error {
+	return nil
+}
+func (t *testClientStream) RecvMsg(m interface{}) error {
+	return nil
+
 }
 
 func (t *testStream) SetHeader(metadata.MD) error {
@@ -124,8 +140,8 @@ func getJWT() string {
 	user := data.NewUserRepo(config, gateway.Log)
 	userAuth := crypto.NewUsersAuth(cnf)
 	authzRepo := data.NewAuthzRepo(config, gateway.Log)
-	appRepo:=data.NewAppRepo(config,gateway.Log)
-	authz := biz.NewAuthzUsecase(authzRepo, user,appRepo, gateway.Log, userAuth, cnf)
+	appRepo := data.NewAppRepo(config, gateway.Log)
+	authz := biz.NewAuthzUsecase(authzRepo, user, appRepo, gateway.Log, userAuth, cnf)
 	adminUser := cnf.GetDefaultAdminName()
 	adminPasswd := cnf.GetDefaultAdminPasswd()
 	_, filename, _, _ := runtime.Caller(0)
@@ -217,12 +233,12 @@ func getMid() gosdk.LocalPlugin {
 	user := data.NewUserRepo(config, gateway.Log)
 	userAuth := crypto.NewUsersAuth(cnf)
 	authzRepo := data.NewAuthzRepo(config, gateway.Log)
-	appRepo:=data.NewAppRepo(config,gateway.Log)
-	authz := biz.NewAuthzUsecase(authzRepo, user,appRepo, gateway.Log, userAuth, cnf)
+	appRepo := data.NewAppRepo(config, gateway.Log)
+	authz := biz.NewAuthzUsecase(authzRepo, user, appRepo, gateway.Log, userAuth, cnf)
 	jwt := auth.NewJWTAuth(cnf, tiga.NewRedisDao(config), authz, gateway.Log)
 	ak := auth.NewAccessKeyAuth(akBiz, cnf, gateway.Log)
 
-	apiKey := auth.NewApiKeyAuth(cnf,authz)
+	apiKey := auth.NewApiKeyAuth(cnf, authz)
 	mid := auth.NewAuth(ak, jwt, apiKey)
 	return mid
 
@@ -238,22 +254,22 @@ func TestUnaryInterceptor(t *testing.T) {
 	mid := getMid()
 	ctx := context.Background()
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		md,ok:=metadata.FromIncomingContext(ctx)
-		if !ok{
-			return nil,fmt.Errorf("no metadata")
+		md, ok := metadata.FromIncomingContext(ctx)
+		if !ok {
+			return nil, fmt.Errorf("no metadata")
 		}
-		if identify:=md.Get(gosdk.HeaderXIdentity);len(identify)==0||identify[0]==""{
-			return nil,fmt.Errorf("no app identity")
+		if identify := md.Get(gosdk.HeaderXIdentity); len(identify) == 0 || identify[0] == "" {
+			return nil, fmt.Errorf("no app identity")
 		}
-		XAccessKey:=md.Get(gosdk.HeaderXAccessKey)
-		XApiKey:=md.Get(gosdk.HeaderXApiKey)
-		XAuthz:=md.Get("authorization")
-		if len(XAccessKey)==0 && len(XApiKey)==0 && len(XAuthz)==0{
-			return nil,fmt.Errorf("no app auth key")
+		XAccessKey := md.Get(gosdk.HeaderXAccessKey)
+		XApiKey := md.Get(gosdk.HeaderXApiKey)
+		XAuthz := md.Get("authorization")
+		if len(XAccessKey) == 0 && len(XApiKey) == 0 && len(XAuthz) == 0 {
+			return nil, fmt.Errorf("no app auth key")
 		}
 		return nil, nil
 	}
-	R := routers.Get()
+	R := gateway.GetRouter()
 	_, filename, _, _ := runtime.Caller(0)
 	pbFile := filepath.Join(filepath.Dir(filepath.Dir(filepath.Dir(filepath.Dir(filename)))), "testdata")
 
@@ -288,8 +304,11 @@ func TestUnaryInterceptor(t *testing.T) {
 	c.Convey("TestUnaryInterceptor aksk", t, func() {
 		u := &v1.Users{}
 		bData, _ := json.Marshal(u)
+		hash := sha256.Sum256(bData)
+		hexStr := fmt.Sprintf("%x", hash)
 		req, _ := http.NewRequest(http.MethodPost, "/test/post", bytes.NewReader(bData))
 		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set(gosdk.HeaderXContentSha256, hexStr)
 		access, secret, appid := readInitAPP()
 		sgin := gosdk.NewAppAuthSigner(access, secret)
 		gwReq, err := gosdk.NewGatewayRequestFromHttp(req)
@@ -342,7 +361,7 @@ func TestStreamInterceptor(t *testing.T) {
 	mid := getMid()
 	ctx := context.Background()
 
-	R := routers.Get()
+	R := gateway.GetRouter()
 	_, filename, _, _ := runtime.Caller(0)
 	pbFile := filepath.Join(filepath.Dir(filepath.Dir(filepath.Dir(filepath.Dir(filename)))), "testdata")
 
@@ -352,15 +371,18 @@ func TestStreamInterceptor(t *testing.T) {
 
 		ctx = metadata.NewIncomingContext(ctx, metadata.Pairs(gosdk.HeaderXApiKey, cnf.GetAdminAPIKey()))
 		err = mid.StreamInterceptor(&v1.Users{}, &greeterSayHelloWebsocketServer{ServerStream: &testStream{ctx: ctx}}, &grpc.StreamServerInfo{FullMethod: "/INTEGRATION.TESTSERVICE/GET"}, func(srv interface{}, ss grpc.ServerStream) error {
-			err:= ss.RecvMsg(srv)
-			md,_:=metadata.FromIncomingContext(ss.Context())
-			if identify:=md.Get(gosdk.HeaderXIdentity);len(identify)==0||identify[0]==""{
+			err := ss.RecvMsg(srv)
+			if err != nil {
+				return err
+			}
+			md, _ := metadata.FromIncomingContext(ss.Context())
+			if identify := md.Get(gosdk.HeaderXIdentity); len(identify) == 0 || identify[0] == "" {
 				return fmt.Errorf("no app identity")
 			}
-			if xAppKey:=md.Get(gosdk.HeaderXApiKey);len(xAppKey)==0||xAppKey[0]==""{
+			if xAppKey := md.Get(gosdk.HeaderXApiKey); len(xAppKey) == 0 || xAppKey[0] == "" {
 				return fmt.Errorf("no app key")
 			}
-			return err
+			return ss.RecvMsg(srv)
 		})
 		c.So(err, c.ShouldBeNil)
 		ctx = metadata.NewIncomingContext(context.Background(), metadata.Pairs(gosdk.HeaderXApiKey, "cnf.GetAdminAPIKey()"))
@@ -368,18 +390,39 @@ func TestStreamInterceptor(t *testing.T) {
 			return ss.RecvMsg(srv)
 		})
 		c.So(err, c.ShouldNotBeNil)
+		// get identity err
+		patch := gomonkey.ApplyFuncReturn((*biz.AuthzUsecase).GetIdentity, "", fmt.Errorf("get identity err"))
+		defer patch.Reset()
+		ctx = metadata.NewIncomingContext(context.Background(), metadata.Pairs(gosdk.HeaderXApiKey, cnf.GetAdminAPIKey()))
+
+		err = mid.StreamInterceptor(&v1.Users{}, &greeterSayHelloWebsocketServer{ServerStream: &testStream{ctx: ctx}}, &grpc.StreamServerInfo{FullMethod: "/INTEGRATION.TESTSERVICE/GET"}, func(srv interface{}, ss grpc.ServerStream) error {
+			err := ss.RecvMsg(srv)
+			return err
+		})
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "query user id base on apikey")
+		patch.Reset()
+
+		// check apikey not match
+		ctx = metadata.NewIncomingContext(context.Background(), metadata.Pairs(gosdk.HeaderXApiKey, "cnf.GetAdminAPIKey()"))
+		err = mid.StreamInterceptor(&v1.Users{}, &greeterSayHelloWebsocketServer{ServerStream: &testStream{ctx: ctx}}, &grpc.StreamServerInfo{FullMethod: "/INTEGRATION.TESTSERVICE/GET"}, func(srv interface{}, ss grpc.ServerStream) error {
+			err := ss.RecvMsg(srv)
+			return err
+		})
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrAPIKeyNotMatch.Error())
 
 	})
 	c.Convey("TestStreamInterceptor jwt", t, func() {
 		jwt := getJWT()
 		ctx = metadata.NewIncomingContext(context.Background(), metadata.Pairs("authorization", "Bearer "+jwt))
 		err = mid.StreamInterceptor(&v1.Users{}, &greeterSayHelloWebsocketServer{ServerStream: &testStream{ctx: ctx}}, &grpc.StreamServerInfo{FullMethod: "/INTEGRATION.TESTSERVICE/GET"}, func(srv interface{}, ss grpc.ServerStream) error {
-			err:= ss.RecvMsg(srv)
-			md,_:=metadata.FromIncomingContext(ss.Context())
-			if identify:=md.Get(gosdk.HeaderXIdentity);len(identify)==0||identify[0]==""{
+			err := ss.RecvMsg(srv)
+			md, _ := metadata.FromIncomingContext(ss.Context())
+			if identify := md.Get(gosdk.HeaderXIdentity); len(identify) == 0 || identify[0] == "" {
 				return fmt.Errorf("no app identity")
 			}
-			if xAuthorization:=md.Get("authorization");len(xAuthorization)==0||xAuthorization[0]==""{
+			if xAuthorization := md.Get("authorization"); len(xAuthorization) == 0 || xAuthorization[0] == "" {
 				return fmt.Errorf("no jwt key")
 			}
 			return err
@@ -390,13 +433,26 @@ func TestStreamInterceptor(t *testing.T) {
 			return ss.RecvMsg(srv)
 		})
 		c.So(err, c.ShouldNotBeNil)
+
+		ctx = metadata.NewIncomingContext(context.Background(), metadata.Pairs("authorization", ""))
+		err = mid.StreamInterceptor(&v1.Users{}, &greeterSayHelloWebsocketServer{ServerStream: &testStream{ctx: ctx}}, &grpc.StreamServerInfo{FullMethod: "/INTEGRATION.TESTSERVICE/GET"}, func(srv interface{}, ss grpc.ServerStream) error {
+			return ss.RecvMsg(srv)
+		})
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrTokenMissing.Error())
 	})
 
-	c.Convey("TestUnaryInterceptor aksk", t, func() {
+	c.Convey("TestStreamInterceptor aksk", t, func() {
 		u := &v1.Users{}
+
 		bData, _ := json.Marshal(u)
+		hash := sha256.Sum256(bData)
+		hexStr := fmt.Sprintf("%x", hash)
+
+		t.Logf("data:%s", string(bData))
 		req, _ := http.NewRequest(http.MethodPost, "/test/post", bytes.NewReader(bData))
 		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set(gosdk.HeaderXContentSha256, hexStr)
 		access, secret, appid := readInitAPP()
 		sgin := gosdk.NewAppAuthSigner(access, secret)
 		gwReq, err := gosdk.NewGatewayRequestFromHttp(req)
@@ -417,22 +473,20 @@ func TestStreamInterceptor(t *testing.T) {
 		defer patch.Reset()
 		ctx := metadata.NewIncomingContext(context.Background(), md)
 		err = mid.StreamInterceptor(u, &greeterSayHelloWebsocketServer{ServerStream: &testStream{ctx: ctx}}, &grpc.StreamServerInfo{FullMethod: "/INTEGRATION.TESTSERVICE/POST"}, func(srv interface{}, ss grpc.ServerStream) error {
-			err:= ss.RecvMsg(srv)
-			md,ok:=metadata.FromIncomingContext(ss.Context())
-			if !ok{
+			err := ss.RecvMsg(srv)
+			md, ok := metadata.FromIncomingContext(ss.Context())
+			if !ok {
 				return fmt.Errorf("no metadata")
 			}
-			if identify:=md.Get(gosdk.HeaderXIdentity);len(identify)==0||identify[0]==""{
+			if identify := md.Get(gosdk.HeaderXIdentity); len(identify) == 0 || identify[0] == "" {
 				return fmt.Errorf("no app identity")
 			}
-			if xAccessKey:=md.Get(gosdk.HeaderXAccessKey);len(xAccessKey)==0||xAccessKey[0]==""{
-				t.Logf("error metadata:%v",md)
+			if xAccessKey := md.Get(gosdk.HeaderXAccessKey); len(xAccessKey) == 0 || xAccessKey[0] == "" {
 				return fmt.Errorf("no app access key")
 			}
 			return err
 		})
 		c.So(err, c.ShouldBeNil)
-
 		sign1 := gosdk.NewAppAuthSigner("ASDASDCASDFQ", "ASDASDCASDFQ")
 		gwReq1, err := gosdk.NewGatewayRequestFromHttp(req)
 		c.So(err, c.ShouldBeNil)
@@ -452,13 +506,187 @@ func TestStreamInterceptor(t *testing.T) {
 		})
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrAppSignatureInvalid.Error())
+
+		// recv msg err
+		ctx = metadata.NewIncomingContext(context.Background(), md)
+		patch4 := gomonkey.ApplyFuncReturn((*testStream).RecvMsg, fmt.Errorf("recv msg err"))
+
+		defer patch4.Reset()
+		err = mid.StreamInterceptor(&v1.Users{}, &greeterSayHelloWebsocketServer{ServerStream: &testStream{ctx: ctx}}, &grpc.StreamServerInfo{FullMethod: "/INTEGRATION.TESTSERVICE/POST"}, func(srv interface{}, ss grpc.ServerStream) error {
+			err := ss.RecvMsg(srv)
+			return err
+		})
+		patch4.Reset()
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "recv msg err")
+		// recv io.EOF
+		patch5 := gomonkey.ApplyFuncReturn((*testStream).RecvMsg, io.EOF)
+		defer patch5.Reset()
+		err = mid.StreamInterceptor(&v1.Users{}, &greeterSayHelloWebsocketServer{ServerStream: &testStream{ctx: ctx}}, &grpc.StreamServerInfo{FullMethod: "/INTEGRATION.TESTSERVICE/POST"}, func(srv interface{}, ss grpc.ServerStream) error {
+			err := ss.RecvMsg(srv)
+			return err
+		})
+		patch5.Reset()
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, io.EOF.Error())
+
+	})
+}
+func TestStreamClientInterceptor(t *testing.T) {
+	env := "dev"
+	if begonia.Env != "" {
+		env = begonia.Env
+	}
+	config := config.ReadConfig(env)
+	cnf := cfg.NewConfig(config)
+	mid := getMid()
+	ctx := context.Background()
+
+	R := gateway.GetRouter()
+	_, filename, _, _ := runtime.Caller(0)
+	pbFile := filepath.Join(filepath.Dir(filepath.Dir(filepath.Dir(filepath.Dir(filename)))), "testdata")
+
+	pd, _ := gateway.NewDescription(pbFile)
+	R.LoadAllRouters(pd)
+	c.Convey("TestStreamClientInterceptor apikey", t, func() {
+		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs(gosdk.HeaderXApiKey, cnf.GetAdminAPIKey()))
+		st, err := mid.StreamClientInterceptor(ctx, nil, nil, "/INTEGRATION.TESTSERVICE/GET", func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+			return &testClientStream{ctx: ctx}, nil
+		})
+		c.So(err, c.ShouldBeNil)
+		err = st.SendMsg(&v1.Users{})
+		c.So(err, c.ShouldBeNil)
+
+		// no need validate
+		st, err = mid.StreamClientInterceptor(ctx, nil, nil, "/INTEGRATION.TESTSERVICE/NOT_FOUND", func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+			return &testClientStream{ctx: ctx}, nil
+		},
+		)
+		c.So(err, c.ShouldBeNil)
+		out, ok := metadata.FromOutgoingContext(st.Context())
+		c.So(ok, c.ShouldBeTrue)
+		c.So(out.Get(gosdk.HeaderXIdentity), c.ShouldBeEmpty)
+		// no outgoing context
+		_, err = mid.StreamClientInterceptor(context.Background(), nil, nil, "/INTEGRATION.TESTSERVICE/GET", func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+			return &testClientStream{ctx: ctx}, nil
+		})
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "metadata not exists in context")
+		// do not need validate
+		_, err = mid.StreamClientInterceptor(ctx, nil, nil, "/INTEGRATION.TESTSERVICE/NOT_FOUND", func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+			return &testClientStream{ctx: ctx}, nil
+		})
+		c.So(err, c.ShouldBeNil)
+		// not match apikey
+		patch := gomonkey.ApplyFuncReturn((*cfg.Config).GetAdminAPIKey, "")
+		defer patch.Reset()
+		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs(gosdk.HeaderXApiKey, cnf.GetAdminAPIKey()))
+		_, err = mid.StreamClientInterceptor(ctx, nil, nil, "/INTEGRATION.TESTSERVICE/GET", func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+			return &testClientStream{ctx: ctx}, nil
+		})
+
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrAPIKeyNotMatch.Error())
+		patch.Reset()
+		// get owner error
+		patch2 := gomonkey.ApplyFuncReturn((*biz.AuthzUsecase).GetIdentity, "", fmt.Errorf("get owner err"))
+		defer patch2.Reset()
+		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs(gosdk.HeaderXApiKey, cnf.GetAdminAPIKey()))
+		_, err = mid.StreamClientInterceptor(ctx, nil, nil, "/INTEGRATION.TESTSERVICE/GET", func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+			return &testClientStream{ctx: ctx}, nil
+		})
+		patch2.Reset()
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "query user id base on apikey")
+
+	})
+	c.Convey("TestStreamClientInterceptor jwt", t, func() {
+		jwt := getJWT()
+		outCTX := metadata.NewOutgoingContext(context.Background(), metadata.Pairs("authorization", "Bearer "+jwt))
+		st, err := mid.StreamClientInterceptor(outCTX, nil, nil, "/INTEGRATION.TESTSERVICE/GET", func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+			return &testClientStream{ctx: ctx}, nil
+		})
+		c.So(err, c.ShouldBeNil)
+		out, ok := metadata.FromOutgoingContext(st.Context())
+		c.So(ok, c.ShouldBeTrue)
+		c.So(out.Get(gosdk.HeaderXIdentity), c.ShouldNotBeEmpty)
+	})
+	c.Convey("TestStreamClientInterceptor aksk", t, func() {
+		u := &v1.Users{}
+
+		bData, _ := json.Marshal(u)
+		hash := sha256.Sum256(bData)
+		hexStr := fmt.Sprintf("%x", hash)
+
+		t.Logf("data:%s", string(bData))
+		req, _ := http.NewRequest(http.MethodPost, "/test/post", bytes.NewReader(bData))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set(gosdk.HeaderXContentSha256, hexStr)
+		access, secret, appid := readInitAPP()
+		sgin := gosdk.NewAppAuthSigner(access, secret)
+		gwReq, err := gosdk.NewGatewayRequestFromHttp(req)
+		c.So(err, c.ShouldBeNil)
+		err = sgin.SignRequest(gwReq)
+		c.So(err, c.ShouldBeNil)
+		md := metadata.New(make(map[string]string))
+
+		headers := gwReq.Headers
+		for _, k := range headers.Keys() {
+			// t.Logf("header:%s,value:%s", k, headers.Get(k))
+			md.Append(k, headers.Get(k))
+		}
+		md.Append("uri", "/test/post")
+		md.Append("x-http-method", http.MethodPost)
+		patch := gomonkey.ApplyFuncReturn((*biz.AccessKeyAuth).GetSecret, secret, nil)
+		patch = patch.ApplyFuncReturn((*biz.AccessKeyAuth).GetAppOwner, appid, nil)
+		defer patch.Reset()
+		outCTX := metadata.NewOutgoingContext(context.Background(), md)
+		st, err := mid.StreamClientInterceptor(outCTX, nil, nil, "/INTEGRATION.TESTSERVICE/POST", func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+			return &testClientStream{ctx: ctx}, nil
+		})
+		c.So(err, c.ShouldBeNil)
+		out, ok := metadata.FromOutgoingContext(st.Context())
+		c.So(ok, c.ShouldBeTrue)
+		c.So(out.Get(gosdk.HeaderXIdentity), c.ShouldNotBeEmpty)
+		// no need validate
+		st, err = mid.StreamClientInterceptor(outCTX, nil, nil, "/INTEGRATION.TESTSERVICE/NOT_FOUND", func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+			return &testClientStream{ctx: ctx}, nil
+		})
+		c.So(err, c.ShouldBeNil)
+		out, ok = metadata.FromOutgoingContext(st.Context())
+		c.So(ok, c.ShouldBeTrue)
+		c.So(out.Get(gosdk.HeaderXIdentity), c.ShouldBeEmpty)
+		// no context
+		_, err = mid.StreamClientInterceptor(req.Context(), nil, nil, "/INTEGRATION.TESTSERVICE/POST", func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+			return &testClientStream{ctx: ctx}, nil
+		})
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "metadata not exists in context")
+
+		// streamer err
+		_, err = mid.StreamClientInterceptor(outCTX, nil, nil, "/INTEGRATION.TESTSERVICE/GET", func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+			return nil, fmt.Errorf("streamer err")
+		})
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "streamer err")
+
+		// get owner err
+
+		patch2 := gomonkey.ApplyFuncReturn((*biz.AccessKeyAuth).GetAppOwner, "", fmt.Errorf("get owner err"))
+		defer patch2.Reset()
+		_, err = mid.StreamClientInterceptor(outCTX, nil, nil, "/INTEGRATION.TESTSERVICE/POST", func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+			return &testClientStream{ctx: ctx}, nil
+		})
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "get owner err")
+
 	})
 }
 func TestTestUnaryInterceptorErr(t *testing.T) {
 	mid := getMid()
 	ctx := context.Background()
 
-	R := routers.Get()
+	R := gateway.GetRouter()
 	_, filename, _, _ := runtime.Caller(0)
 	pbFile := filepath.Join(filepath.Dir(filepath.Dir(filepath.Dir(filepath.Dir(filename)))), "testdata")
 
@@ -485,7 +713,7 @@ func TestTestUnaryInterceptorErr(t *testing.T) {
 func TestStreamInterceptorErr(t *testing.T) {
 	mid := getMid()
 
-	R := routers.Get()
+	R := gateway.GetRouter()
 	_, filename, _, _ := runtime.Caller(0)
 	pbFile := filepath.Join(filepath.Dir(filepath.Dir(filepath.Dir(filepath.Dir(filename)))), "testdata")
 

@@ -73,7 +73,7 @@ jobs:
           version: "22.2"
       - name: Install protoc-gen-grpc-gateway
         run: |
-          git clone https://github.com/geebytes/grpc-gateway.git
+          git clone --recursive https://github.com/geebytes/grpc-gateway.git
           cd grpc-gateway
           go install ./protoc-gen-grpc-gateway
       - name: Test

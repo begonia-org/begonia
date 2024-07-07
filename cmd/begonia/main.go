@@ -77,7 +77,7 @@ func NewEndpointDelCmd() *cobra.Command {
 			id, _ := cmd.Flags().GetString("id")
 			env, _ := cmd.Flags().GetString("env")
 
-			DeleteEndpoint(env,id)
+			DeleteEndpoint(env, id)
 		},
 	}
 	cmd.Flags().StringP("id", "i", "", "ID Of Your Service")
@@ -96,9 +96,9 @@ func NewEndpointAddCmd() *cobra.Command {
 			tags, _ := cmd.Flags().GetStringArray("tags")
 			balance, _ := cmd.Flags().GetString("balance")
 			endpoints, _ := cmd.Flags().GetStringArray("endpoint")
-			env,_:=cmd.Flags().GetString("env")
+			env, _ := cmd.Flags().GetString("env")
 
-			RegisterEndpoint(env,name, endpoints, desc, client.WithBalance(strings.ToUpper(balance)), client.WithTags(tags))
+			RegisterEndpoint(env, name, endpoints, desc, client.WithBalance(strings.ToUpper(balance)), client.WithTags(tags))
 		},
 	}
 	cmd = newWriteEndpointCmd(cmd)
@@ -134,7 +134,7 @@ func NewEndpointUpdateCmd() *cobra.Command {
 				options = append(options, client.WithName(name))
 				mask = append(mask, "name")
 			}
-		
+
 			if cmd.Flags().Changed("desc") {
 				options = append(options, client.WithDescription(desc))
 				mask = append(mask, "description")
@@ -158,8 +158,8 @@ func NewEndpointUpdateCmd() *cobra.Command {
 				options = append(options, client.WithEndpoints(meta))
 				mask = append(mask, "endpoints")
 			}
-			env,_:=cmd.Flags().GetString("env")
-			UpdateEndpoint(env,id, mask, options...)
+			env, _ := cmd.Flags().GetString("env")
+			UpdateEndpoint(env, id, mask, options...)
 		},
 	}
 	cmd = newWriteEndpointCmd(cmd)
@@ -205,4 +205,14 @@ func main() {
 	if err := cmd.Execute(); err != nil {
 		log.Fatalf("failed to start begonia: %v", err)
 	}
+	// env, _ := cmd.Flags().GetString("env")
+	// cnf, err := cmd.Flags().GetString("config")
+	// if err != nil {
+	// 	log.Fatalf("failed to get config: %v", err)
+	// }
+	// config := config.ReadConfigWithDir("dev", "/data/work/begonia-org/begonia/config/settings.yml")
+	// worker := internal.New(config, gateway.Log, "127.0.0.1:12138")
+	// hd, _ := os.UserHomeDir()
+	// _ = os.WriteFile(hd+"/.begonia/gateway.json", []byte(fmt.Sprintf(`{"addr":"http://%s"}`, "127.0.0.1:12138")), 0666)
+	// worker.Start()
 }

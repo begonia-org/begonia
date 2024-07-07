@@ -19,7 +19,7 @@ import (
 	"github.com/begonia-org/begonia/internal/pkg"
 	cfg "github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/crypto"
-	"github.com/begonia-org/begonia/internal/pkg/routers"
+	gosdk "github.com/begonia-org/go-sdk"
 	hello "github.com/begonia-org/go-sdk/api/example/v1"
 	api "github.com/begonia-org/go-sdk/api/user/v1"
 	"github.com/bsm/redislock"
@@ -62,7 +62,7 @@ func TestJWTUnaryInterceptor(t *testing.T) {
 		config := config.ReadConfig(env)
 		cnf := cfg.NewConfig(config)
 
-		R := routers.Get()
+		R := gateway.GetRouter()
 		_, filename, _, _ := runtime.Caller(0)
 		pbFile := filepath.Join(filepath.Dir(filepath.Dir(filepath.Dir(filepath.Dir(filename)))), "testdata")
 
@@ -71,8 +71,8 @@ func TestJWTUnaryInterceptor(t *testing.T) {
 		user := data.NewUserRepo(config, gateway.Log)
 		userAuth := crypto.NewUsersAuth(cnf)
 		authzRepo := data.NewAuthzRepo(config, gateway.Log)
-		appRepo:=data.NewAppRepo(config,gateway.Log)
-		authz := biz.NewAuthzUsecase(authzRepo, user,appRepo, gateway.Log, userAuth, cnf)
+		appRepo := data.NewAppRepo(config, gateway.Log)
+		authz := biz.NewAuthzUsecase(authzRepo, user, appRepo, gateway.Log, userAuth, cnf)
 		jwt := auth.NewJWTAuth(cnf, tiga.NewRedisDao(config), authz, gateway.Log)
 		jwt.SetPriority(1)
 		c.So(jwt.Priority(), c.ShouldEqual, 1)
@@ -84,15 +84,6 @@ func TestJWTUnaryInterceptor(t *testing.T) {
 
 		})
 		c.So(err, c.ShouldBeNil)
-
-		_, err = jwt.UnaryInterceptor(context.Background(), &hello.HelloRequest{}, &grpc.UnaryServerInfo{
-			FullMethod: "/integration.TestService/Get",
-		}, func(ctx context.Context, req interface{}) (interface{}, error) {
-			return nil, nil
-
-		})
-		c.So(err, c.ShouldNotBeNil)
-		c.So(err.Error(), c.ShouldContainSubstring, "metadata not exists in context")
 
 		_, err = jwt.UnaryInterceptor(metadata.NewIncomingContext(context.Background(), metadata.Pairs("test", "test")), &hello.HelloRequest{}, &grpc.UnaryServerInfo{
 			FullMethod: "/integration.TestService/Get",
@@ -289,7 +280,7 @@ func TestJWTStreamInterceptor(t *testing.T) {
 		config := config.ReadConfig(env)
 		cnf := cfg.NewConfig(config)
 
-		R := routers.Get()
+		R := gateway.GetRouter()
 		_, filename, _, _ := runtime.Caller(0)
 		pbFile := filepath.Join(filepath.Dir(filepath.Dir(filepath.Dir(filepath.Dir(filename)))), "testdata")
 
@@ -298,8 +289,8 @@ func TestJWTStreamInterceptor(t *testing.T) {
 		user := data.NewUserRepo(config, gateway.Log)
 		userAuth := crypto.NewUsersAuth(cnf)
 		authzRepo := data.NewAuthzRepo(config, gateway.Log)
-		appRepo:=data.NewAppRepo(config,gateway.Log)
-		authz := biz.NewAuthzUsecase(authzRepo, user,appRepo, gateway.Log, userAuth, cnf)
+		appRepo := data.NewAppRepo(config, gateway.Log)
+		authz := biz.NewAuthzUsecase(authzRepo, user, appRepo, gateway.Log, userAuth, cnf)
 		jwt := auth.NewJWTAuth(cnf, tiga.NewRedisDao(config), authz, gateway.Log)
 		err := jwt.StreamInterceptor(&hello.HelloRequest{}, &greeterSayHelloWebsocketServer{ServerStream: &testStream{
 			ctx: metadata.NewIncomingContext(context.Background(), metadata.Pairs("x-api-key", cnf.GetAdminAPIKey())),
@@ -318,5 +309,42 @@ func TestJWTStreamInterceptor(t *testing.T) {
 
 		err = jwt.StreamResponseAfter(context.TODO(), auth.NewGrpcStream(&testStream{}, "", context.TODO(), nil), nil)
 		c.So(err, c.ShouldBeNil)
+	})
+}
+
+func TestJWTClientStream(t *testing.T) {
+	c.Convey("TestJWTClientStream", t, func() {
+		env := "dev"
+		if begonia.Env != "" {
+			env = begonia.Env
+		}
+		config := config.ReadConfig(env)
+		cnf := cfg.NewConfig(config)
+
+		R := gateway.GetRouter()
+		_, filename, _, _ := runtime.Caller(0)
+		pbFile := filepath.Join(filepath.Dir(filepath.Dir(filepath.Dir(filepath.Dir(filename)))), "testdata")
+
+		pd, _ := gateway.NewDescription(pbFile)
+		R.LoadAllRouters(pd)
+		user := data.NewUserRepo(config, gateway.Log)
+		userAuth := crypto.NewUsersAuth(cnf)
+		authzRepo := data.NewAuthzRepo(config, gateway.Log)
+		appRepo := data.NewAppRepo(config, gateway.Log)
+		authz := biz.NewAuthzUsecase(authzRepo, user, appRepo, gateway.Log, userAuth, cnf)
+		jwt := auth.NewJWTAuth(cnf, tiga.NewRedisDao(config), authz, gateway.Log)
+		jwt.SetPriority(1)
+		outCTX := metadata.NewOutgoingContext(context.Background(), metadata.Pairs(gosdk.HeaderXAuthorization, cnf.GetAdminAPIKey()))
+		_, err := jwt.StreamClientInterceptor(outCTX, nil, nil, "/INTEGRATION.TESTSERVICE/NOT_FOUND", func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+			return &testClientStream{ctx: ctx}, nil
+		})
+		c.So(err, c.ShouldBeNil)
+
+		outCTX = metadata.NewOutgoingContext(context.Background(), metadata.Pairs(gosdk.HeaderXAuthorization, cnf.GetAdminAPIKey()))
+		_, err = jwt.StreamClientInterceptor(outCTX, nil, nil, "/INTEGRATION.TESTSERVICE/GET", func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+			return &testClientStream{ctx: ctx}, nil
+		})
+		c.So(err, c.ShouldNotBeNil)
+
 	})
 }

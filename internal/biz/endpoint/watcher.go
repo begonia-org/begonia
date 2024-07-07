@@ -3,17 +3,17 @@ package endpoint
 import (
 	"context"
 	"fmt"
+	"log"
 	"sync"
 
+	"github.com/begonia-org/begonia/gateway"
 	"github.com/begonia-org/begonia/internal/pkg"
 	"github.com/begonia-org/begonia/internal/pkg/config"
-	"github.com/begonia-org/begonia/internal/pkg/routers"
 	gosdk "github.com/begonia-org/go-sdk"
 	"go.etcd.io/etcd/api/v3/mvccpb"
 
 	"encoding/json"
 
-	"github.com/begonia-org/begonia/gateway"
 	loadbalance "github.com/begonia-org/go-loadbalancer"
 	api "github.com/begonia-org/go-sdk/api/endpoint/v1"
 	common "github.com/begonia-org/go-sdk/common/api/v1"
@@ -38,7 +38,7 @@ func (g *EndpointWatcher) Update(ctx context.Context, key string, value string) 
 		return nil
 	}
 	endpoint := &api.Endpoints{}
-	routersList := routers.NewHttpURIRouteToSrvMethod()
+	routersList := gateway.GetRouter()
 	err := json.Unmarshal([]byte(value), endpoint)
 	if err != nil {
 		return gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "unmarshal_endpoint")
@@ -62,15 +62,24 @@ func (g *EndpointWatcher) Update(ctx context.Context, key string, value string) 
 	}
 	// register routers
 	// log.Print("register router")
+	err = pd.SetHttpResponse(common.E_HttpResponse)
+	if err != nil {
+		return gosdk.NewError(fmt.Errorf("set http response error: %w", err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "set_http_response")
+
+	}
 	routersList.LoadAllRouters(pd)
+
 	// register service to gateway
 	gw := gateway.Get()
 	err = gw.RegisterService(ctx, pd, lb)
+
 	if err != nil {
 		return gosdk.NewError(fmt.Errorf("register service error: %w", err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "register_service")
 	}
+	gw.RegisterServiceWithProxy(pd)
 
 	// err = g.repo.PutTags(ctx, endpoint.Key, endpoint.Tags)
+	log.Printf("register service success")
 	return nil
 }
 func (g *EndpointWatcher) Del(ctx context.Context, key string, value string) error {

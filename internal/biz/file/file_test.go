@@ -806,7 +806,7 @@ func testCompleteMultipartUploadFile(t *testing.T) {
 		})
 		c.So(err, c.ShouldBeNil)
 
-		_=uploadParts(bigTmpFile2.path, rsp.UploadId, "test/upload.parts.test1", t)
+		_ = uploadParts(bigTmpFile2.path, rsp.UploadId, "test/upload.parts.test1", t)
 		rsp2, err := fileBiz.CompleteMultipartUploadFile(context.TODO(), &api.CompleteMultipartUploadRequest{
 			Key:      "test/upload.parts.test1",
 			UploadId: rsp.UploadId,
@@ -814,9 +814,9 @@ func testCompleteMultipartUploadFile(t *testing.T) {
 			Bucket:   bucket,
 			Engine:   api.FileEngine_FILE_ENGINE_LOCAL.String(),
 		}, fileAuthor)
-		
+
 		c.So(err, c.ShouldBeNil)
-		c.So(rsp2.Uid, c.ShouldEqual,fid)
+		c.So(rsp2.Uid, c.ShouldEqual, fid)
 	})
 	c.Convey("test complete parts file update fail", t, func() {
 		bigTmpFile2, _ := generateRandomFile(1024 * 1024 * 12)
@@ -827,8 +827,8 @@ func testCompleteMultipartUploadFile(t *testing.T) {
 		})
 		c.So(err, c.ShouldBeNil)
 
-		_=uploadParts(bigTmpFile2.path, rsp.UploadId, "test/upload.parts.test1", t)
-		patch:=gomonkey.ApplyFuncReturn(tiga.MySQLDao.First,fmt.Errorf("remove error"))
+		_ = uploadParts(bigTmpFile2.path, rsp.UploadId, "test/upload.parts.test1", t)
+		patch := gomonkey.ApplyFuncReturn(tiga.MySQLDao.First, fmt.Errorf("remove error"))
 		defer patch.Reset()
 		_, err = fileBiz.CompleteMultipartUploadFile(context.TODO(), &api.CompleteMultipartUploadRequest{
 			Key:      "test/upload.parts.test1",

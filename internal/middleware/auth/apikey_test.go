@@ -17,7 +17,6 @@ import (
 	"github.com/begonia-org/begonia/internal/pkg"
 	cfg "github.com/begonia-org/begonia/internal/pkg/config"
 	"github.com/begonia-org/begonia/internal/pkg/crypto"
-	"github.com/begonia-org/begonia/internal/pkg/routers"
 	gosdk "github.com/begonia-org/go-sdk"
 	hello "github.com/begonia-org/go-sdk/api/example/v1"
 	c "github.com/smartystreets/goconvey/convey"
@@ -39,7 +38,7 @@ func TestAPIKeyUnaryInterceptor(t *testing.T) {
 		c.So(apikey.Name(), c.ShouldEqual, "api_key_auth")
 		c.So(apikey.Priority(), c.ShouldEqual, 1)
 
-		R := routers.Get()
+		R := gateway.GetRouter()
 		_, filename, _, _ := runtime.Caller(0)
 		pbFile := filepath.Join(filepath.Dir(filepath.Dir(filepath.Dir(filepath.Dir(filename)))), "testdata")
 
@@ -101,6 +100,18 @@ func TestAPIKeyUnaryInterceptor(t *testing.T) {
 		patch.Reset()
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "get user id base on apikey error")
+		// ValidateStream error
+		patch2 := gomonkey.ApplyFuncReturn((*biz.AuthzUsecase).GetIdentity, "", fmt.Errorf("get user id base on apikey error"))
+		defer patch2.Reset()
+		ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs(gosdk.HeaderXApiKey, cnf.GetAdminAPIKey()))
+		_, err = apikey.(*auth.ApiKeyAuthImpl).ValidateStream(ctx, nil, "/integration.TestService/Get")
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "get user id base on apikey error")
+		patch2.Reset()
+		ctx = metadata.NewIncomingContext(context.Background(), metadata.Pairs(gosdk.HeaderXApiKey, "cnf.GetAdminAPIKey()"))
+		_, err = apikey.(*auth.ApiKeyAuthImpl).ValidateStream(ctx, nil, "/integration.TestService/Get")
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrAPIKeyNotMatch.Error())
 	})
 }
 func newAuthzBiz() *biz.AuthzUsecase {
@@ -131,7 +142,7 @@ func TestApiKeyStreamInterceptor(t *testing.T) {
 		c.So(apikey.Name(), c.ShouldEqual, "api_key_auth")
 		c.So(apikey.Priority(), c.ShouldEqual, 1)
 
-		R := routers.Get()
+		R := gateway.GetRouter()
 		_, filename, _, _ := runtime.Caller(0)
 		pbFile := filepath.Join(filepath.Dir(filepath.Dir(filepath.Dir(filepath.Dir(filename)))), "testdata")
 
@@ -155,12 +166,13 @@ func TestApiKeyStreamInterceptor(t *testing.T) {
 			ctx: metadata.NewIncomingContext(context.Background(), metadata.Pairs(gosdk.HeaderXApiKey, cnf.GetAdminAPIKey())),
 		}}, &grpc.StreamServerInfo{FullMethod: "/INTEGRATION.TESTSERVICE/GET"}, func(srv interface{}, ss grpc.ServerStream) error {
 
-			err:=ss.RecvMsg(srv)
 			md, _ := metadata.FromIncomingContext(ss.Context())
 			if len(md.Get(gosdk.HeaderXIdentity)) == 0 || md.Get(gosdk.HeaderXIdentity)[0] == "" {
 				t.Error("identity not exists in context")
 				return fmt.Errorf("identity not exists in context")
 			}
+			err := ss.RecvMsg(srv)
+
 			return err
 
 		})

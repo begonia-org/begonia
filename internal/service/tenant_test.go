@@ -68,13 +68,13 @@ func testGetTenant(t *testing.T) {
 func testListTenant(t *testing.T) {
 	apiClient := client.NewTenantAPI(apiAddr, accessKey, secret)
 	c.Convey("test list tenant", t, func() {
-		rsp, err := apiClient.ListTenants(context.Background(), 1, 10, []string{"test"},[]string{api.TENANTS_STATUS_TENANTS_ACTIVE.String()})
+		rsp, err := apiClient.ListTenants(context.Background(), 1, 10, []string{"test"}, []string{api.TENANTS_STATUS_TENANTS_ACTIVE.String()})
 		c.So(err, c.ShouldBeNil)
 		c.So(rsp.StatusCode, c.ShouldEqual, common.Code_OK)
 		c.So(rsp.Tenants, c.ShouldNotBeEmpty)
 		c.So(len(rsp.Tenants), c.ShouldBeGreaterThanOrEqualTo, 1)
 		snk, _ := tiga.NewSnowflake(1)
-		rsp2, err2 := apiClient.ListTenants(context.Background(), 1, 10, []string{snk.GenerateIDString()},[]string{api.TENANTS_STATUS_TENANTS_ACTIVE.String()})
+		rsp2, err2 := apiClient.ListTenants(context.Background(), 1, 10, []string{snk.GenerateIDString()}, []string{api.TENANTS_STATUS_TENANTS_ACTIVE.String()})
 		c.So(err2, c.ShouldBeNil)
 		c.So(rsp2.StatusCode, c.ShouldEqual, common.Code_OK)
 		c.So(rsp2.Tenants, c.ShouldBeEmpty)
@@ -82,7 +82,7 @@ func testListTenant(t *testing.T) {
 
 		patch := gomonkey.ApplyFuncReturn(tiga.MySQLDao.Pagination, fmt.Errorf("pagination error"))
 		defer patch.Reset()
-		rsp3, err3 := apiClient.ListTenants(context.Background(), 1, 10, []string{"test"},[]string{api.TENANTS_STATUS_TENANTS_ACTIVE.String()})
+		rsp3, err3 := apiClient.ListTenants(context.Background(), 1, 10, []string{"test"}, []string{api.TENANTS_STATUS_TENANTS_ACTIVE.String()})
 		c.So(err3, c.ShouldNotBeNil)
 		c.So(rsp3.StatusCode, c.ShouldEqual, int(common.Code_INTERNAL_ERROR))
 	})
@@ -111,7 +111,7 @@ func testAddTenantBusiness(t *testing.T) {
 		c.So(rsp.StatusCode, c.ShouldEqual, int(api.UserSvrCode_USER_IDENTITY_MISSING_ERR))
 	})
 }
-func testListTenantBusiness(t *testing.T){
+func testListTenantBusiness(t *testing.T) {
 	apiClient := client.NewTenantAPI(apiAddr, accessKey, secret)
 	c.Convey("test list tenant business", t, func() {
 		rsp, err := apiClient.ListTenantBusiness(context.Background(), tid, 1, 10)
@@ -127,44 +127,44 @@ func testListTenantBusiness(t *testing.T){
 	})
 }
 
-func testDeleteTenantBusiness(t *testing.T){
+func testDeleteTenantBusiness(t *testing.T) {
 	apiClient := client.NewTenantAPI(apiAddr, accessKey, secret)
 	c.Convey("test delete tenant business", t, func() {
 		rsp, err := apiClient.DeleteTenantBusiness(context.Background(), tid, tbid)
 		c.So(err, c.ShouldBeNil)
 		c.So(rsp.StatusCode, c.ShouldEqual, common.Code_OK)
 	})
-	c.Convey("test delete tenant error",t,func(){
-		patch:=gomonkey.ApplyFuncReturn(tiga.MySQLDao.UpdateSelectColumns,fmt.Errorf("update delete error"))
+	c.Convey("test delete tenant error", t, func() {
+		patch := gomonkey.ApplyFuncReturn(tiga.MySQLDao.UpdateSelectColumns, fmt.Errorf("update delete error"))
 		defer patch.Reset()
-		rsp,err:=apiClient.DeleteTenantBusiness(context.Background(),tid,tbid)
-		c.So(err,c.ShouldNotBeNil)
-		c.So(rsp.StatusCode,c.ShouldEqual,int(common.Code_INTERNAL_ERROR))
+		rsp, err := apiClient.DeleteTenantBusiness(context.Background(), tid, tbid)
+		c.So(err, c.ShouldNotBeNil)
+		c.So(rsp.StatusCode, c.ShouldEqual, int(common.Code_INTERNAL_ERROR))
 	})
 }
-func testDeleteTenant(t *testing.T){
+func testDeleteTenant(t *testing.T) {
 	apiClient := client.NewTenantAPI(apiAddr, accessKey, secret)
 	c.Convey("test delete tenant", t, func() {
 		rsp, err := apiClient.DeleteTenant(context.Background(), tid)
 		c.So(err, c.ShouldBeNil)
 		c.So(rsp.StatusCode, c.ShouldEqual, common.Code_OK)
 	})
-	c.Convey("test delete tenant error",t,func(){
-		patch:=gomonkey.ApplyFuncReturn(tiga.MySQLDao.UpdateSelectColumns,fmt.Errorf("update delete error"))
+	c.Convey("test delete tenant error", t, func() {
+		patch := gomonkey.ApplyFuncReturn(tiga.MySQLDao.UpdateSelectColumns, fmt.Errorf("update delete error"))
 		defer patch.Reset()
-		rsp,err:=apiClient.DeleteTenant(context.Background(),tid)
-		c.So(err,c.ShouldNotBeNil)
-		c.So(rsp.StatusCode,c.ShouldEqual,int(common.Code_INTERNAL_ERROR))
+		rsp, err := apiClient.DeleteTenant(context.Background(), tid)
+		c.So(err, c.ShouldNotBeNil)
+		c.So(rsp.StatusCode, c.ShouldEqual, int(common.Code_INTERNAL_ERROR))
 	})
 }
 
-func TestTenant(t *testing.T){
-	t.Run("test add tenant",testAddTenant)
-	t.Run("test update tenant",testUpdateTenant)
-	t.Run("test get tenant",testGetTenant)
-	t.Run("test list tenant",testListTenant)
-	t.Run("test add tenant business",testAddTenantBusiness)
-	t.Run("test list tenant business",testListTenantBusiness)
-	t.Run("test delete tenant business",testDeleteTenantBusiness)
-	t.Run("test delete tenant",testDeleteTenant)
+func TestTenant(t *testing.T) {
+	t.Run("test add tenant", testAddTenant)
+	t.Run("test update tenant", testUpdateTenant)
+	t.Run("test get tenant", testGetTenant)
+	t.Run("test list tenant", testListTenant)
+	t.Run("test add tenant business", testAddTenantBusiness)
+	t.Run("test list tenant business", testListTenantBusiness)
+	t.Run("test delete tenant business", testDeleteTenantBusiness)
+	t.Run("test delete tenant", testDeleteTenant)
 }

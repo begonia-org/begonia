@@ -88,15 +88,15 @@ func (t *tenantRepoImpl) AddBusiness(ctx context.Context, tenantBusiness *api.Te
 func (t *tenantRepoImpl) DelTenantBusiness(ctx context.Context, tenantId, businessId string) error {
 	return t.curd.Del(ctx, &api.TenantsBusiness{TenantId: tenantId, BusinessId: businessId}, false, nil)
 }
-func (t *tenantRepoImpl) GetTenantBusiness(ctx context.Context, tenant, business string) (*api.TenantsBusiness,error) {
+func (t *tenantRepoImpl) GetTenantBusiness(ctx context.Context, tenant, business string) (*api.TenantsBusiness, error) {
 	tenantBusiness := &api.TenantsBusiness{}
 	err := t.curd.Get(ctx, tenantBusiness, false, "(tenant_id=? or tenant_name=?) and (business_id=? or business_name=?)", tenant, tenant, business, business)
-	if err != nil || tenantBusiness.BusinessId == "" || tenantBusiness.TenantId == ""{
+	if err != nil || tenantBusiness.BusinessId == "" || tenantBusiness.TenantId == "" {
 		return nil, fmt.Errorf("get tenant business failed: %w or not found", err)
 	}
-	return tenantBusiness,nil
+	return tenantBusiness, nil
 }
-func (t *tenantRepoImpl)TenantBusinessList(ctx context.Context, tenantId string, page, pageSize int32) ([]*api.TenantsBusiness, error) {
+func (t *tenantRepoImpl) TenantBusinessList(ctx context.Context, tenantId string, page, pageSize int32) ([]*api.TenantsBusiness, error) {
 	tenantBusinesses := make([]*api.TenantsBusiness, 0)
 	pagination := &tiga.Pagination{
 		Page:     page,

@@ -25,6 +25,8 @@ func NewTenantService(tenant *biz.TenantUsecase, cfg *config.Config, log logger.
 	return &TenantService{tenant: tenant, cfg: cfg, log: log}
 }
 func (t *TenantService) Register(ctx context.Context, in *api.PostTenantRequest) (*api.Tenants, error) {
+	// st:=debug.Stack()
+	// fmt.Printf("TenantService stack:%s\n",st)
 	identity := GetIdentity(ctx)
 	if identity == "" {
 		return nil, gosdk.NewError(pkg.ErrIdentityMissing, int32(user.UserSvrCode_USER_IDENTITY_MISSING_ERR), codes.InvalidArgument, "not_found_identity")
@@ -42,11 +44,11 @@ func (t *TenantService) Update(ctx context.Context, in *api.PatchTenantRequest) 
 	return t.tenant.Update(ctx, in)
 
 }
-func (t *TenantService) List(ctx context.Context,in *api.ListTenantsRequest) (*api.ListTenantsResponse, error) {
-	tenants,err:=t.tenant.List(ctx, in.Tags, in.Status, in.Page, in.PageSize)
+func (t *TenantService) List(ctx context.Context, in *api.ListTenantsRequest) (*api.ListTenantsResponse, error) {
+	tenants, err := t.tenant.List(ctx, in.Tags, in.Status, in.Page, in.PageSize)
 	if err != nil {
 		return nil, err
-	
+
 	}
 	return &api.ListTenantsResponse{Tenants: tenants}, nil
 

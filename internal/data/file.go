@@ -31,7 +31,7 @@ func (f *fileRepoImpl) UpsertFile(ctx context.Context, in *api.Files) (bool, err
 	return f.data.db.Upsert(ctx, in, nil, mask...)
 }
 func (f *fileRepoImpl) DelFile(ctx context.Context, engine, bucket, key string) error {
-	return f.curd.Del(ctx, &api.Files{Engine: engine, Bucket: bucket, Key: key},false, nil)
+	return f.curd.Del(ctx, &api.Files{Engine: engine, Bucket: bucket, Key: key}, false, nil)
 }
 func (f *fileRepoImpl) UpsertBucket(ctx context.Context, bucket *api.Buckets) (bool, error) {
 	bucket.UpdatedAt = timestamppb.Now()

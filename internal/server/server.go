@@ -13,7 +13,6 @@ import (
 	"github.com/begonia-org/begonia/gateway"
 	"github.com/begonia-org/begonia/internal/middleware"
 	"github.com/begonia-org/begonia/internal/pkg/config"
-	"github.com/begonia-org/begonia/internal/pkg/routers"
 	"github.com/begonia-org/begonia/internal/service"
 	loadbalance "github.com/begonia-org/go-loadbalancer"
 	common "github.com/begonia-org/go-sdk/common/api/v1"
@@ -52,7 +51,7 @@ func readDesc(conf *config.Config) (gateway.ProtobufDescription, error) {
 func NewGateway(cfg *gateway.GatewayConfig, conf *config.Config, services []service.Service, pluginApply *middleware.PluginsApply) *gateway.GatewayServer {
 	// 参数选项
 	opts := &gateway.GrpcServerOptions{
-		Middlewares:     make([]gateway.GrpcProxyMiddleware, 0),
+		Middlewares:     make([]grpc.StreamClientInterceptor, 0),
 		Options:         make([]grpc.ServerOption, 0),
 		PoolOptions:     make([]loadbalance.PoolOptionsBuildOption, 0),
 		HttpMiddlewares: make([]runtime.ServeMuxOption, 0),
@@ -63,10 +62,12 @@ func NewGateway(cfg *gateway.GatewayConfig, conf *config.Config, services []serv
 	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithMarshalerOption("application/x-www-form-urlencoded", gateway.NewFormUrlEncodedMarshaler()))
 	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithMarshalerOption(runtime.MIMEWildcard, gateway.NewRawBinaryUnmarshaler()))
 	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithMarshalerOption("application/octet-stream", gateway.NewRawBinaryUnmarshaler()))
+	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithMarshalerOption("text/event-stream", gateway.NewEventSourceMarshaler()))
 
 	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithMetadata(gateway.IncomingHeadersToMetadata))
 	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithErrorHandler(gateway.HandleErrorWithLogger(gateway.Log)))
 	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithForwardResponseOption(gateway.HttpResponseBodyModify))
+	opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithStreamErrorHandler(gateway.HandleServerStreamError(gateway.Log)))
 	// opts.HttpMiddlewares = append(opts.HttpMiddlewares, runtime.WithRoutingErrorHandler(middleware.HandleRoutingError))
 	// 连接池配置
 	opts.PoolOptions = append(opts.PoolOptions, loadbalance.WithMaxActiveConns(100))
@@ -74,6 +75,7 @@ func NewGateway(cfg *gateway.GatewayConfig, conf *config.Config, services []serv
 	// 中间件配置
 	opts.Options = append(opts.Options, grpc.ChainUnaryInterceptor(pluginApply.UnaryInterceptorChains()...))
 	opts.Options = append(opts.Options, grpc.ChainStreamInterceptor(pluginApply.StreamInterceptorChains()...))
+	opts.Middlewares = append(opts.Middlewares, pluginApply.StreamClientInterceptorChains()...)
 	pd, err := readDesc(conf)
 	if err != nil {
 		panic(err)
@@ -84,7 +86,7 @@ func NewGateway(cfg *gateway.GatewayConfig, conf *config.Config, services []serv
 	opts.HttpHandlers = append(opts.HttpHandlers, cors.Handle)
 	gw := gateway.New(cfg, opts)
 
-	routersList := routers.Get()
+	routersList := gateway.GetRouter()
 	for _, srv := range services {
 		err := gw.RegisterLocalService(context.Background(), pd, srv.Desc(), srv)
 		if err != nil {

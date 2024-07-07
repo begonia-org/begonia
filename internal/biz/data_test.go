@@ -116,7 +116,7 @@ func TestDo(t *testing.T) {
 	_ = cache.Del(context.Background(), "begonia:user:black:lock")
 	_ = cache.Del(context.Background(), "begonia:user:black:last_updated")
 	opts := &gateway.GrpcServerOptions{
-		Middlewares:     make([]gateway.GrpcProxyMiddleware, 0),
+		Middlewares:     make([]grpc.StreamClientInterceptor, 0),
 		Options:         make([]grpc.ServerOption, 0),
 		PoolOptions:     make([]loadbalance.PoolOptionsBuildOption, 0),
 		HttpMiddlewares: make([]gwRuntime.ServeMuxOption, 0),
@@ -178,7 +178,7 @@ func TestDo(t *testing.T) {
 
 		val, err := cache.GetFromLocal(context.TODO(), fmt.Sprintf("%s:%s", prefix, u1.Uid))
 		c.So(err, c.ShouldBeNil)
-		t.Logf("blacklist value:%s",val)
+		t.Logf("blacklist value:%s", val)
 		c.So(val, c.ShouldNotBeEmpty)
 		appPrefix := cnf.GetAppPrefix()
 		val, err = cache.GetFromLocal(context.TODO(), fmt.Sprintf("%s:access_key:%s", appPrefix, app.AccessKey))

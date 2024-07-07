@@ -506,7 +506,7 @@ func checkServiceNameExistsTest(t *testing.T) {
 		err = repo.ServiceNameExists(context.Background(), serviceName, endpointId)
 		patch2.Reset()
 		c.So(err, c.ShouldNotBeNil)
-		c.So(err.Error(),c.ShouldContainSubstring,"get endpoint fail")
+		c.So(err.Error(), c.ShouldContainSubstring, "get endpoint fail")
 
 		err = repo.ServiceNameExists(context.Background(), serviceName, endpointId)
 		c.So(err, c.ShouldBeNil)

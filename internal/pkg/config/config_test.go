@@ -75,7 +75,7 @@ func TestConfig(t *testing.T) {
 		c.So(config.GetServicePrefix(), c.ShouldEndWith, "/service")
 		c.So(config.GetServiceNamePrefix(), c.ShouldEndWith, "/service_name")
 		c.So(config.GetServiceTagsPrefix(), c.ShouldEndWith, "/tags")
-		snk,_:=tiga.NewSnowflake(1)		
+		snk, _ := tiga.NewSnowflake(1)
 		c.So(config.GetServiceKey("test"), c.ShouldStartWith, config.GetServiceNamePrefix())
 		c.So(config.GetServiceKey(snk.GenerateIDString()), c.ShouldStartWith, config.GetServicePrefix())
 

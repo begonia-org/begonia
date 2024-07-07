@@ -2,13 +2,16 @@ package gateway
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
 
 	loadbalance "github.com/begonia-org/go-loadbalancer"
+	"github.com/begonia-org/go-sdk/logger"
 	"github.com/spark-lence/tiga"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -16,7 +19,8 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/types/dynamicpb"
 )
 
 type grpcEndpointImpl struct {
@@ -128,17 +132,34 @@ func (g *GrpcLoadBalancer) Select(method string, args ...interface{}) (loadbalan
 	return nil, loadbalance.ErrNoEndpoint
 }
 
+type IOType struct {
+	In  protoreflect.MessageDescriptor
+	Out protoreflect.MessageDescriptor
+}
 type GrpcProxyMiddleware func(srv interface{}, serverStream grpc.ServerStream) error
 type GrpcProxy struct {
-	lb          *GrpcLoadBalancer
-	middlewares []GrpcProxyMiddleware
+	lb *GrpcLoadBalancer
+	// middlewares []grpc.StreamServerInterceptor
+	// chainStreamInts []grpc.StreamServerInterceptor
+	streamInt         grpc.StreamClientInterceptor
+	chainClientStream []grpc.StreamClientInterceptor
+	ioType            map[string]*IOType
+	log               logger.Logger
 }
 
-func NewGrpcProxy(lb *GrpcLoadBalancer, middlewares ...GrpcProxyMiddleware) *GrpcProxy {
-	return &GrpcProxy{
-		lb:          lb,
-		middlewares: middlewares,
+func NewGrpcProxy(lb *GrpcLoadBalancer, log logger.Logger, middlewares ...grpc.StreamClientInterceptor) *GrpcProxy {
+	g := &GrpcProxy{
+		lb: lb,
+		// middlewares: middlewares,
+		chainClientStream: middlewares,
+		ioType:            make(map[string]*IOType),
+		log:               log,
 	}
+	g.chainStreamClientInterceptors()
+	return g
+}
+func (g *GrpcProxy) Register(lb loadbalance.LoadBalance, pd ProtobufDescription) {
+	g.lb.Register(lb, pd)
 }
 func (g *GrpcProxy) getClientIP(ctx context.Context) (string, error) {
 	peer, ok := peer.FromContext(ctx)
@@ -156,14 +177,53 @@ func (g *GrpcProxy) getXForward(ctx context.Context) []string {
 	return md.Get("X-Forwarded-For")
 }
 
-func (g *GrpcProxy) Handler(srv interface{}, serverStream grpc.ServerStream) error {
-
-	// 执行中间件
-	for _, middleware := range g.middlewares {
-		if err := middleware(srv, serverStream); err != nil {
-			return err
-		}
+// chainStreamServerInterceptors chains all stream server interceptors into one.
+func (g *GrpcProxy) chainStreamClientInterceptors() {
+	// Prepend opts.streamInt to the chaining interceptors if it exists, since streamInt will
+	// be executed before any other chained interceptors.
+	interceptors := g.chainClientStream
+	if g.streamInt != nil {
+		interceptors = append([]grpc.StreamClientInterceptor{g.streamInt}, g.chainClientStream...)
 	}
+
+	var chainedInt grpc.StreamClientInterceptor
+	if len(interceptors) == 0 {
+		chainedInt = nil
+	} else if len(interceptors) == 1 {
+		chainedInt = interceptors[0]
+	} else {
+		chainedInt = g.chainStreamInterceptors(interceptors)
+	}
+
+	g.streamInt = chainedInt
+}
+
+func (g *GrpcProxy) chainStreamInterceptors(interceptors []grpc.StreamClientInterceptor) grpc.StreamClientInterceptor {
+	return func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, streamer grpc.Streamer, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+		return interceptors[0](ctx, desc, cc, method, g.getChainStreamHandler(interceptors, 0, streamer))
+	}
+}
+
+func (g *GrpcProxy) getChainStreamHandler(interceptors []grpc.StreamClientInterceptor, curr int, finalHandler grpc.Streamer) grpc.Streamer {
+	if curr == len(interceptors)-1 {
+		return finalHandler
+	}
+	return func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+		return interceptors[curr+1](ctx, desc, cc, method, g.getChainStreamHandler(interceptors, curr+1, finalHandler))
+	}
+}
+
+func (g *GrpcProxy) Do(srv interface{}, serverStream grpc.ServerStream) error {
+
+	return g.Handler(srv, serverStream)
+}
+func (g *GrpcProxy) Handler(srv interface{}, serverStream grpc.ServerStream) error {
+	defer func() {
+		if p := recover(); p != nil {
+			s := debug.Stack()
+			g.log.Errorf(serverStream.Context(), "panic recover! p: %v stack:%s", p, s)
+		}
+	}()
 	// 获取方法名
 	fullMethodName, ok := grpc.MethodFromServerStream(serverStream)
 	if !ok {
@@ -193,6 +253,7 @@ func (g *GrpcProxy) Handler(srv interface{}, serverStream grpc.ServerStream) err
 	defer endpoint.AfterTransform(serverStream.Context(), cn.((loadbalance.Connection)))
 
 	conn := cn.(loadbalance.Connection).ConnInstance().(*grpc.ClientConn)
+
 	clientCtx, clientCancel := context.WithCancel(serverStream.Context())
 	defer clientCancel()
 	proxyDesc := &grpc.StreamDesc{
@@ -202,38 +263,53 @@ func (g *GrpcProxy) Handler(srv interface{}, serverStream grpc.ServerStream) err
 	// 添加本地ip
 	local, _ := tiga.GetLocalIP()
 	xForwards = append(xForwards, local)
-	md, ok := metadata.FromIncomingContext(clientCtx)
+	md, ok := metadata.FromIncomingContext(serverStream.Context())
 	if !ok {
 		md = metadata.MD{}
 	}
+
 	md.Set("X-Forwarded-For", strings.Join(xForwards, ","))
 	clientCtx = metadata.NewOutgoingContext(clientCtx, md)
+	var clientStream grpc.ClientStream = nil
 
-	clientStream, err := grpc.NewClientStream(clientCtx, proxyDesc, conn, fullMethodName)
-	if err != nil {
-		return err
+	if len(g.chainClientStream) > 0 && g.streamInt != nil {
+		clientStream, err = g.streamInt(clientCtx, proxyDesc, conn, fullMethodName, g.getChainStreamHandler(g.chainClientStream, 0, func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+			return grpc.NewClientStream(ctx, desc, cc, method, opts...)
+		}))
+		if err != nil {
+			return fmt.Errorf("failed creating client stream from stream client int: %v", err)
+		}
+	} else {
+		clientStream, err = grpc.NewClientStream(clientCtx, proxyDesc, conn, fullMethodName)
+		if err != nil {
+			return err
+		}
 	}
+
+	// proxyStream := &proxyClientStream{ClientStream: clientStream, ctx: clientCtx}
 	// 转发流量
 	// 从客户端到服务端
 	s2cErrChan := g.forwardServerToClient(serverStream, clientStream)
+
 	// 从服务端到客户端
 	c2sErrChan := g.forwardClientToServer(clientStream, serverStream)
 	for i := 0; i < 2; i++ {
 		select {
 		case s2cErr := <-s2cErrChan:
-			if s2cErr == io.EOF {
+			if errors.Is(s2cErr, io.EOF) {
 				// this is the happy case where the sender has encountered io.EOF, and won't be sending anymore./
 				// the clientStream>serverStream may continue pumping though.
+				// log.Printf("s2cErr:%v", s2cErr)
 				err = clientStream.CloseSend()
 				if err != nil {
-					return status.Errorf(codes.Internal, "failed closing client stream: %v", err)
+					return fmt.Errorf("failed closing client stream: %w", err)
 				}
 			} else {
 				// however, we may have gotten a receive error (stream disconnected, a read error etc) in which case we need
 				// to cancel the clientStream to the backend, let all of its goroutines be freed up by the CancelFunc and
 				// exit with an error to the stack
 				clientCancel()
-				return status.Errorf(codes.Internal, "failed proxying s2c: %v", s2cErr)
+				return fmt.Errorf("failed proxying s2c: %w", s2cErr)
 			}
 		case c2sErr := <-c2sErrChan:
 			// This happens when the clientStream has nothing else to offer (io.EOF), returned a gRPC error. In those two
@@ -241,7 +317,8 @@ func (g *GrpcProxy) Handler(srv interface{}, serverStream grpc.ServerStream) err
 			// will be nil.
 			serverStream.SetTrailer(clientStream.Trailer())
 			// c2sErr will contain RPC error from client code. If not io.EOF return the RPC error as server stream error.
-			if c2sErr != io.EOF {
+			if !errors.Is(c2sErr, io.EOF) {
+				// log.Printf("c2sErr:%v", c2sErr)
 				return c2sErr
 			}
 			return nil
@@ -253,10 +330,21 @@ func (g *GrpcProxy) Handler(srv interface{}, serverStream grpc.ServerStream) err
 func (g *GrpcProxy) forwardClientToServer(src grpc.ClientStream, dst grpc.ServerStream) chan error {
 	ret := make(chan error, 1)
 	go func() {
-		f := &emptypb.Empty{}
+		defer func() {
+			if p := recover(); p != nil {
+				s := debug.Stack()
+				g.log.Errorf(dst.Context(), "panic recover! p: %v stack:%s", p, s)
+				ret <- fmt.Errorf("panic recover! p: %v stack:%s", p, s)
+			}
+		}()
+		method, _ := grpc.Method(dst.Context())
+		io := g.ioType[method]
+		f := dynamicpb.NewMessage(io.Out)
+		// f := &emptypb.Empty{}
+
 		for i := 0; ; i++ {
 			if err := src.RecvMsg(f); err != nil {
-				ret <- err // this can be io.EOF which is happy case
+				ret <- fmt.Errorf("fail forward client to server:%w", err) // this can be io.EOF which is happy case
 				break
 			}
 			if i == 0 {
@@ -264,18 +352,25 @@ func (g *GrpcProxy) forwardClientToServer(src grpc.ClientStream, dst grpc.Server
 				// received but must be written to server stream before the first msg is flushed.
 				// This is the only place to do it nicely
 				// 先转发header
+				// inMD, _ := metadata.FromIncomingContext(src.Context())
+				// outMD, _ := metadata.FromOutgoingContext(src.Context())
+
+				// md := metadata.Join(inMD, outMD)
+				// m := make(map[string][]string)
+
 				md, err := src.Header()
 				if err != nil {
-					ret <- err
+					ret <- fmt.Errorf("failed reading header from client stream: %w", err)
 					break
 				}
+
 				if err := dst.SendHeader(md); err != nil {
-					ret <- err
+					ret <- fmt.Errorf("failed sending header to server stream: %w", err)
 					break
 				}
 			}
 			if err := dst.SendMsg(f); err != nil {
-				ret <- err
+				ret <- fmt.Errorf("failed sending msg to server stream: %w", err)
 				break
 			}
 		}
@@ -286,17 +381,46 @@ func (g *GrpcProxy) forwardClientToServer(src grpc.ClientStream, dst grpc.Server
 func (g *GrpcProxy) forwardServerToClient(src grpc.ServerStream, dst grpc.ClientStream) chan error {
 	ret := make(chan error, 1)
 	go func() {
-		f := &emptypb.Empty{}
+		method, _ := grpc.Method(dst.Context())
+		io := g.ioType[method]
+		f := dynamicpb.NewMessage(io.In)
+
 		for i := 0; ; i++ {
 			if err := src.RecvMsg(f); err != nil {
-				ret <- err // this can be io.EOF which is happy case
+				ret <- fmt.Errorf("recv msg error:%w from client forward", err) // this can be io.EOF which is happy case
 				break
 			}
+
 			if err := dst.SendMsg(f); err != nil {
-				ret <- err
+				ret <- fmt.Errorf("failed sending msg to client stream: %w", err)
 				break
 			}
 		}
 	}()
 	return ret
+}
+
+func (g *GrpcProxy) buildServiceDesc(pd ProtobufDescription) {
+	fd := pd.GetFileDescriptorSet()
+	// sds := make([]*grpc.ServiceDesc, 0)
+	for _, file := range fd.GetFile() {
+		sd := file.GetService()
+
+		for _, service := range sd {
+
+			methods := service.GetMethod()
+			for _, method := range methods {
+				in := method.GetInputType()
+				inDesc := pd.GetMessageTypeByFullName(strings.TrimPrefix(in, "."))
+				outDesc := pd.GetMessageTypeByFullName(strings.TrimPrefix(method.GetOutputType(), "."))
+				srv := fmt.Sprintf("/%s.%s/%s", file.GetPackage(), service.GetName(), method.GetName())
+				g.ioType[srv] = &IOType{
+					In:  inDesc,
+					Out: outDesc,
+				}
+
+			}
+
+		}
+	}
 }

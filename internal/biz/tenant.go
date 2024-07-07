@@ -78,10 +78,10 @@ func (u *TenantUsecase) Update(ctx context.Context, in *api.PatchTenantRequest) 
 	err := u.repo.Patch(ctx, tenant)
 	if err != nil {
 		if strings.Contains(err.Error(), "Duplicate entry") {
-			return nil, gosdk.NewError(fmt.Errorf("Update tenant error:%w",err), int32(common.Code_CONFLICT), codes.AlreadyExists, "patch_app")
+			return nil, gosdk.NewError(fmt.Errorf("Update tenant error:%w", err), int32(common.Code_CONFLICT), codes.AlreadyExists, "patch_app")
 		}
 		if strings.Contains(err.Error(), "not found") {
-			return nil, gosdk.NewError(fmt.Errorf("Update tenant error:%w",err), int32(api.UserSvrCode_USER_NOT_FOUND_ERR), codes.NotFound, "get_user")
+			return nil, gosdk.NewError(fmt.Errorf("Update tenant error:%w", err), int32(api.UserSvrCode_USER_NOT_FOUND_ERR), codes.NotFound, "get_user")
 		}
 
 		return nil, gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_user")
@@ -120,10 +120,10 @@ func (t *TenantUsecase) AddTenantBusiness(ctx context.Context, tenantId, busines
 		BusinessName: business.BusinessName,
 		CreatedBy:    createdBy,
 	}
-    err=t.repo.AddBusiness(ctx, tb)
+	err = t.repo.AddBusiness(ctx, tb)
 	if err != nil {
 		return nil, gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "add_tenants_business")
-	
+
 	}
 	return tb, nil
 }

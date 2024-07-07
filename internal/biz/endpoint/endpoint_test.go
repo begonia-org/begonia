@@ -21,7 +21,6 @@ import (
 	"github.com/begonia-org/begonia/internal/pkg"
 	cfg "github.com/begonia-org/begonia/internal/pkg/config"
 
-	"github.com/begonia-org/begonia/internal/pkg/routers"
 	gwRuntime "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 
 	goloadbalancer "github.com/begonia-org/go-loadbalancer"
@@ -374,7 +373,7 @@ func testWatcherUpdate(t *testing.T) {
 	}
 	val, _ := json.Marshal(value)
 	opts := &gateway.GrpcServerOptions{
-		Middlewares:     make([]gateway.GrpcProxyMiddleware, 0),
+		Middlewares:     make([]grpc.StreamClientInterceptor, 0),
 		Options:         make([]grpc.ServerOption, 0),
 		PoolOptions:     make([]loadbalance.PoolOptionsBuildOption, 0),
 		HttpMiddlewares: make([]gwRuntime.ServeMuxOption, 0),
@@ -385,12 +384,12 @@ func testWatcherUpdate(t *testing.T) {
 		GrpcProxyAddr: "127.0.0.1:12148",
 	}
 	gateway.New(gwCnf, opts)
-	routers.NewHttpURIRouteToSrvMethod()
+	gateway.NewHttpURIRouteToSrvMethod()
 	c.Convey("Test Watcher Update", t, func() {
 
 		err = watcher.Handle(context.TODO(), mvccpb.PUT, cnf.GetServiceKey(epId), string(val))
 		c.So(err, c.ShouldBeNil)
-		r := routers.Get()
+		r := gateway.GetRouter()
 		detail := r.GetRoute("/api/v1/example/{name}")
 		c.So(detail, c.ShouldNotBeNil)
 
@@ -433,6 +432,27 @@ func testWatcherUpdate(t *testing.T) {
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, pkg.ErrUnknownLoadBalancer.Error())
 
+		// SetHttpResponse err
+		env := "dev"
+		if begonia.Env != "" {
+			env = begonia.Env
+		}
+		conf := config.ReadConfig(env)
+		cnf := cfg.NewConfig(conf)
+		outDir := cnf.GetGatewayDescriptionOut()
+		_, filename, _, _ := runtime.Caller(0)
+
+		pbFile := filepath.Join(filepath.Dir(filepath.Dir(filepath.Dir(filepath.Dir(filename)))), "testdata", "helloworld.pb")
+		pb, err := os.ReadFile(pbFile)
+		c.So(err, c.ShouldBeNil)
+		pd, err := gateway.NewDescriptionFromBinary(pb, filepath.Join(outDir, "tmp-test"))
+		c.So(err, c.ShouldBeNil)
+		patch6 := gomonkey.ApplyMethodReturn(pd, "SetHttpResponse", fmt.Errorf("test SetHttpResponse error"))
+		defer patch6.Reset()
+		err = watcher.Handle(context.TODO(), mvccpb.PUT, cnf.GetServiceKey(epId), string(val))
+
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "test SetHttpResponse error")
 	})
 }
 func testWatcherDel(t *testing.T) {
@@ -453,7 +473,7 @@ func testWatcherDel(t *testing.T) {
 	c.Convey("Test Watcher Del", t, func() {
 		err := watcher.Handle(context.TODO(), mvccpb.DELETE, cnf.GetServiceKey(epId), string(val))
 		c.So(err, c.ShouldBeNil)
-		r := routers.Get()
+		r := gateway.GetRouter()
 		detail := r.GetRoute("/api/v1/example/{name}")
 		c.So(detail, c.ShouldBeNil)
 	})
