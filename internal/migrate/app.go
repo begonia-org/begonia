@@ -23,7 +23,7 @@ type APPOperator struct {
 func NewAPPOperator(mysql *tiga.MySQLDao) *APPOperator {
 	return &APPOperator{mysql: mysql}
 }
-func dumpInitApp(app *api.Apps,env string) error {
+func dumpInitApp(app *api.Apps, env string) error {
 	log.Print("########################################admin-app###############################")
 	log.Printf("Init appid:%s", app.Appid)
 	log.Printf("Init accessKey:%s", app.AccessKey)
@@ -36,7 +36,7 @@ func dumpInitApp(app *api.Apps,env string) error {
 	if err := os.MkdirAll(path, os.ModePerm); err != nil {
 		return err
 	}
-	file, err := os.Create(filepath.Join(path, fmt.Sprintf("admin-app.%s.json",env)))
+	file, err := os.Create(filepath.Join(path, fmt.Sprintf("admin-app.%s.json", env)))
 	if err != nil {
 		return err
 	}
@@ -49,11 +49,11 @@ func dumpInitApp(app *api.Apps,env string) error {
 	log.Print("#################################################################################")
 	return nil
 }
-func (m *APPOperator) InitAdminAPP(owner,env string) (err error) {
+func (m *APPOperator) InitAdminAPP(owner, env string) (err error) {
 	app := &api.Apps{}
 	defer func() {
 		if app.Appid != "" {
-			if errInit := dumpInitApp(app,env); errInit != nil {
+			if errInit := dumpInitApp(app, env); errInit != nil {
 				err = errInit
 			}
 		}
@@ -91,7 +91,7 @@ func (m *APPOperator) InitAdminAPP(owner,env string) (err error) {
 			UpdatedAt:   timestamppb.New(time.Now()),
 			Tags:        []string{"admin"},
 		}
-		err = m.mysql.Create(context.Background(), app)
+		err = m.mysql.Create(context.Background(), app, nil)
 		return err
 	}
 	return nil

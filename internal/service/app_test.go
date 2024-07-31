@@ -38,9 +38,10 @@ func addApp(t *testing.T) {
 			c.So(err, c.ShouldBeNil)
 			c.So(rsp2.StatusCode, c.ShouldEqual, common.Code_OK)
 			c.So(rsp2.Name, c.ShouldNotBeEmpty)
-			_, err = apiClient.PostAppConfig(context.Background(), &api.AppsRequest{Name: name, Description: "test"})
+			rsp, err = apiClient.PostAppConfig(context.Background(), &api.AppsRequest{Name: name, Description: "test"})
 			c.So(err, c.ShouldNotBeNil)
-			c.So(err.Error(), c.ShouldEqual, "duplicate app name")
+			c.So(rsp.StatusCode, c.ShouldEqual, int(api.APPSvrCode_APP_DUPLICATE_ERR))
+			// c.So(err.Error(), c.ShouldEqual, "duplicate app name")
 			// c.So(rsp3.StatusCode, c.ShouldEqual, common.Code_ERR)
 
 			name2 = fmt.Sprintf("app-service-2-%s", time.Now().Format("20060102150405"))
@@ -72,7 +73,7 @@ func testPatchApp(t *testing.T) {
 		func() {
 			apiClient := client.NewAppAPI(apiAddr, accessKey, secret)
 			name := fmt.Sprintf("app-%s", time.Now().Format("20060102150405"))
-			rsp2, err := apiClient.UpdateAPP(context.Background(), appid, name, "test patch", nil)
+			rsp2, err := apiClient.UpdateAPP(context.Background(), appid, client.WithPatchParams("name", name), client.WithPatchParams("description", "test patch"))
 			c.So(err, c.ShouldBeNil)
 			c.So(rsp2.StatusCode, c.ShouldEqual, common.Code_OK)
 			rsp2, err = apiClient.GetAPP(context.Background(), appid)
@@ -80,9 +81,10 @@ func testPatchApp(t *testing.T) {
 			c.So(rsp2.StatusCode, c.ShouldEqual, common.Code_OK)
 			c.So(rsp2.Name, c.ShouldEqual, name)
 
-			_, err = apiClient.UpdateAPP(context.Background(), appid, name2, "test patch", nil)
+			rsp, err := apiClient.UpdateAPP(context.Background(), appid, client.WithPatchParams("name", name2), client.WithPatchParams("description", "test patch"))
 			c.So(err, c.ShouldNotBeNil)
-			c.So(err.Error(), c.ShouldEqual, "duplicate app name")
+			// c.So(err.Error(), c.ShouldEqual, "duplicate app name")
+			c.So(rsp.StatusCode, c.ShouldEqual, int(api.APPSvrCode_APP_DUPLICATE_ERR))
 
 		},
 	)
@@ -102,9 +104,9 @@ func delApp(t *testing.T) {
 			_, err = apiClient.GetAPP(context.Background(), appid)
 			c.So(err, c.ShouldNotBeNil)
 
-			_, err = apiClient.DeleteAPP(context.TODO(), appid)
+			rsp, err := apiClient.DeleteAPP(context.TODO(), appid)
 			c.So(err, c.ShouldNotBeNil)
-			c.So(err.Error(), c.ShouldEqual, "app not found")
+			c.So(rsp.StatusCode, c.ShouldEqual, int(api.APPSvrCode_APP_NOT_FOUND_ERR))
 			// c.So(rsp3.StatusCode, c.ShouldEqual, common.Code_OK)
 		})
 }
@@ -149,7 +151,7 @@ func TestApp(t *testing.T) {
 	t.Run("list app", listAPP)
 	t.Run("list app err", testListErr)
 	t.Run("patch app", testPatchApp)
-	// appid = "442568851213783040"
+	// // appid = "442568851213783040"
 	t.Run("del app", delApp)
 
 }

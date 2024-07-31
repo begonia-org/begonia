@@ -1,19 +1,10 @@
-package routers
+package gateway
 
 import (
 	"fmt"
 	"strings"
 	"sync"
 
-	"github.com/begonia-org/begonia/gateway"
-	_ "github.com/begonia-org/go-sdk/api/app/v1"
-	_ "github.com/begonia-org/go-sdk/api/endpoint/v1"
-	_ "github.com/begonia-org/go-sdk/api/example/v1"
-	_ "github.com/begonia-org/go-sdk/api/iam/v1"
-	_ "github.com/begonia-org/go-sdk/api/plugin/v1"
-	_ "github.com/begonia-org/go-sdk/api/sys/v1"
-	_ "github.com/begonia-org/go-sdk/api/user/v1"
-	_ "github.com/begonia-org/go-sdk/common/api/v1"
 	common "github.com/begonia-org/go-sdk/common/api/v1"
 	"google.golang.org/genproto/googleapis/api/annotations"
 	"google.golang.org/protobuf/proto"
@@ -52,7 +43,7 @@ func NewHttpURIRouteToSrvMethod() *HttpURIRouteToSrvMethod {
 	})
 	return httpURIRouteToSrvMethod
 }
-func Get() *HttpURIRouteToSrvMethod {
+func GetRouter() *HttpURIRouteToSrvMethod {
 	return NewHttpURIRouteToSrvMethod()
 }
 
@@ -60,7 +51,8 @@ func (r *HttpURIRouteToSrvMethod) AddRoute(uri string, srvMethod *APIMethodDetai
 	r.mux.Lock()
 	defer r.mux.Unlock()
 	r.routers[uri] = srvMethod
-	r.grpcRouter[srvMethod.GrpcFullRouter] = srvMethod
+	// log.Printf("add srv method grpc router:%s,pointer:%p", srvMethod.GrpcFullRouter, r)
+	r.grpcRouter[strings.ToUpper(srvMethod.GrpcFullRouter)] = srvMethod
 }
 func (r *HttpURIRouteToSrvMethod) deleteRoute(uri string, grpcFullMethod string) {
 	delete(r.routers, uri)
@@ -71,6 +63,7 @@ func (r *HttpURIRouteToSrvMethod) GetRoute(uri string) *APIMethodDetails {
 	return r.routers[uri]
 }
 func (r *HttpURIRouteToSrvMethod) GetRouteByGrpcMethod(method string) *APIMethodDetails {
+	// log.Printf("get grpc method,%v:%s,pointer:%p",r.grpcRouter,strings.ToUpper(method),r)
 	return r.grpcRouter[strings.ToUpper(method)]
 }
 func (r *HttpURIRouteToSrvMethod) GetAllRoutes() map[string]*APIMethodDetails {
@@ -85,7 +78,14 @@ func (r *HttpURIRouteToSrvMethod) getServiceOptionByExt(service *descriptorpb.Se
 	}
 	return nil
 }
-
+func (r *HttpURIRouteToSrvMethod) getMethodOptionByExt(method *descriptorpb.MethodDescriptorProto, ext protoreflect.ExtensionType) interface{} {
+	if options := method.GetOptions(); options != nil {
+		if ext := proto.GetExtension(options, ext); ext != nil {
+			return ext
+		}
+	}
+	return nil
+}
 func (r *HttpURIRouteToSrvMethod) getHttpRule(method *descriptorpb.MethodDescriptorProto) *annotations.HttpRule {
 	if options := method.GetOptions(); options != nil {
 		if ext := proto.GetExtension(options, annotations.E_Http); ext != nil {
@@ -97,6 +97,7 @@ func (r *HttpURIRouteToSrvMethod) getHttpRule(method *descriptorpb.MethodDescrip
 	return nil
 }
 func (r *HttpURIRouteToSrvMethod) AddLocalSrv(fullMethod string) {
+	// log.Printf("add local srv:%s", fullMethod)
 	r.localSrv[strings.ToUpper(fullMethod)] = true
 }
 func (r *HttpURIRouteToSrvMethod) IsLocalSrv(fullMethod string) bool {
@@ -154,7 +155,13 @@ func (r *HttpURIRouteToSrvMethod) addRouterDetails(serviceName string, useJsonRe
 	}
 
 }
-func (r *HttpURIRouteToSrvMethod) LoadAllRouters(pd gateway.ProtobufDescription) {
+
+// LoadAllRouters Load all routers from protobuf description
+// for service methods, if the method has a google.api.http annotation, then add the router
+// to the router list, and set the authRequired flag to true if the method has a pb.auth_required annotation,
+// if the method has a pb.http_response annotation, then set the useJsonResponse flag to true,
+// if the method has a pb.dont_use_http_response annotation, then set the useJsonResponse flag to false.
+func (r *HttpURIRouteToSrvMethod) LoadAllRouters(pd ProtobufDescription) {
 	fds := pd.GetFileDescriptorSet()
 	for _, fd := range fds.File {
 		for _, service := range fd.Service {
@@ -165,13 +172,20 @@ func (r *HttpURIRouteToSrvMethod) LoadAllRouters(pd gateway.ProtobufDescription)
 			if authRequiredExt := r.getServiceOptionByExt(service, common.E_AuthReqiured); authRequiredExt != nil {
 				authRequired, _ = authRequiredExt.(bool)
 			}
-			if httpResponseExt := r.getServiceOptionByExt(service, common.E_HttpResponse); httpResponseExt != nil {
+			if httpResponseExt := r.getServiceOptionByExt(service, common.E_HttpResponse); httpResponseExt != nil && httpResponseExt.(string) != "" {
 				httpResponse = true
 			}
 			// 遍历服务中的所有方法
 			for _, method := range service.GetMethod() {
 				key := fmt.Sprintf("/%s.%s/%s", fd.GetPackage(), service.GetName(), method.GetName())
-				r.addRouterDetails(strings.ToUpper(key), httpResponse, authRequired, method)
+				// log.Printf("add router:%s,%v", key, httpResponse)
+				// do not use HttpResponse for this method if it is set
+				dontUseHttpResponse := r.getMethodOptionByExt(method, common.E_DontUseHttpResponse)
+				useHttpResponse := httpResponse
+				if dontUseHttpResponse != nil && dontUseHttpResponse.(bool) {
+					useHttpResponse = false
+				}
+				r.addRouterDetails(strings.ToUpper(key), useHttpResponse, authRequired, method)
 			}
 
 		}
@@ -179,7 +193,7 @@ func (r *HttpURIRouteToSrvMethod) LoadAllRouters(pd gateway.ProtobufDescription)
 
 }
 
-func (h *HttpURIRouteToSrvMethod) DeleteRouters(pd gateway.ProtobufDescription) {
+func (h *HttpURIRouteToSrvMethod) DeleteRouters(pd ProtobufDescription) {
 	fds := pd.GetFileDescriptorSet()
 	for _, fd := range fds.File {
 		for _, service := range fd.Service {

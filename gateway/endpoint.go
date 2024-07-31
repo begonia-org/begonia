@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	loadbalance "github.com/begonia-org/go-loadbalancer"
@@ -42,7 +43,7 @@ func (e *httpForwardGrpcEndpointImpl) Request(req GrpcRequest) (proto.Message, r
 		return nil, runtime.ServerMetadata{
 			HeaderMD:  make(map[string][]string),
 			TrailerMD: make(map[string][]string),
-		}, err
+		}, fmt.Errorf("get conn error:%v", err)
 	}
 	defer e.pool.Release(req.GetContext(), cc)
 
@@ -51,6 +52,7 @@ func (e *httpForwardGrpcEndpointImpl) Request(req GrpcRequest) (proto.Message, r
 	in := req.GetIn()
 	ctx := req.GetContext()
 	err = conn.Invoke(ctx, req.GetFullMethodName(), in, out, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	// log.Printf("request %s out:%v",req.GetFullMethodName(), out.ProtoReflect().Type().Descriptor().FullName())
 	return out, metadata, err
 
 }

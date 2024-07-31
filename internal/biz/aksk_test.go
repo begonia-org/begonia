@@ -16,7 +16,6 @@ import (
 	"github.com/begonia-org/begonia/internal/data"
 	"github.com/begonia-org/begonia/internal/pkg"
 	cfg "github.com/begonia-org/begonia/internal/pkg/config"
-	"github.com/begonia-org/begonia/internal/pkg/routers"
 	"github.com/begonia-org/begonia/internal/pkg/utils"
 	gosdk "github.com/begonia-org/go-sdk"
 
@@ -30,7 +29,7 @@ import (
 var akskAccess = ""
 var akskSecret = ""
 var akskAppid = ""
-var akskOwner=""
+var akskOwner = ""
 
 func newGatewayRequest() (*gosdk.GatewayRequest, error) {
 	signer := gosdk.NewAppAuthSigner(akskAccess, akskSecret)
@@ -87,8 +86,7 @@ func testGetSecret(t *testing.T) {
 		Description: "test",
 		CreatedAt:   timestamppb.New(time.Now()),
 		UpdatedAt:   timestamppb.New(time.Now()),
-		Owner: 	 akskOwner,
-
+		Owner:       akskOwner,
 	})
 
 	if err != nil {
@@ -139,7 +137,7 @@ func testIfNeedValidate(t *testing.T) {
 		ok := biz.IfNeedValidate(context.TODO(), akskAccess)
 		c.So(ok, c.ShouldBeFalse)
 
-		patch := gomonkey.ApplyFuncReturn((*routers.HttpURIRouteToSrvMethod).GetRouteByGrpcMethod, &routers.APIMethodDetails{AuthRequired: true})
+		patch := gomonkey.ApplyFuncReturn((*gateway.HttpURIRouteToSrvMethod).GetRouteByGrpcMethod, &gateway.APIMethodDetails{AuthRequired: true})
 		defer patch.Reset()
 		ok = biz.IfNeedValidate(context.TODO(), akskAccess)
 		c.So(ok, c.ShouldBeTrue)

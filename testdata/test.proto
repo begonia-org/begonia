@@ -56,10 +56,13 @@ service TestService{
             body: "*"
         };
     }
-    rpc Body(TestRequest) returns (google.api.HttpBody){
+
+        rpc Body(TestRequest) returns (google.api.HttpBody){
         option (google.api.http) = {
             get: "/test/body"
         };
+        option (begonia.org.sdk.common.dont_use_http_response) = true;
+
     }
     rpc Custom(TestRequest) returns (TestRequest) {
         // 使用 HttpRule_Custom 来定义 HTTP 映射规则

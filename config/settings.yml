@@ -11,8 +11,8 @@ file:
   engines:
     - name: "FILE_ENGINE_MINIO"
       endpoint: "127.0.0.1:9000"
-      accessKey: "7OdVJK1alV8cpRMeBLBW"
-      secretKey: "2GNNRqqElReC1KnV3kX9jSjyLU4kwOaTZEqDS2vH"
+      accessKey: "rLV2Jjj2UbMWSJOhTOtZ"
+      secretKey: "OVyJOILwx4iVE0EVJB4CKB65j7xlhjT5q1aGCv5t"
     - name: "FILE_ENGINE_LOCAL"
       endpoint: "/data/work/begonia-org/begonia/upload"
   protos:
@@ -70,11 +70,12 @@ gateway:
     - "example.com"
   plugins:
     local:
-      logger: 1
-      exception: 0
+      #  优先级越大越先执行
+      exception: 4
+      logger: 3
       http: 2
-      params_validator: 3
-      auth: 4
+      auth: 1
+      params_validator: 0
       # only_api_key_auth: 4
     rpc:
       # - server:

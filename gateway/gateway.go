@@ -18,7 +18,7 @@ import (
 )
 
 type GrpcServerOptions struct {
-	Middlewares     []GrpcProxyMiddleware
+	Middlewares     []grpc.StreamClientInterceptor
 	Options         []grpc.ServerOption
 	PoolOptions     []loadbalance.PoolOptionsBuildOption
 	HttpMiddlewares []runtime.ServeMuxOption
@@ -27,6 +27,8 @@ type GrpcServerOptions struct {
 type GatewayConfig struct {
 	GatewayAddr   string
 	GrpcProxyAddr string
+}
+type DynamicGrpcItem struct {
 }
 type GatewayServer struct {
 	grpcServer  *grpc.Server
@@ -37,14 +39,15 @@ type GatewayServer struct {
 	proxyAddr   string
 	opts        *GrpcServerOptions
 	mux         *sync.Mutex
+	proxy       *GrpcProxy
 }
 
-func NewGrpcServer(opts *GrpcServerOptions, lb *GrpcLoadBalancer) *grpc.Server {
+func NewGrpcProxyServer(opts *GrpcServerOptions, lb *GrpcLoadBalancer) *GrpcProxy {
 
-	proxy := NewGrpcProxy(lb, opts.Middlewares...)
+	proxy := NewGrpcProxy(lb, Log, opts.Middlewares...)
 
-	opts.Options = append(opts.Options, grpc.UnknownServiceHandler(proxy.Handler))
-	return grpc.NewServer(opts.Options...)
+	opts.Options = append(opts.Options, grpc.UnknownServiceHandler(proxy.Do))
+	return proxy
 }
 
 func NewHttpServer(addr string, poolOpt ...loadbalance.PoolOptionsBuildOption) (HttpEndpoint, error) {
@@ -57,7 +60,9 @@ func NewHttpServer(addr string, poolOpt ...loadbalance.PoolOptionsBuildOption) (
 }
 func NewGateway(cfg *GatewayConfig, opts *GrpcServerOptions) *GatewayServer {
 	lb := NewGrpcLoadBalancer()
-	grpcServer := NewGrpcServer(opts, lb)
+	gProxy := NewGrpcProxyServer(opts, lb)
+	opts.Options = append(opts.Options, grpc.UnknownServiceHandler(gProxy.Do))
+	grpcServer := grpc.NewServer(opts.Options...)
 	_, port, _ := net.SplitHostPort(cfg.GrpcProxyAddr)
 	proxy := fmt.Sprintf("127.0.0.1:%s", port)
 
@@ -77,6 +82,7 @@ func NewGateway(cfg *GatewayConfig, opts *GrpcServerOptions) *GatewayServer {
 		proxyAddr:   cfg.GrpcProxyAddr,
 		opts:        opts,
 		mux:         &sync.Mutex{},
+		proxy:       gProxy,
 	}
 	// })
 	return gatewayS
@@ -97,6 +103,13 @@ func (g *GatewayServer) RegisterLocalService(ctx context.Context, pd ProtobufDes
 	g.grpcServer.RegisterService(sd, ss)
 	return g.httpGateway.RegisterHandlerClient(ctx, pd, g.gatewayMux)
 }
+func (g *GatewayServer) RegisterServiceWithProxy(pd ProtobufDescription) {
+	g.mux.Lock()
+	defer g.mux.Unlock()
+	g.proxy.buildServiceDesc(pd)
+
+}
+
 func (g *GatewayServer) DeleteLocalService(pd ProtobufDescription) {
 	g.mux.Lock()
 	defer g.mux.Unlock()

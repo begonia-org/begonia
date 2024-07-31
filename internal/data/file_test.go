@@ -66,7 +66,7 @@ func testGetFileById(t *testing.T) {
 		file, err := f.GetFileById(context.Background(), fileFileId)
 		c.So(err, c.ShouldBeNil)
 		c.So(file, c.ShouldNotBeNil)
-		fk:=fmt.Sprintf("test-%s",fileFileId)
+		fk := fmt.Sprintf("test-%s", fileFileId)
 		file, err = f.GetFile(context.Background(), fk, "test", fk)
 		c.So(err, c.ShouldBeNil)
 		c.So(file, c.ShouldNotBeNil)
@@ -91,7 +91,7 @@ func testUpsertBucket(t *testing.T) {
 		conf := cfg.ReadConfig(env)
 		f := NewFileRepo(conf, gateway.Log)
 		snk, _ := tiga.NewSnowflake(1)
-		bk:=fmt.Sprintf("test-%s",snk.GenerateIDString())
+		bk := fmt.Sprintf("test-%s", snk.GenerateIDString())
 
 		bucket := &api.Buckets{
 			Engine:     "test",

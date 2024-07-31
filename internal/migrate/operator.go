@@ -29,12 +29,12 @@ func (m *InitOperator) Init() error {
 	phone := m.config.GetDefaultAdminPhone()
 	aseKey := m.config.GetAesKey()
 	ivKey := m.config.GetAesIv()
-	env:=m.config.GetEnv()
+	env := m.config.GetEnv()
 	uid, err := m.user.InitAdminUser(adminPasswd, aseKey, ivKey, name, email, phone)
 	if err != nil {
 		log.Printf("failed to init admin user: %v", err)
 		return err
 	}
 
-	return m.app.InitAdminAPP(uid,env)
+	return m.app.InitAdminAPP(uid, env)
 }

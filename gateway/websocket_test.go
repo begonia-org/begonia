@@ -14,9 +14,9 @@ func TestWebsocketForwarder(t *testing.T) {
 		wk := &websocketForwarder{
 			websocket: &websocket.Conn{},
 		}
-		patch:=gomonkey.ApplyFuncReturn((*websocket.Conn).WriteMessage, fmt.Errorf("write error"))
+		patch := gomonkey.ApplyFuncReturn((*websocket.Conn).WriteMessage, fmt.Errorf("write error"))
 		defer patch.Reset()
-		_,err := wk.Write([]byte("test"))
+		_, err := wk.Write([]byte("test"))
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "write error")
 		patch.Reset()

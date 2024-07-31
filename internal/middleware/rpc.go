@@ -22,22 +22,11 @@ import (
 
 type RPCPluginCaller interface{}
 
-// type rpcPluginCallerImpl struct {
-// 	plugins gosdk.Plugins
-// }
-
-// func NewRPCPluginCaller() RPCPluginCaller {
-// 	return &rpcPluginCallerImpl{
-// 		plugins: make(gosdk.Plugins, 0),
-// 	}
-// }
-
 type pluginImpl struct {
 	priority int
 	name     string
 	timeout  time.Duration
 	lb       lb.LoadBalance
-	// api.PluginServiceClient
 }
 
 func (p *pluginImpl) SetPriority(priority int) {
@@ -54,17 +43,16 @@ func (p *pluginImpl) Name() string {
 func (p *pluginImpl) UnaryInterceptor(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		md = metadata.New(nil)
+		md = metadata.New(make(map[string]string))
 	}
-	rsp, err := p.Apply(ctx, req, info.FullMethod)
+	rsp, header, err := p.Apply(ctx, req, info.FullMethod)
 	if err != nil {
 		return nil, gosdk.NewError(fmt.Errorf("call plugin error: %w", err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "call_plugin")
 	}
+	for k, v := range header {
+		md[k] = append(md[k], v...)
 
-	for k, v := range rsp.Metadata {
-		md.Append(k, v)
 	}
-
 	newRequest := rsp.NewRequest
 	if newRequest != nil {
 		err = newRequest.UnmarshalTo(req.(proto.Message))
@@ -97,8 +85,36 @@ func (p *pluginImpl) getEndpoint(ctx context.Context) (lb.Endpoint, error) {
 	return endpoint, nil
 
 }
-func (p *pluginImpl) Apply(ctx context.Context, in interface{}, fullMethodName string) (*api.PluginResponse, error) {
+func (p *pluginImpl) Apply(ctx context.Context, in interface{}, fullMethodName string) (*api.PluginResponse, metadata.MD, error) {
 
+	endpoint, err := p.getEndpoint(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	cn, err := endpoint.Get(ctx)
+	if err != nil {
+		return nil, nil, gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_connection")
+	}
+	defer endpoint.AfterTransform(ctx, cn.((goloadbalancer.Connection)))
+	conn := cn.(goloadbalancer.Connection).ConnInstance().(*grpc.ClientConn)
+
+	plugin := api.NewPluginServiceClient(conn)
+	anyReq, err := anypb.New(in.(proto.Message))
+	if err != nil {
+		return nil, nil, gosdk.NewError(fmt.Errorf("new any to plugin error: %w", err), int32(common.Code_PARAMS_ERROR), codes.InvalidArgument, "new_any")
+
+	}
+	var header, trailer metadata.MD
+	rsp, err := plugin.Apply(ctx, &api.PluginRequest{
+		Request:        anyReq,
+		FullMethodName: fullMethodName,
+	}, grpc.Header(&header), grpc.Trailer(&trailer))
+	if err != nil {
+		return nil, nil, gosdk.NewError(fmt.Errorf("call plugin error: %w", err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "call_plugin")
+	}
+	return rsp, header, nil
+}
+func (p *pluginImpl) Metadata(ctx context.Context, in *emptypb.Empty) (metadata.MD, error) {
 	endpoint, err := p.getEndpoint(ctx)
 	if err != nil {
 		return nil, err
@@ -109,18 +125,14 @@ func (p *pluginImpl) Apply(ctx context.Context, in interface{}, fullMethodName s
 	}
 	defer endpoint.AfterTransform(ctx, cn.((goloadbalancer.Connection)))
 	conn := cn.(goloadbalancer.Connection).ConnInstance().(*grpc.ClientConn)
-
 	plugin := api.NewPluginServiceClient(conn)
-	anyReq, err := anypb.New(in.(proto.Message))
+	var header, trailer metadata.MD
+	_, err = plugin.Metadata(ctx, in, grpc.Header(&header), grpc.Trailer(&trailer))
 	if err != nil {
-		return nil, gosdk.NewError(fmt.Errorf("new any to plugin error: %w", err), int32(common.Code_PARAMS_ERROR), codes.InvalidArgument, "new_any")
-
+		return nil, gosdk.NewError(fmt.Errorf("call plugin metadata error:%w", err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "metadata")
 	}
-	return plugin.Apply(ctx, &api.PluginRequest{
-		Request:        anyReq,
-		FullMethodName: fullMethodName,
-	})
-	// return plugin.Call(ctx, anyReq, opts...)
+	return header, nil
+
 }
 func (p *pluginImpl) Info(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*api.PluginInfo, error) {
 	endpoint, err := p.getEndpoint(ctx)
@@ -137,13 +149,25 @@ func (p *pluginImpl) Info(ctx context.Context, in *emptypb.Empty, opts ...grpc.C
 	return plugin.Info(ctx, in, opts...)
 }
 func (p *pluginImpl) StreamInterceptor(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+	md, err := p.Metadata(ss.Context(), &emptypb.Empty{})
+	if err != nil {
+		return err
 
-	grpcStream := NewGrpcPluginStream(ss, info.FullMethod, ss.Context(), p)
+	}
+	in, _ := metadata.FromIncomingContext(ss.Context())
+
+	ctx := metadata.NewIncomingContext(ss.Context(), metadata.Join(in, md))
+	grpcStream := NewGrpcPluginStream(ss, info.FullMethod, ctx, p)
 	if grpcStream != nil {
 		defer grpcStream.Release()
 
 	}
 	return handler(srv, grpcStream)
+
+}
+func (p *pluginImpl) StreamClientInterceptor(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, streamer grpc.Streamer, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+
+	return streamer(ctx, desc, cc, method, opts...)
 
 }
 func NewPluginImpl(lb lb.LoadBalance, name string, timeout time.Duration) *pluginImpl {

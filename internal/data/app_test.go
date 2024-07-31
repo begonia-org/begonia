@@ -188,9 +188,9 @@ func patchTest(t *testing.T) {
 
 		err = repo.Patch(context.Background(), updated)
 		c.So(err, c.ShouldNotBeNil)
-		c.So(err.Error(), c.ShouldContainSubstring, "appid can not be updated")
+		c.So(err.Error(), c.ShouldContainSubstring, "can not be updated")
 
-		patch := gomonkey.ApplyFuncReturn(getPrimaryColumnValue, "", nil, fmt.Errorf("getPrimaryColumnValue error"))
+		patch := gomonkey.ApplyFuncReturn(getPrimaryColumnValue, nil, fmt.Errorf("getPrimaryColumnValue error"))
 		defer patch.Reset()
 		err = repo.Patch(context.Background(), updated)
 		c.So(err, c.ShouldNotBeNil)
@@ -316,10 +316,16 @@ func delTest(t *testing.T) {
 			env = begonia.Env
 		}
 		repo := NewAppRepo(cfg.ReadConfig(env), gateway.Log)
-
-		patch := gomonkey.ApplyFuncReturn(getPrimaryColumnValue, "", nil, fmt.Errorf("getPrimaryColumnValue,error"))
-		defer patch.Reset()
+		// set boolean err
+		patch4 := gomonkey.ApplyFuncReturn((*curdImpl).SetBoolean, fmt.Errorf("set boolean error"))
+		defer patch4.Reset()
 		err := repo.Del(context.TODO(), appid)
+		patch4.Reset()
+		c.So(err, c.ShouldNotBeNil)
+		c.So(err.Error(), c.ShouldContainSubstring, "set boolean error")
+		patch := gomonkey.ApplyFuncReturn(getPrimaryColumnValue, nil, fmt.Errorf("getPrimaryColumnValue,error"))
+		defer patch.Reset()
+		err = repo.Del(context.TODO(), appid)
 		c.So(err, c.ShouldNotBeNil)
 		c.So(err.Error(), c.ShouldContainSubstring, "getPrimaryColumnValue,error")
 		patch.Reset()

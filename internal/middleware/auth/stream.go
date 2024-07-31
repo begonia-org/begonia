@@ -2,23 +2,33 @@ package auth
 
 import (
 	"context"
+	"errors"
+	"io"
 	"sync"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
 
 type StreamValidator interface {
-	ValidateStream(ctx context.Context, req interface{}, fullName string, headers Header) (context.Context, error)
+	ValidateStream(ctx context.Context, req interface{}, fullName string) (context.Context, error)
 }
 type grpcServerStream struct {
 	grpc.ServerStream
-	fullName string
-	validate StreamValidator
-	ctx      context.Context
+	fullName   string
+	validate   StreamValidator
+	ctx        context.Context
+	firstFrame bool
 }
+
+// type grpcClientStream struct {
+// 	grpc.ClientStream
+// 	fullName   string
+// 	ctx        context.Context
+// 	validate   StreamValidator
+// 	firstFrame bool
+// }
 
 var streamPool = &sync.Pool{
 	New: func() interface{} {
@@ -28,11 +38,17 @@ var streamPool = &sync.Pool{
 	},
 }
 
+// var clientStreamPool = &sync.Pool{
+// 	New: func() interface{} {
+// 		return &grpcClientStream{}
+// 	},
+// }
+
 func NewGrpcStream(s grpc.ServerStream, fullName string, ctx context.Context, validator StreamValidator) *grpcServerStream {
 	stream := streamPool.Get().(*grpcServerStream)
 	stream.ServerStream = s
 	stream.fullName = fullName
-	stream.ctx = s.Context()
+	stream.ctx = ctx
 	stream.validate = validator
 	return stream
 }
@@ -41,29 +57,28 @@ func (g *grpcServerStream) Release() {
 	g.fullName = ""
 	g.ServerStream = nil
 	g.validate = nil
+	g.firstFrame = false
 	streamPool.Put(g)
 }
 func (g *grpcServerStream) Context() context.Context {
 	return g.ctx
 }
 func (s *grpcServerStream) RecvMsg(m interface{}) error {
-	if err := s.ServerStream.RecvMsg(m); err != nil {
+	var err error
+	if err = s.ServerStream.RecvMsg(m); err != nil && !errors.Is(err, io.EOF) {
+		return status.Errorf(codes.Internal, "recv msg err:%s", err.Error())
+	}
+	if err != nil {
+		return err
+
+	}
+	if !s.firstFrame {
+
+		ctx, err := s.validate.ValidateStream(s.Context(), m, s.fullName)
+		s.ctx = ctx
+		s.firstFrame = true
 		return err
 	}
-	in, ok := metadata.FromIncomingContext(s.Context())
-	if !ok {
-		return status.Errorf(codes.Unauthenticated, "metadata not exists in context")
 
-	}
-	out, ok := metadata.FromOutgoingContext(s.Context())
-	if !ok {
-		out = metadata.MD{}
-
-	}
-
-	header := NewGrpcStreamHeader(in, s.Context(), out, s.ServerStream)
-	_, err := s.validate.ValidateStream(s.Context(), m, s.fullName, header)
-	s.ctx = header.ctx
-	header.Release()
-	return err
+	return nil
 }

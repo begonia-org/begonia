@@ -59,6 +59,8 @@ var ProviderSet = wire.NewSet(NewMySQL,
 	NewLayeredCache,
 
 	NewDataLock,
+	NewBusinessRepoImpl,
+	NewTenantRepoImpl,
 	NewAuthzRepoImpl,
 	NewUserRepoImpl,
 	NewEndpointRepoImpl,
@@ -190,7 +192,7 @@ func NewData(mysql *tiga.MySQLDao, rdb *tiga.RedisDao, etcd *tiga.EtcdDao) *Data
 //		}
 //		return db.Commit().Error
 //	}
-func getPrimaryColumnValue(model interface{}, tagName string) (string, interface{}, error) {
+func getPrimaryColumnValue(model interface{}, tagName string) (map[string]interface{}, error) {
 	// 获取结构体类型
 	modelType := reflect.TypeOf(model)
 	modelVal := reflect.ValueOf(model)
@@ -200,9 +202,9 @@ func getPrimaryColumnValue(model interface{}, tagName string) (string, interface
 
 	}
 	if modelType.Kind() != reflect.Struct {
-		return "", "", fmt.Errorf("%s not a struct type", modelType.Kind().String())
+		return nil, fmt.Errorf("%s not a struct type", modelType.Kind().String())
 	}
-
+	fieldValue := make(map[string]interface{})
 	// 遍历结构体的字段
 	for i := 0; i < modelType.NumField(); i++ {
 		field := modelType.Field(i)
@@ -214,15 +216,20 @@ func getPrimaryColumnValue(model interface{}, tagName string) (string, interface
 			tagParts := strings.Split(tag, ";")
 			for _, part := range tagParts {
 				kv := strings.Split(part, ":")
-				if len(kv) == 2 && strings.TrimSpace(kv[0]) == "column" {
+				if len(kv) == 2 && strings.TrimSpace(kv[0]) == "column" && !strings.Contains(tag, "primaryKey") {
 					value := modelVal.Field(i).Interface()
-					return strings.TrimSpace(kv[1]), value, nil
+					fieldValue[strings.TrimSpace(kv[1])] = value
+					// return strings.TrimSpace(kv[1]), value, nil
 				}
 			}
 		}
 
 	}
-	return "", nil, fmt.Errorf("not found primary column")
+	// if len(fieldValue) == 0 {
+	// 	return nil, fmt.Errorf("not found primary column")
+
+	// }
+	return fieldValue, nil
 }
 
 // func (d *Data) Update(ctx context.Context, model SourceType) error {

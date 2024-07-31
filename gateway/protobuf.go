@@ -159,6 +159,7 @@ func NewDescriptionFromBinary(data []byte, outDir string) (ProtobufDescription, 
 		return nil, err
 	}
 	// desc.gatewayJsonSchema = filepath.Join(outDir, "gateway.json")
+	// log.Printf("GetFileDescriptorSet result is :%v",desc.GetFileDescriptorSet())
 	contents, err := register.Register(desc.GetFileDescriptorSet(), false, "")
 	if err != nil {
 		return nil, fmt.Errorf("Failed to register: %w", err)
@@ -196,6 +197,7 @@ func (p *protobufDescription) GetMessageTypeByFullName(fullName string) protoref
 		v := desc.(protoreflect.MessageDescriptor)
 		return v
 	}
+	// log.Printf("GetMessageTypeByFullName failed:%s", fullName)
 	return nil
 }
 func (p *protobufDescription) GetGatewayJsonSchema() string {

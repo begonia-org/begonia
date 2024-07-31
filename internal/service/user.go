@@ -36,6 +36,7 @@ func (u *UserService) Register(ctx context.Context, in *api.PostUserRequest) (*a
 		Dept:     in.Dept,
 		Owner:    owner,
 		Avatar:   in.Avatar,
+		TenantId: in.TenantId,
 	}
 	err := u.biz.Add(ctx, user)
 	if err != nil {

@@ -11,7 +11,6 @@ import (
 	app "github.com/begonia-org/go-sdk/api/app/v1"
 	ep "github.com/begonia-org/go-sdk/api/endpoint/v1"
 	file "github.com/begonia-org/go-sdk/api/file/v1"
-	sys "github.com/begonia-org/go-sdk/api/sys/v1"
 	user "github.com/begonia-org/go-sdk/api/user/v1"
 	"github.com/begonia-org/go-sdk/logger"
 
@@ -32,9 +31,17 @@ func NewEndpointSvrForTest(config *tiga.Configuration, log logger.Logger) ep.End
 func NewFileSvrForTest(config *tiga.Configuration, log logger.Logger) file.FileServiceServer {
 	panic(wire.Build(biz.ProviderSet, data.ProviderSet, pkg.ProviderSet, NewFileService))
 }
-func NewSysSvrForTest(config *tiga.Configuration, log logger.Logger) sys.SystemServiceServer {
-	panic(wire.Build(NewSysService))
-}
+
+//	func NewSysSvrForTest(config *tiga.Configuration, log logger.Logger) sys.SystemServiceServer {
+//		panic(wire.Build(NewSysService))
+//	}
 func NewUserSvrForTest(config *tiga.Configuration, log logger.Logger) user.UserServiceServer {
 	panic(wire.Build(biz.ProviderSet, pkg.ProviderSet, data.ProviderSet, NewUserService))
 }
+
+// func NewBusinessSvrForTest(config *tiga.Configuration, log logger.Logger) user.BusinessServiceServer {
+// 	panic(wire.Build(biz.ProviderSet, pkg.ProviderSet, data.ProviderSet, NewBusinessService))
+// }
+// func NewTenantSvrForTest(config *tiga.Configuration, log logger.Logger) user.TenantsServiceServer {
+// 	panic(wire.Build(biz.ProviderSet, pkg.ProviderSet, data.ProviderSet, NewTenantService))
+// }

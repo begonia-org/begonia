@@ -31,7 +31,7 @@ func New(config *config.Config,
 ) *PluginsApply {
 	jwt := auth.NewJWTAuth(config, rdb, user, log)
 	ak := auth.NewAccessKeyAuth(authz, config, log)
-	apiKey := auth.NewApiKeyAuth(config,user)
+	apiKey := auth.NewApiKeyAuth(config, user)
 	plugins := map[string]gosdk.LocalPlugin{
 		"onlyJWT":           jwt,
 		"onlyAK":            ak,
@@ -99,6 +99,14 @@ func (p *PluginsApply) StreamInterceptorChains() []grpc.StreamServerInterceptor 
 	chains := make([]grpc.StreamServerInterceptor, 0)
 	for _, plugin := range p.Plugins {
 		chains = append(chains, plugin.(gosdk.LocalPlugin).StreamInterceptor)
+	}
+	return chains
+}
+
+func (p *PluginsApply) StreamClientInterceptorChains() []grpc.StreamClientInterceptor {
+	chains := make([]grpc.StreamClientInterceptor, 0)
+	for _, plugin := range p.Plugins {
+		chains = append(chains, plugin.(gosdk.LocalPlugin).StreamClientInterceptor)
 	}
 	return chains
 }

@@ -51,7 +51,7 @@ var eps []loadbalance.Endpoint
 
 func newTestServer(gwPort, randomNumber int) (*GrpcServerOptions, *GatewayConfig) {
 	opts := &GrpcServerOptions{
-		Middlewares:     make([]GrpcProxyMiddleware, 0),
+		Middlewares:     make([]grpc.StreamClientInterceptor, 0),
 		Options:         make([]grpc.ServerOption, 0),
 		PoolOptions:     make([]loadbalance.PoolOptionsBuildOption, 0),
 		HttpMiddlewares: make([]gwRuntime.ServeMuxOption, 0),
@@ -68,6 +68,8 @@ func newTestServer(gwPort, randomNumber int) (*GrpcServerOptions, *GatewayConfig
 	opts.HttpMiddlewares = append(opts.HttpMiddlewares, gwRuntime.WithMarshalerOption(gwRuntime.MIMEWildcard, NewRawBinaryUnmarshaler()))
 	opts.HttpMiddlewares = append(opts.HttpMiddlewares, gwRuntime.WithMarshalerOption("application/octet-stream", NewRawBinaryUnmarshaler()))
 	opts.HttpMiddlewares = append(opts.HttpMiddlewares, gwRuntime.WithMarshalerOption("text/event-stream", NewEventSourceMarshaler()))
+	opts.HttpMiddlewares = append(opts.HttpMiddlewares, gwRuntime.WithStreamErrorHandler(HandleServerStreamError(Log)))
+
 	opts.HttpMiddlewares = append(opts.HttpMiddlewares, gwRuntime.WithMarshalerOption(ClientStreamContentType, NewProtobufWithLengthPrefix()))
 	opts.HttpMiddlewares = append(opts.HttpMiddlewares, gwRuntime.WithMetadata(IncomingHeadersToMetadata))
 	opts.HttpMiddlewares = append(opts.HttpMiddlewares, gwRuntime.WithErrorHandler(HandleErrorWithLogger(Log)))
@@ -131,6 +133,7 @@ func testRegisterClient(t *testing.T) {
 
 		load, err := loadbalance.New(loadbalance.RRBalanceType, endps)
 		c.So(err, c.ShouldBeNil)
+		gw.RegisterServiceWithProxy(pd)
 		err = gw.RegisterService(context.Background(), pd, load)
 		c.So(err, c.ShouldBeNil)
 		c.So(gw.GetLoadbalanceName(), c.ShouldEqual, loadbalance.RRBalanceType)
@@ -194,7 +197,7 @@ func testRequestGet(t *testing.T) {
 		c.So(err, c.ShouldBeNil)
 		c.So(resp2.StatusCode, c.ShouldEqual, http.StatusNotImplemented)
 
-		// test appkey 
+		// test appkey
 		url = fmt.Sprintf("http://127.0.0.1:%d/api/v1/example/world?msg=hello", gwPort)
 		r, err = http.NewRequest(http.MethodGet, url, nil)
 		r.Header.Set(XApiKey, "12345678")
@@ -319,8 +322,6 @@ func testRequestPost(t *testing.T) {
 func testServerSideEvent(t *testing.T) {
 	c.Convey("test server side event", t, func() {
 		url := fmt.Sprintf("http://127.0.0.1:%d/api/v1/example/server/sse/world?msg=hello", gwPort)
-		// t.Logf("url:%s", url)
-		// time.Sleep(30 * time.Second)
 		client := sse.NewClient(url, func(c *sse.Client) {
 			c.ReconnectStrategy = &backoff.StopBackOff{}
 		})
@@ -364,6 +365,7 @@ func testWebsocket(t *testing.T) {
 			_, message, err := conn.ReadMessage()
 			c.So(err, c.ShouldBeNil)
 			reply := &hello.HelloReply{}
+			// t.Logf("read message:%s", string(message))
 			err = json.Unmarshal(message, reply)
 			c.So(err, c.ShouldBeNil)
 			c.So(reply.Message, c.ShouldEqual, fmt.Sprintf("hello-%d-%d", i, i))
@@ -660,6 +662,10 @@ func testRequestError(t *testing.T) {
 			{
 				patch:  (*GrpcLoadBalancer).Select,
 				output: []interface{}{nil, fmt.Errorf("test select error")},
+			},
+			{
+				patch:  (*goloadbalancer.ConnPool).Get,
+				output: []interface{}{nil, fmt.Errorf("test get error")},
 			},
 			{
 				patch:  (*GrpcProxy).forwardServerToClient,

@@ -3,9 +3,8 @@ package middleware
 import (
 	"context"
 	"fmt"
-	"strings"
 
-	"github.com/begonia-org/begonia/internal/pkg/routers"
+	"github.com/begonia-org/begonia/gateway"
 	gosdk "github.com/begonia-org/go-sdk"
 	_ "github.com/begonia-org/go-sdk/api/app/v1"
 	_ "github.com/begonia-org/go-sdk/api/endpoint/v1"
@@ -19,7 +18,6 @@ import (
 	"google.golang.org/genproto/googleapis/api/httpbody"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -38,28 +36,24 @@ type HttpStream struct {
 	grpc.ServerStream
 	FullMethod string
 }
+
 type Http struct {
 	priority int
 	name     string
 }
 
 func (s *HttpStream) SendMsg(m interface{}) error {
-	ctx := s.ServerStream.Context()
-	md, ok := metadata.FromIncomingContext(ctx)
-	if !ok {
-		return s.ServerStream.SendMsg(m)
-	}
-	if protocol, ok := md["grpcgateway-accept"]; ok {
-		if !strings.EqualFold(protocol[0], "application/json") {
+
+	routersList := gateway.GetRouter()
+	router := routersList.GetRouteByGrpcMethod(s.FullMethod)
+	// 对内置服务的http响应进行格式化
+	if routersList.IsLocalSrv(s.FullMethod) || (router != nil && router.UseJsonResponse) {
+		if _, ok := m.(*httpbody.HttpBody); ok {
 			return s.ServerStream.SendMsg(m)
 		}
-		routersList := routers.Get()
-		router := routersList.GetRouteByGrpcMethod(s.FullMethod)
-		// 对内置服务的http响应进行格式化
-		if routersList.IsLocalSrv(s.FullMethod) || router.UseJsonResponse {
-			rsp, _ := grpcToHttpResponse(m, nil)
-			return s.ServerStream.SendMsg(rsp)
-		}
+		rsp, _ := grpcToHttpResponse(m, s.Context().Err())
+		err := s.ServerStream.SendMsg(rsp)
+		return err
 	}
 	return s.ServerStream.SendMsg(m)
 }
@@ -94,7 +88,6 @@ func toStructMessage(msg protoreflect.ProtoMessage) (*structpb.Struct, error) {
 	return structMsg, nil
 }
 func grpcToHttpResponse(rsp interface{}, err error) (*common.HttpResponse, error) {
-
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			details := st.Details()
@@ -102,7 +95,6 @@ func grpcToHttpResponse(rsp interface{}, err error) (*common.HttpResponse, error
 				if anyType, ok := detail.(*anypb.Any); ok {
 					var errDetail common.Errors
 					var stErr = anyType.UnmarshalTo(&errDetail)
-
 					if stErr == nil {
 						rspCode := int32(errDetail.Code)
 						codesMap := getClientMessageMap()
@@ -125,7 +117,13 @@ func grpcToHttpResponse(rsp interface{}, err error) (*common.HttpResponse, error
 			if st.Code() == codes.Unimplemented {
 				code = int32(common.Code_NOT_FOUND)
 			}
+			if st.Code() == codes.InvalidArgument {
+				code = int32(common.Code_PARAMS_ERROR)
+			}
+			if st.Code() == codes.AlreadyExists {
+				code = int32(common.Code_CONFLICT)
 
+			}
 			return &common.HttpResponse{
 				Code:    code,
 				Message: st.Message(),
@@ -155,25 +153,19 @@ func grpcToHttpResponse(rsp interface{}, err error) (*common.HttpResponse, error
 	}, err
 }
 func (h *Http) UnaryInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-	md, ok := metadata.FromIncomingContext(ctx)
-	if !ok {
-		return handler(ctx, req)
-	}
-	if protocol, ok := md["grpcgateway-accept"]; ok {
-		if !strings.EqualFold(protocol[0], "application/json") {
-			return handler(ctx, req)
+
+	routersList := gateway.GetRouter()
+	router := routersList.GetRouteByGrpcMethod(info.FullMethod)
+	// 对内置服务的http响应进行格式化
+	if routersList.IsLocalSrv(info.FullMethod) || router.UseJsonResponse {
+		// ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("content-type", "application/json"))
+		rsp, err := handler(ctx, req)
+		if _, ok := rsp.(*httpbody.HttpBody); ok {
+			return rsp, err
 		}
-		routersList := routers.Get()
-		router := routersList.GetRouteByGrpcMethod(info.FullMethod)
-		// 对内置服务的http响应进行格式化
-		if routersList.IsLocalSrv(info.FullMethod) || router.UseJsonResponse {
-			rsp, err := handler(ctx, req)
-			if _, ok := rsp.(*httpbody.HttpBody); ok {
-				return rsp, err
-			}
-			return grpcToHttpResponse(rsp, err)
-		}
+		return grpcToHttpResponse(rsp, err)
 	}
+	// }
 
 	return handler(ctx, req)
 }
@@ -183,7 +175,13 @@ func (h *Http) StreamInterceptor(srv interface{}, ss grpc.ServerStream, info *gr
 	return handler(srv, stream)
 
 }
-
+func (h *Http) StreamClientInterceptor(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, streamer grpc.Streamer, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+	ss, err := streamer(ctx, desc, cc, method, opts...)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "create client stream error:%s", err.Error())
+	}
+	return ss, nil
+}
 func NewHttp() *Http {
 	return &Http{name: "http"}
 }

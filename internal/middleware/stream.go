@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"fmt"
+	"log"
 	"sync"
 
 	gosdk "github.com/begonia-org/go-sdk"
@@ -20,6 +21,13 @@ type grpcPluginStream struct {
 	ctx      context.Context
 }
 
+// type grpcPluginClientStream struct {
+// 	grpc.ClientStream
+// 	fullName string
+// 	plugin   *pluginImpl
+// 	ctx      context.Context
+// }
+
 var streamPool = &sync.Pool{
 	New: func() interface{} {
 		return &grpcPluginStream{
@@ -28,11 +36,19 @@ var streamPool = &sync.Pool{
 	},
 }
 
+//	func NewGrpcPluginClientStream(s grpc.ClientStream, fullName string, ctx context.Context, plugin *pluginImpl) *grpcPluginClientStream {
+//		return &grpcPluginClientStream{
+//			ClientStream: s,
+//			fullName:     fullName,
+//			ctx:          ctx,
+//			plugin:       plugin,
+//		}
+//	}
 func NewGrpcPluginStream(s grpc.ServerStream, fullName string, ctx context.Context, plugin *pluginImpl) *grpcPluginStream {
 	stream := streamPool.Get().(*grpcPluginStream)
 	stream.ServerStream = s
 	stream.fullName = fullName
-	stream.ctx = s.Context()
+	stream.ctx = ctx
 	stream.plugin = plugin
 	return stream
 }
@@ -46,22 +62,20 @@ func (g *grpcPluginStream) Release() {
 func (g *grpcPluginStream) Context() context.Context {
 	return g.ctx
 }
+
 func (s *grpcPluginStream) RecvMsg(m interface{}) error {
 	if err := s.ServerStream.RecvMsg(m); err != nil {
 		return err
 	}
 
-	rsp, err := s.plugin.Apply(s.Context(), m, s.fullName)
+	rsp, header, err := s.plugin.Apply(s.Context(), m, s.fullName)
 	if err != nil {
 		return gosdk.NewError(fmt.Errorf("call %s plugin error: %w", s.plugin.Name(), err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "call_plugin")
 
 	}
 	md, ok := metadata.FromIncomingContext(s.ctx)
 	if !ok {
-		md = metadata.New(nil)
-	}
-	for k, v := range rsp.Metadata {
-		md.Append(k, v)
+		md = metadata.New(make(map[string]string))
 	}
 	newRequest := rsp.NewRequest
 	if newRequest != nil {
@@ -69,6 +83,10 @@ func (s *grpcPluginStream) RecvMsg(m interface{}) error {
 		if err != nil {
 			return gosdk.NewError(fmt.Errorf("unmarshal to request error: %w", err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "unmarshal_to_request")
 		}
+	}
+	log.Printf("grpcPluginStream server stream pointer:%p", s)
+	for k, v := range header {
+		md[k] = append(md[k], v...)
 	}
 	s.ctx = metadata.NewIncomingContext(s.ctx, md)
 

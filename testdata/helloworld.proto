@@ -1,0 +1,102 @@
+syntax = "proto3";
+
+option go_package = "github.com/begonia-org/begonia/gateway/helloworld";
+option java_multiple_files = true;
+option java_package = "io.grpc.examples.helloworld";
+option java_outer_classname = "HelloWorldProto";
+option objc_class_prefix = "HLW";
+
+package helloworld;
+
+import "google/api/annotations.proto";
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/descriptor.proto";
+import "google/api/httpbody.proto";
+// The greeting service definition.
+// The greeting service definition.
+service Greeter {
+  // Sends a greeting
+  rpc SayHello (HelloRequest) returns (HelloReply) {
+    option (google.api.http)={
+		post:"/api/v1/example/post"
+		body:"*"
+	};
+  }
+    rpc SayHelloGet (HelloRequest) returns (HelloReply) {
+    option (google.api.http)={
+		get:"/api/v1/example/{name}"
+	};
+  }
+  rpc SayHelloRPC (HelloRequest) returns (HelloReply) {
+}
+
+  rpc SayHelloServerSideEvent (HelloRequest) returns (stream HelloReply) {
+    option (google.api.http) = {
+        get: "/api/v1/example/server/sse/{name}"
+      };
+  }
+
+  rpc SayHelloClientStream (stream HelloRequest) returns (RepeatedReply) {
+    option (google.api.http) = {
+        post: "/api/v1/example/client/stream"
+        body: "*"
+      };
+
+  }
+  rpc SayHelloWebsocket (stream HelloRequest) returns (stream HelloReply) {
+    option (google.api.http) = {
+        get: "/api/v1/example/server/websocket"
+      };
+  }
+  rpc SayHelloBody (google.api.HttpBody) returns (google.api.HttpBody) {
+    option (google.api.http) = {
+        post: "/api/v1/example/body"
+      };
+  }
+  rpc SayHelloError (ErrorRequest) returns (HelloReply) {
+    option (google.api.http) = {
+        get: "/api/v1/example/error/test"
+      };
+  }
+  
+}
+
+message ErrorRequest {
+  string msg = 1;
+  int32 code = 2;
+}
+// The request message containing the user's name.
+message HelloRequest {
+  string msg = 1;
+  string name = 2;
+}
+
+// The response message containing the greetings
+message HelloReply {
+  string message = 1;
+  string name = 2;
+}
+message RepeatedReply{
+    repeated HelloReply replies = 1;
+}
+enum EnumAllow {
+  ALLOW = 0;
+  DENY = 1;
+}
+message ExampleMessage {
+  string message = 1;
+  int32 code = 2;
+  double float_num = 3[json_name="float_num"];
+  float float_data = 14[json_name="float_data"];
+  bytes byte_data = 4[json_name="byte_data"];
+  bool bool_data = 5[json_name="bool_data"];
+  EnumAllow allow = 6;
+  repeated int64 repeated_data = 7[json_name="repeated_data"];
+  fixed64 fixed_data = 8[json_name="fixed_data"];
+  sfixed64 sfixed_data = 9[json_name="sfixed_data"];
+  sfixed32 sfixed32_data = 10[json_name="sfixed32_data"];
+  fixed32 fixed32_data = 11[json_name="fixed32_data"];
+  repeated HelloRequest repeated_msg = 12[json_name="repeated_msg"];
+  HelloRequest msg = 13;
+  google.protobuf.FieldMask mask = 18;
+}

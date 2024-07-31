@@ -67,7 +67,7 @@ func readInitAPP(env string) {
 	addr = gw.Addr
 
 }
-func RegisterEndpoint(env,name string, endpoints []string, pbFile string, opts ...client.EndpointOption) {
+func RegisterEndpoint(env, name string, endpoints []string, pbFile string, opts ...client.EndpointOption) {
 	readInitAPP(env)
 	pb, err := os.ReadFile(pbFile)
 	if err != nil {
@@ -103,7 +103,7 @@ func RegisterEndpoint(env,name string, endpoints []string, pbFile string, opts .
 	log.Printf("#####################Add Endpoint Success#####################")
 	log.Printf("#####################ID:%s####################################", rsp.Id)
 }
-func UpdateEndpoint(env,id string, mask []string, opts ...client.EndpointOption) {
+func UpdateEndpoint(env, id string, mask []string, opts ...client.EndpointOption) {
 	readInitAPP(env)
 	apiClient := client.NewEndpointAPI(addr, accessKey, secret)
 	log.Printf("#####################Update Endpoint###########################")
@@ -120,7 +120,7 @@ func UpdateEndpoint(env,id string, mask []string, opts ...client.EndpointOption)
 	log.Printf("#####################Update Endpoint %s Success#####################", id)
 
 }
-func DeleteEndpoint(env,id string) {
+func DeleteEndpoint(env, id string) {
 	readInitAPP(env)
 	apiClient := client.NewEndpointAPI(addr, accessKey, secret)
 	log.Printf("#####################Delete Endpoint:%s#####################", id)

@@ -47,3 +47,10 @@ func NewLocker(cfg *tiga.Configuration, log logger.Logger, key string, ttl time.
 func NewFileRepo(cfg *tiga.Configuration, log logger.Logger) file.FileRepo {
 	panic(wire.Build(ProviderSet, config.NewConfig))
 }
+func NewBusinessRepo(cfg *tiga.Configuration, log logger.Logger) biz.BusinessRepo {
+	panic(wire.Build(ProviderSet, config.NewConfig))
+}
+
+func NewTenantRepo(cfg *tiga.Configuration, log logger.Logger) biz.TenantRepo {
+	panic(wire.Build(ProviderSet, config.NewConfig))
+}

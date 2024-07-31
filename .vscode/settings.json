@@ -2,5 +2,6 @@
 	"editor.insertSpaces": true,
     "editor.detectIndentation": false,
     "go.formatTool": "goimports",
-    "editor.formatOnSave": true
+    "editor.formatOnSave": true,
+    "go.testTimeout": "60s"
 }

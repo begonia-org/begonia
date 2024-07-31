@@ -325,7 +325,7 @@ func (f *FileUsecaseImpl) Upload(ctx context.Context, in *api.UploadFileRequest,
 	if updated {
 		existsObj, err := f.repo.GetFile(ctx, fileObj.Engine, fileObj.Bucket, fileObj.Key)
 		if err != nil {
-			return nil, gosdk.NewError(fmt.Errorf("get updated file error:%w",err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_file")
+			return nil, gosdk.NewError(fmt.Errorf("get updated file error:%w", err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_file")
 		}
 		if existsObj != nil {
 			uid = existsObj.Uid
@@ -541,13 +541,13 @@ func (f *FileUsecaseImpl) CompleteMultipartUploadFile(ctx context.Context, in *a
 	// log.Printf("insert %s,%s,%s,%s", fileObj.Uid, fileObj.Bucket, fileObj.Key, fileObj.Engine)
 	updated, err := f.repo.UpsertFile(ctx, fileObj)
 	if err != nil {
-		return nil, gosdk.NewError(fmt.Errorf("insert or update file err:%w",err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "upsert_file")
+		return nil, gosdk.NewError(fmt.Errorf("insert or update file err:%w", err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "upsert_file")
 	}
 	uid := fileObj.Uid
 	if updated {
 		existsObj, err := f.repo.GetFile(ctx, fileObj.Engine, fileObj.Bucket, fileObj.Key)
 		if err != nil {
-			return nil, gosdk.NewError(fmt.Errorf("get updated file error:%w",err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_file")
+			return nil, gosdk.NewError(fmt.Errorf("get updated file error:%w", err), int32(common.Code_INTERNAL_ERROR), codes.Internal, "get_file")
 		}
 		if existsObj != nil {
 			uid = existsObj.Uid

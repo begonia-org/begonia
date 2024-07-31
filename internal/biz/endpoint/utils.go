@@ -7,14 +7,13 @@ import (
 
 	"github.com/begonia-org/begonia/gateway"
 	"github.com/begonia-org/begonia/internal/pkg/config"
-	"github.com/begonia-org/begonia/internal/pkg/routers"
 	gosdk "github.com/begonia-org/go-sdk"
 	common "github.com/begonia-org/go-sdk/common/api/v1"
 	"google.golang.org/grpc/codes"
 )
 
 func deleteAll(ctx context.Context, pd gateway.ProtobufDescription) error {
-	routersList := routers.Get()
+	routersList := gateway.GetRouter()
 	routersList.DeleteRouters(pd)
 	gw := gateway.Get()
 	gw.DeleteLoadBalance(pd)

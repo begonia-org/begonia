@@ -4,9 +4,9 @@ import (
 	"context"
 	"strings"
 
+	"github.com/begonia-org/begonia/gateway"
 	"github.com/begonia-org/begonia/internal/biz"
 	"github.com/begonia-org/begonia/internal/pkg/config"
-	"github.com/begonia-org/begonia/internal/pkg/routers"
 	gosdk "github.com/begonia-org/go-sdk"
 	"github.com/begonia-org/go-sdk/logger"
 	"google.golang.org/grpc"
@@ -34,7 +34,7 @@ func NewAccessKeyAuth(app *biz.AccessKeyAuth, config *config.Config, log logger.
 }
 
 func IfNeedValidate(ctx context.Context, fullMethod string) bool {
-	routersList := routers.Get()
+	routersList := gateway.GetRouter()
 	router := routersList.GetRouteByGrpcMethod(strings.ToUpper(fullMethod))
 	if router == nil {
 		return false
@@ -63,32 +63,39 @@ func (a *AccessKeyAuthMiddleware) RequestBefore(ctx context.Context, info *grpc.
 	if !ok {
 		md = metadata.MD{}
 	}
-	// md.Set(gosdk.HeaderXIdentity, owner)
-	md = metadata.Join(md, metadata.Pairs(gosdk.HeaderXIdentity, owner))
+	md.Set(gosdk.HeaderXIdentity, owner)
+	// md = metadata.Join(md, metadata.Pairs(gosdk.HeaderXIdentity, owner))
 
 	ctx = metadata.NewIncomingContext(ctx, md)
 	// md2, _ := metadata.FromIncomingContext(ctx)
-
 
 	return ctx, nil
 
 }
 
-func (a *AccessKeyAuthMiddleware) ValidateStream(ctx context.Context, req interface{}, fullName string, headers Header) (context.Context, error) {
-	ctx,err:= a.RequestBefore(ctx, &grpc.UnaryServerInfo{FullMethod: fullName}, req)
-	if err!=nil{
-		return ctx,err
+func (a *AccessKeyAuthMiddleware) ValidateStream(ctx context.Context, req interface{}, fullName string) (context.Context, error) {
+	ctx, err := a.RequestBefore(ctx, &grpc.UnaryServerInfo{FullMethod: fullName}, req)
+	if err != nil {
+		return ctx, err
 	}
-	md, _ := metadata.FromIncomingContext(ctx)
-	if identity := md.Get(gosdk.HeaderXIdentity);len(identity)>0{
-		headers.Set(strings.ToLower(gosdk.HeaderXIdentity), identity[0])
-	}
-	return ctx,nil
-	
+
+	return ctx, nil
+
 }
 func (a *AccessKeyAuthMiddleware) StreamRequestBefore(ctx context.Context, ss grpc.ServerStream, info *grpc.StreamServerInfo, req interface{}) (grpc.ServerStream, error) {
-	grpcStream := NewGrpcStream(ss, info.FullMethod, ss.Context(), a)
-	// defer grpcStream.Release()
+	if in, ok := metadata.FromIncomingContext(ctx); ok {
+		if ak := in.Get(gosdk.HeaderXAccessKey); len(ak) > 0 {
+			identity, err := a.app.GetAppOwner(ctx, ak[0])
+			if err != nil {
+				return nil, status.Errorf(codes.Unauthenticated, "get app owner error,%v", err)
+			}
+			md, _ := metadata.FromIncomingContext(ctx)
+			md.Set(gosdk.HeaderXIdentity, identity)
+			ctx = metadata.NewIncomingContext(ctx, md)
+			ctx = metadata.NewOutgoingContext(ctx, md)
+		}
+	}
+	grpcStream := NewGrpcStream(ss, info.FullMethod, ctx, a)
 	return grpcStream, nil
 
 }
@@ -104,6 +111,7 @@ func (a *AccessKeyAuthMiddleware) UnaryInterceptor(ctx context.Context, req any,
 	defer func() {
 		_ = a.ResponseAfter(ctx, info, req, resp)
 	}()
+
 	resp, err = handler(ctx, req)
 
 	return resp, err
@@ -112,10 +120,12 @@ func (a *AccessKeyAuthMiddleware) StreamInterceptor(srv interface{}, ss grpc.Ser
 	if !IfNeedValidate(ss.Context(), info.FullMethod) {
 		return handler(srv, ss)
 	}
+
 	grpcStream, err := a.StreamRequestBefore(ss.Context(), ss, info, srv)
 	if err != nil {
 		return err
 	}
+	// log.Printf("AccessKeyAuthMiddleware StreamInterceptor")
 	defer func() {
 		err := a.StreamResponseAfter(ss.Context(), ss, info)
 		if err != nil {
@@ -145,4 +155,35 @@ func (a *AccessKeyAuthMiddleware) Priority() int {
 }
 func (a *AccessKeyAuthMiddleware) Name() string {
 	return a.name
+}
+func (a *AccessKeyAuthMiddleware) StreamClientInterceptor(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, streamer grpc.Streamer, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+	if !IfNeedValidate(ctx, method) {
+		return streamer(ctx, desc, cc, method, opts...)
+	}
+
+	md, ok := metadata.FromOutgoingContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "metadata not exists in context")
+	}
+	if AK := md.Get(gosdk.HeaderXAccessKey); len(AK) > 0 {
+		accessKey := AK[0]
+		identity, err := a.app.GetAppOwner(ctx, accessKey)
+		if err != nil {
+			return nil, status.Errorf(codes.Unauthenticated, "get app owner error,%v", err)
+		}
+		md.Set(gosdk.HeaderXIdentity, identity)
+		ctx = metadata.NewOutgoingContext(ctx, md)
+		in, ok := metadata.FromIncomingContext(ctx)
+		if !ok {
+			in = metadata.MD{}
+		}
+		in.Set(gosdk.HeaderXIdentity, identity)
+		ctx = metadata.NewIncomingContext(ctx, in)
+		// ctx = metadata.NewIncomingContext()
+	}
+	st, err := streamer(ctx, desc, cc, method, opts...)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "streamer error,%v", err)
+	}
+	return st, nil
 }

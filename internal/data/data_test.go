@@ -8,8 +8,8 @@ import (
 
 	"github.com/begonia-org/begonia"
 	cfg "github.com/begonia-org/begonia/config"
-	"github.com/spark-lence/tiga"
 	user "github.com/begonia-org/go-sdk/api/user/v1"
+	"github.com/spark-lence/tiga"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
@@ -65,7 +65,7 @@ func setup() {
 	}
 	mysql := tiga.NewMySQLDao(conf)
 	mysql.RegisterTimeSerializer()
-	err=mysql.GetModel(&user.Users{}).Where("`group` = ?", "test-user-01").Delete(&user.Users{}).Error
+	err = mysql.GetModel(&user.Users{}).Where("`group` = ?", "test-user-01").Delete(&user.Users{}).Error
 	if err != nil {
 		log.Fatalf("Failed to delete keys with prefix %s: %v", prefix, err)
 	}

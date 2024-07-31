@@ -227,7 +227,7 @@ func (c *Config) GetServiceTagsPrefix() string {
 	return fmt.Sprintf("%s/tags", prefix)
 }
 func (c *Config) GetServiceKey(key string) string {
-	if tiga.IsSnowflakeID(key){
+	if tiga.IsSnowflakeID(key) {
 		prefix := c.GetServicePrefix()
 		return filepath.Join(prefix, key)
 	}

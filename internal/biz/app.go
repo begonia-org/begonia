@@ -63,12 +63,12 @@ func (a *AppUsecase) CreateApp(ctx context.Context, in *api.AppsRequest, owner s
 	appid := GenerateAppid(a.snowflake)
 	accessKey, err := GenerateAppAccessKey()
 	if err != nil {
-		return nil, gosdk.NewError(err, int32(api.APPSvrCode_APP_CREATE_ERR), codes.Internal, "generate_app_access_key")
+		return nil, gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "generate_app_access_key")
 
 	}
 	secret, err := GenerateAppSecret()
 	if err != nil {
-		return nil, gosdk.NewError(err, int32(api.APPSvrCode_APP_CREATE_ERR), codes.Internal, "generate_app_secret_key")
+		return nil, gosdk.NewError(err, int32(common.Code_INTERNAL_ERROR), codes.Internal, "generate_app_secret_key")
 	}
 	app := a.newApp()
 	app.AccessKey = accessKey

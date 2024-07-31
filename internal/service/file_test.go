@@ -34,7 +34,8 @@ import (
 )
 
 var fileBucket = ""
-var localFileId=""
+var localFileId = ""
+
 func sumFileSha256(src string) (string, error) {
 	file, err := os.Open(src)
 	if err != nil {
@@ -63,24 +64,23 @@ func makeBucket(t *testing.T) {
 	c.Convey("test make bucket", t, func() {
 		fileBucket = fmt.Sprintf("test-service-bucket-%s", time.Now().Format("20060102150405"))
 		apiClient := client.NewFilesAPI(apiAddr, accessKey, secret, api.FileEngine_FILE_ENGINE_LOCAL)
-		rsp, err := apiClient.CreateBucket(context.Background(), fileBucket, "test", false,true)
+		rsp, err := apiClient.CreateBucket(context.Background(), fileBucket, "test", false, true)
 		c.So(err, c.ShouldBeNil)
 		c.So(rsp.StatusCode, c.ShouldEqual, common.Code_OK)
+		t.Logf("access key:%s", accessKey)
 		minioFile := client.NewFilesAPI(apiAddr, accessKey, secret, api.FileEngine_FILE_ENGINE_MINIO)
-		rsp, err = minioFile.CreateBucket(context.Background(), fileBucket, "test", false,true)
+		rsp, err = minioFile.CreateBucket(context.Background(), fileBucket, "test", false, true)
 		c.So(err, c.ShouldBeNil)
 		c.So(rsp.StatusCode, c.ShouldEqual, common.Code_OK)
-
 
 		// no idend
 		patch := gomonkey.ApplyFuncReturn(service.GetIdentity, "")
 		defer patch.Reset()
 
 		// apiClient := client.NewFilesAPI(apiAddr, accessKey, secret, api.FileEngine_FILE_ENGINE_LOCAL)
-		_, err = apiClient.CreateBucket(context.Background(), fileBucket, "test", false,true)
+		_, err = apiClient.CreateBucket(context.Background(), fileBucket, "test", false, true)
 		c.So(err, c.ShouldNotBeNil)
 		patch.Reset()
-
 
 	})
 }
@@ -226,7 +226,6 @@ func download(t *testing.T) {
 		t.Log(sha256Str)
 		c.So(sha256Str, c.ShouldEqual, downloadedSha256)
 
-
 		patch2 := gomonkey.ApplyFuncReturn((*service.FileService).Metadata, nil, fmt.Errorf("test metadata error"))
 		defer patch2.Reset()
 		_, err = apiClient.DownloadFile(context.Background(), "test/helloworld.pb", tmp.Name(), "", fileBucket)
@@ -236,14 +235,14 @@ func download(t *testing.T) {
 
 		// query by fid
 		sha256Str, err = apiClient.DownloadFile(context.Background(), localFileId, tmp.Name(), "", fileBucket)
-		c.So(err,c.ShouldBeNil)
-		c.So(sha256Str,c.ShouldNotBeEmpty)
+		c.So(err, c.ShouldBeNil)
+		c.So(sha256Str, c.ShouldNotBeEmpty)
 
-		patch3:=gomonkey.ApplyFuncReturn((*service.FileService).GetFileById, nil, fmt.Errorf("test get file by id error"))
+		patch3 := gomonkey.ApplyFuncReturn((*service.FileService).GetFileById, nil, fmt.Errorf("test get file by id error"))
 		defer patch3.Reset()
 		_, err = apiClient.DownloadFile(context.Background(), localFileId, tmp.Name(), "", fileBucket)
 		patch3.Reset()
-		c.So(err,c.ShouldNotBeNil)
+		c.So(err, c.ShouldNotBeNil)
 
 	})
 }

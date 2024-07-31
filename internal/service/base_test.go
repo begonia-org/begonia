@@ -58,7 +58,7 @@ func readInitAPP() {
 	op := internal.InitOperatorApp(config.ReadConfig(env))
 	_ = op.Init()
 	path := filepath.Join(homeDir, ".begonia")
-	path = filepath.Join(path, fmt.Sprintf("admin-app.%s.json",env))
+	path = filepath.Join(path, fmt.Sprintf("admin-app.%s.json", env))
 	file, err := os.Open(path)
 	if err != nil {
 
@@ -159,7 +159,7 @@ func clean() {
 
 	mysql := tiga.NewMySQLDao(conf)
 	mysql.RegisterTimeSerializer()
-	err=mysql.GetModel(&user.Users{}).Where("`group` = ?", "test-user-01").Delete(&user.Users{}).Error
+	err = mysql.GetModel(&user.Users{}).Where("`group` = ?", "test-user-01").Delete(&user.Users{}).Error
 	if err != nil {
 		log.Fatalf("Failed to delete keys with prefix %s: %v", prefix, err)
 	}
