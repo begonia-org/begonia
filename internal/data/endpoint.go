@@ -47,16 +47,40 @@ func (e *endpointRepoImpl) Del(ctx context.Context, id string) error {
 	}
 	return nil
 }
+func (e *endpointRepoImpl) ServiceNameExists(ctx context.Context, name, id string) error {
+	srvNameKey := e.cfg.GetServiceNameKey(name)
+	if val, err := e.Get(ctx, srvNameKey); err != nil || val != "" {
+		if val != "" {
+			ep := make(map[string]interface{})
+			err := json.Unmarshal([]byte(val), &ep)
+			if err != nil {
+				return fmt.Errorf("unmarshal service name error: %w", err)
+			}
+			if ep["uid"] != id {
+				return fmt.Errorf("%s service name already exists in %s",ep["uid"],id)
+			}
+			return nil
+		}
+		return fmt.Errorf("get service name fail: %w", err)
+	}
+	return nil
+}
 func (e *endpointRepoImpl) Put(ctx context.Context, endpoint *api.Endpoints) error {
+
 	ops := make([]clientv3.Op, 0)
 	srvKey := e.cfg.GetServiceKey(endpoint.Key)
 	for _, tag := range endpoint.Tags {
 		tagKey := e.cfg.GetTagsKey(tag, endpoint.Key)
 		ops = append(ops, clientv3.OpPut(tagKey, srvKey))
 	}
-
+	if err := e.ServiceNameExists(ctx, endpoint.ServiceName, endpoint.Key); err != nil {
+		return err
+	}
+	srvNameKey := e.cfg.GetServiceNameKey(endpoint.ServiceName)
 	details, _ := json.Marshal(endpoint)
 	ops = append(ops, clientv3.OpPut(srvKey, string(details)))
+	ops = append(ops, clientv3.OpPut(srvNameKey, string(details)))
+
 	ok, err := e.data.PutEtcdWithTxn(ctx, ops)
 	if err != nil || !ok {
 		// log.Printf("put endpoint fail: %s", err.Error())
@@ -151,6 +175,16 @@ func (e *endpointRepoImpl) Patch(ctx context.Context, id string, patch map[strin
 	if err != nil {
 		return err
 	}
+	// check service name exists
+	if serviceName, ok := patch["service_name"]; ok {
+		if val, ok := serviceName.(string); ok {
+			if err := e.ServiceNameExists(ctx, val, id); err != nil {
+				return err
+			}
+		}
+
+	}
+
 	ops := make([]clientv3.Op, 0)
 	// 更新tags
 	if tags, ok := patch["tags"]; ok && tags != nil {
@@ -213,11 +247,8 @@ func (e *endpointRepoImpl) PutTags(ctx context.Context, id string, tags []string
 	ops = append(ops, clientv3.OpPut(srvKey, string(updated)))
 
 	ok, err := e.data.PutEtcdWithTxn(ctx, ops)
-	if err != nil {
+	if err != nil||!ok {
 		return fmt.Errorf("put tags fail: %w", err)
-	}
-	if !ok {
-		return fmt.Errorf("put tags fail")
 	}
 	return nil
 }

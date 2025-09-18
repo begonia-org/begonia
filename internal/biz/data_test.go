@@ -20,6 +20,7 @@ import (
 	appApi "github.com/begonia-org/go-sdk/api/app/v1"
 	ep "github.com/begonia-org/go-sdk/api/endpoint/v1"
 	api "github.com/begonia-org/go-sdk/api/user/v1"
+	user "github.com/begonia-org/go-sdk/api/user/v1"
 	gwRuntime "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	c "github.com/smartystreets/goconvey/convey"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -33,9 +34,10 @@ import (
 // func TestCreateInBatches(t *testing.T) {
 func TestMain(m *testing.M) {
 	log.Printf("Start testing")
-	setup()
+	// setup()
 	code := m.Run()
 	log.Printf("All tests passed with code %d", code)
+	// setup()
 }
 
 func setup() {
@@ -78,6 +80,13 @@ func setup() {
 	if err != nil {
 		log.Fatalf("Failed to delete keys with prefix %s: %v", prefix, err)
 	}
+	mysql := tiga.NewMySQLDao(conf)
+	mysql.RegisterTimeSerializer()
+	err = mysql.GetModel(&user.Users{}).Where("`group` = ?", "test-user-01").Delete(&user.Users{}).Error
+	if err != nil {
+		log.Fatalf("Failed to delete keys with prefix %s: %v", prefix, err)
+	}
+	log.Printf("Cleaned up test data")
 }
 
 func newDataOperatorUsecase() *biz.DataOperatorUsecase {
